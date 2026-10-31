@@ -1,0 +1,338 @@
+// Clipora — Creator Monetization Platform
+// Prisma schema (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Users & Auth ───────────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  role            String    @default("CREATOR") // CREATOR | ADMIN
+  adminRole       String? // SUPER_ADMIN | MODERATOR | FINANCE (admins only)
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
+  rejectionReason String?
+  suspensionReason String?
+  avatarUrl       String?
+  phone           String?
+  country         String?
+  emailVerified   Boolean   @default(false)
+  monetizationEligible Boolean @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  channel       Channel?
+  sessions      Session[]
+  notifications Notification[]
+  videos        Video[]
+  ledgerEntries LedgerEntry[]
+  withdrawals   Withdrawal[]
+  follows       Follow[]    @relation("Follower")
+  appeals       Appeal[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────── Channels ───────────────────────────────
+
+model Channel {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  username       String   @unique
+  description    String   @default("")
+  avatarUrl      String?
+  bannerUrl      String?
+  category       String?
+  country        String?
+  socialLinks    String? // JSON: {instagram,youtube,x,tiktok,website}
+  followerCount  Int      @default(0)
+  verified       Boolean  @default(false)
+  showEarnings   Boolean  @default(false) // consent to display verified earnings publicly
+  paymentDetails String? // JSON: {method, accountName, maskedAccount}
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  videos    Video[]
+  followers Follow[] @relation("Followed")
+
+  @@index([username])
+}
+
+model Follow {
+  id        String   @id @default(cuid())
+  followerId String
+  follower  User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel  @relation("Followed", fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, channelId])
+}
+
+// ─────────────────────────────── Videos ───────────────────────────────
+
+model Video {
+  id             String    @id @default(cuid())
+  contentId      String    @unique // VID-2026-000001
+  creatorId      String
+  creator        User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  channel        Channel   @relation(fields: [creatorId], references: [userId], onDelete: Cascade)
+  title          String
+  description    String    @default("")
+  category       String
+  hashtags       String    @default("[]") // JSON array
+  videoUrl       String
+  thumbnailUrl   String?
+  duration       Float // seconds
+  fileSizeMB     Float     @default(0)
+  resolution     String    @default("720x1280")
+  format         String    @default("mp4")
+  status         String    @default("PENDING") // PENDING | APPROVED | REJECTED | FLAGGED_DUPLICATE | REMOVED
+  rejectionReason String?
+  // fingerprinting
+  sha256         String?
+  visualHash     String? // 64-bit perceptual hash (hex)
+  audioHash      String? // 64-bit audio fingerprint (hex)
+  duplicateOfId  String? // contentId of matched original
+  similarityScore Float?
+  duplicateStatus String? // PENDING_REVIEW | CONFIRMED_DUPLICATE | FALSE_POSITIVE
+  // monetization
+  uploadRewardCredited Boolean @default(false)
+  monetizationEnabled  Boolean @default(true)
+  earningExpiresAt     DateTime?
+  publishedAt          DateTime?
+  // stats
+  views          Int       @default(0)
+  qualifiedViews Int       @default(0)
+  likes          Int       @default(0)
+  commentsCount  Int       @default(0)
+  shares         Int       @default(0)
+  featured       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  viewEvents   ViewEvent[]
+  comments     Comment[]
+  likesRel     VideoLike[]
+  ledgerEntries LedgerEntry[]
+  reports      ContentReport[]
+  appeals      Appeal[]
+}
+
+model VideoLike {
+  id        String   @id @default(cuid())
+  videoId   String
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId    String?
+  guestKey  String
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, guestKey])
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  videoId      String
+  video        Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId       String?
+  authorName   String
+  authorAvatar String?
+  body         String
+  createdAt    DateTime @default(now())
+}
+
+model ViewEvent {
+  id           String   @id @default(cuid())
+  videoId      String
+  video        Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  viewerKey    String // hashed ip+ua device key
+  isSelf       Boolean  @default(false)
+  qualified    Boolean  @default(false)
+  reason       String? // disqualification reason
+  watchSeconds Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([videoId, viewerKey])
+  @@index([videoId, createdAt])
+}
+
+model ContentReport {
+  id         String   @id @default(cuid())
+  videoId    String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  reporterKey String
+  reason     String // COPYRIGHT | INAPPROPRIATE | SPAM | OTHER
+  details    String?
+  status     String   @default("OPEN") // OPEN | REVIEWING | RESOLVED
+  createdAt  DateTime @default(now())
+}
+
+model Appeal {
+  id        String   @id @default(cuid())
+  videoId   String
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String
+  status    String   @default("OPEN") // OPEN | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────── Monetization ───────────────────────────────
+
+// Append-only rate settings: newest row = active, all rows = historical rates
+model MonetizationSetting {
+  id                      String   @id @default(cuid())
+  ratePer1000Views        Float    @default(1.0)
+  rewardPerUpload         Float    @default(0.5)
+  monetizationDurationMonths Int   @default(4)
+  minWithdrawalAmount     Float    @default(25.0)
+  holdingPeriodDays       Int      @default(7)
+  monetizationPaused      Boolean  @default(false)
+  effectiveDate           DateTime @default(now())
+  active                  Boolean  @default(true)
+  createdBy               String?
+  createdAt               DateTime @default(now())
+}
+
+model UploadRule {
+  id                     String  @id @default(cuid())
+  minDurationSec         Int     @default(40)
+  maxDurationSec         Int     @default(60)
+  maxFileSizeMB          Int     @default(200)
+  maxResolution          String  @default("1080p")
+  formats                String  @default("mp4,mov")
+  maxDailyUploads        Int     @default(2)
+  maxWeeklyUploads       Int     @default(4)
+  requireVideoApproval   Boolean @default(true)
+  rewardRequiresApproval Boolean @default(true)
+  updatedAt              DateTime @updatedAt
+}
+
+// Immutable earnings ledger
+model LedgerEntry {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId       String?
+  video         Video?    @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  type          String // UPLOAD_REWARD | VIEW_EARNING | ADJUSTMENT | WITHDRAWAL_HOLD | WITHDRAWAL_PAID | WITHDRAWAL_REJECTED
+  amount        Float // positive = credit, negative = debit
+  status        String    @default("PENDING") // PENDING (in holding) | AVAILABLE | FINALIZED | REVERSED
+  availableAt   DateTime? // when funds become withdrawable
+  rateSnapshot  Float? // rate per 1000 views at credit time
+  description   String
+  reference     String? // internal reference e.g. TXN-...
+  withdrawalId  String?
+  createdAt     DateTime  @default(now())
+}
+
+model Withdrawal {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Float
+  method       String // BANK_TRANSFER | PAYPAL
+  details      String // JSON with masked account info
+  status       String   @default("REQUESTED") // REQUESTED | UNDER_REVIEW | APPROVED | PROCESSING | PAID | REJECTED
+  adminNote    String?
+  paymentRef   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────── Platform ───────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // APPLICATION_SUBMITTED | ACCOUNT_STATUS | VIDEO_STATUS | DUPLICATE | LIMIT | EARNING | MONETIZATION | WITHDRAWAL | WARNING | ANNOUNCEMENT
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+// Simulated outbound email log (demo environment — no SMTP available)
+model MailLog {
+  id        String   @id @default(cuid())
+  toEmail   String
+  subject   String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  icon        String? // lucide icon name
+  description String?
+  active      Boolean @default(true)
+}
+
+model FraudFlag {
+  id        String   @id @default(cuid())
+  userId    String? // flagged creator
+  videoId   String? // contentId
+  type      String // VIEW_BOT | SELF_VIEW | RAPID_REFRESH | DUPLICATE_CONTENT | UNUSUAL_PATTERN | FAKE_ENGAGEMENT
+  severity  String   @default("MEDIUM") // LOW | MEDIUM | HIGH
+  details   String
+  status    String   @default("OPEN") // OPEN | DISMISSED | CONFIRMED
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  targetType String // CREATOR | VIDEO | WITHDRAWAL | SETTING | EARNING | ...
+  targetId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+}
+
+// Generic key-value platform settings (branding, SEO, homepage, payments, policies)
+model PlatformSetting {
+  key       String   @id
+  value     String // JSON
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  category  String
+  subject   String
+  message   String
+  status    String   @default("NEW") // NEW | IN_PROGRESS | RESOLVED
+  createdAt DateTime @default(now())
+}

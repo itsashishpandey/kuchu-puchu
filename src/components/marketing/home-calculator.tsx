@@ -1,0 +1,301 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as Icons from "lucide-react";
+import { SectionHeading, DemoBadge, PrimaryCTA, CategoryIcon } from "@/components/shared/ui-bits";
+import { Link } from "@/components/app/router";
+import { get } from "@/lib/client";
+import { usd, compact, full } from "@/lib/format";
+import { Slider } from "@/components/ui/slider";
+
+// ── Section 4 + 12: Earnings calculator ────────────────────────────────────
+
+export function EarningsCalculator() {
+  const [views, setViews] = useState(100000);
+  const [uploads, setUploads] = useState(10);
+  const [rates, setRates] = useState<{ ratePer1000Views: number; rewardPerUpload: number } | null>(null);
+
+  useEffect(() => {
+    get<{ ratePer1000Views: number; rewardPerUpload: number }>("/public/settings")
+      .then(setRates).catch(() => setRates({ ratePer1000Views: 1, rewardPerUpload: 0.5 }));
+  }, []);
+
+  const rate = rates?.ratePer1000Views ?? 1;
+  const reward = rates?.rewardPerUpload ?? 0.5;
+  const viewEarnings = (views / 1000) * rate;
+  const uploadEarnings = uploads * reward;
+  const total = viewEarnings + uploadEarnings;
+
+  return (
+    <section className="py-16 md:py-24" aria-label="Earnings calculator">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <SectionHeading
+          eyebrow="Your Videos Could Be Your Next Income Stream"
+          title={<>Calculate your <span className="grad-text">potential earnings</span></>}
+          subtitle="Move the sliders to estimate what your content could earn. Estimates assume all views qualify and all uploads are approved originals."
+        />
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          {/* interactive calculator */}
+          <div className="reveal bento p-6 md:p-8">
+            <div className="mb-8">
+              <div className="mb-3 flex items-end justify-between">
+                <label htmlFor="views-slider" className="text-sm font-semibold">Estimated qualified views</label>
+                <span className="font-display text-2xl font-bold text-brand-blue">{compact(views)}</span>
+              </div>
+              <Slider
+                id="views-slider"
+                value={[views]} min={1000} max={1000000} step={1000}
+                onValueChange={([v]) => setViews(v)}
+                aria-label="Estimated qualified views"
+              />
+              <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+                <span>1K</span><span>250K</span><span>500K</span><span>1M</span>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <div className="mb-3 flex items-end justify-between">
+                <label htmlFor="uploads-slider" className="text-sm font-semibold">Approved original uploads</label>
+                <span className="font-display text-2xl font-bold text-brand-red">{uploads}</span>
+              </div>
+              <Slider
+                id="uploads-slider"
+                value={[uploads]} min={1} max={40} step={1}
+                onValueChange={([v]) => setUploads(v)}
+                aria-label="Approved original uploads"
+              />
+              <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+                <span>1</span><span>10</span><span>20</span><span>30</span><span>40</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-brand-blue-soft p-4">
+                <p className="text-xs font-semibold text-brand-blue">Views revenue</p>
+                <p className="mt-1 font-display text-2xl font-bold">{usd(viewEarnings)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{compact(views)} qualified views ÷ 1,000 × ${rate.toFixed(2)}</p>
+              </div>
+              <div className="rounded-xl bg-brand-red-soft p-4">
+                <p className="text-xs font-semibold text-brand-red">Upload rewards</p>
+                <p className="mt-1 font-display text-2xl font-bold">{usd(uploadEarnings)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{uploads} approved uploads × ${reward.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-ink p-5 text-white">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-white/70">Estimated total earnings</p>
+                <Icons.Sparkles size={16} className="text-brand-yellow" />
+              </div>
+              <p className="mt-1 font-display text-4xl font-bold grad-text">{usd(total)}</p>
+            </div>
+
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+              Estimates assume all views count as qualified under our <Link to="/policies/monetization" className="underline hover:text-ink">monetization rules</Link> and all uploads are approved original content. Actual earnings depend on view quality, duration window (4 months per video) and rates in effect at the time.
+            </p>
+          </div>
+
+          {/* example + earning cards */}
+          <div className="flex flex-col gap-4">
+            <div className="reveal bento overflow-hidden">
+              <div className="grad-sun flex items-center gap-2 px-5 py-3">
+                <Icons.Lightbulb size={16} className="text-ink" />
+                <p className="text-sm font-bold text-ink">Worked example — default rates</p>
+              </div>
+              <div className="space-y-3 p-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Icons.Eye size={15} className="text-brand-blue" /> 100,000 qualified views</span>
+                  <span className="font-bold">{usd(100)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Icons.UploadCloud size={15} className="text-brand-red" /> 10 approved videos</span>
+                  <span className="font-bold">{usd(5)}</span>
+                </div>
+                <div className="border-t pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Estimated total</span>
+                    <span className="font-display text-2xl font-bold text-brand-red">{usd(105)}</span>
+                  </div>
+                </div>
+                <DemoBadge />
+              </div>
+            </div>
+
+            <div className="reveal bento flex-1 p-5">
+              <p className="mb-3 text-sm font-bold">Good to know</p>
+              <ul className="space-y-2.5 text-[13px] text-muted-foreground">
+                {[
+                  "View earnings are calculated proportionally — no rounding down to full thousands.",
+                  "Each video keeps earning views revenue for 4 months from publication.",
+                  "Earnings clear to your available balance after a 7-day holding period.",
+                  "Withdraw to bank or PayPal from just $25.",
+                ].map(t => (
+                  <li key={t} className="flex gap-2">
+                    <Icons.CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+              <PrimaryCTA to="/register" size="default" className="mt-5 w-full">
+                Start Earning Today
+              </PrimaryCTA>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Section 5: Trending videos (hover-preview grid) ────────────────────────
+
+export function TrendingVideos() {
+  const [videos, setVideos] = useState<{
+    id: string; title: string; thumbnailUrl: string | null; videoUrl: string;
+    views: number; likes: number; duration: number; category: string;
+    creator: { username: string; channelName: string; avatarUrl: string | null; verified: boolean };
+  }[]>([]);
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  useEffect(() => {
+    get<{ videos: typeof videos }>("/public/videos?feed=trending&limit=8").then(d => setVideos(d.videos)).catch(() => {});
+  }, []);
+
+  return (
+    <section className="bg-surface py-16 md:py-24" aria-label="Trending videos">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="reveal mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-brand-red-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-red">
+              <Icons.Flame size={13} /> Trending now
+            </span>
+            <h2 className="font-display text-3xl font-bold md:text-[2.6rem]">What the world is watching</h2>
+            <p className="mt-3 max-w-xl text-muted-foreground">Real videos from approved creators. Hover to preview, tap to watch the full feed.</p>
+          </div>
+          <Link to="/trending" className="inline-flex items-center gap-1.5 rounded-full border bg-white px-5 py-2.5 text-sm font-semibold transition hover:border-brand-red/40 hover:text-brand-red">
+            View all trending <Icons.ArrowRight size={15} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
+          {videos.length === 0
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="shimmer aspect-[9/16] rounded-2xl" />
+              ))
+            : videos.map((v, i) => (
+                <button
+                  key={v.id}
+                  className="reveal group relative aspect-[9/16] overflow-hidden rounded-2xl bg-ink text-left shadow-md transition-all hover:-translate-y-1 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand-red"
+                  style={{ transitionDelay: `${i * 40}ms` }}
+                  onMouseEnter={() => setHovered(v.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => window.location.hash = `/feed?v=${v.id}`}
+                  aria-label={`Watch ${v.title} by ${v.creator.channelName}`}
+                >
+                  <img
+                    src={v.thumbnailUrl ?? ""} alt={v.title} loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  {hovered === v.id && (
+                    <video
+                      src={v.videoUrl} muted loop playsInline autoPlay
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/10 to-ink/20" />
+                  <span className="absolute left-2.5 top-2.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
+                    #{i + 1} Trending
+                  </span>
+                  <span className="absolute right-2.5 top-2.5 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+                    {Math.floor(v.duration)}s
+                  </span>
+                  <div className="absolute inset-x-0 bottom-0 p-3">
+                    <p className="line-clamp-2 text-[13px] font-bold leading-snug text-white">{v.title}</p>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      {v.creator.avatarUrl && (
+                        <img src={v.creator.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      )}
+                      <span className="truncate text-[11px] text-white/75">@{v.creator.username}</span>
+                      {v.creator.verified && <Icons.BadgeCheck size={12} className="shrink-0 text-brand-blue" />}
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-[11px] text-white/70">
+                      <span className="flex items-center gap-1"><Icons.Play size={11} fill="currentColor" /> {compact(v.views)}</span>
+                      <span className="flex items-center gap-1"><Icons.Heart size={11} fill="currentColor" /> {compact(v.likes)}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Section 6: Top earning creators (consent-only) ─────────────────────────
+
+export function TopCreators() {
+  const [creators, setCreators] = useState<{
+    username: string; channelName: string; avatarUrl: string | null;
+    category: string | null; verified: boolean; followerCount: number;
+    videoCount: number; verifiedEarnings: number;
+  }[]>([]);
+
+  useEffect(() => {
+    get<{ creators: typeof creators }>("/public/top-creators").then(d => setCreators(d.creators)).catch(() => {});
+  }, []);
+
+  return (
+    <section className="py-16 md:py-24" aria-label="Top earning creators">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <SectionHeading
+          eyebrow="Creator leaderboard"
+          title={<>Top earning <span className="grad-text-blue">creators</span></>}
+          subtitle="Verified lifetime earnings, shown only with each creator's explicit consent. No estimates, no inflated numbers."
+        />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {creators.length === 0
+            ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-64 rounded-2xl" />)
+            : creators.slice(0, 8).map((c, i) => (
+              <Link
+                key={c.username} to={`/c/${c.username}`}
+                className="reveal bento group relative overflow-hidden p-5 transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <span className="absolute right-4 top-4 font-display text-3xl font-bold text-black/5">#{i + 1}</span>
+                <div className="relative">
+                  <div className="absolute -right-2 -top-2 h-20 w-20 rounded-full bg-gradient-to-br from-brand-red/15 to-brand-yellow/15 blur-xl" aria-hidden />
+                  <div className="relative flex items-center gap-3">
+                    {c.avatarUrl ? (
+                      <img src={c.avatarUrl} alt={c.channelName} className="h-14 w-14 rounded-full object-cover ring-2 ring-white shadow" />
+                    ) : (
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-red to-brand-yellow font-bold text-white">
+                        {c.channelName.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1 truncate font-display text-sm font-bold">
+                        {c.channelName}
+                        {c.verified && <Icons.BadgeCheck size={14} className="shrink-0 text-brand-blue" />}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">@{c.username}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
+                    <CategoryIcon name={c.category} size={13} /> {c.category ?? "Creator"}
+                  </div>
+                  <div className="mt-4 rounded-xl bg-ink p-3.5 text-white">
+                    <p className="text-[11px] text-white/60">Verified lifetime earnings</p>
+                    <p className="font-display text-2xl font-bold text-brand-yellow">{usd(c.verifiedEarnings)}</p>
+                    <p className="mt-0.5 text-[11px] text-white/50">with creator consent</p>
+                  </div>
+                  <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Icons.Video size={12} /> {c.videoCount} videos</span>
+                    <span className="flex items-center gap-1"><Icons.Users size={12} /> {compact(c.followerCount)} followers</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+        </div>
+      </div>
+    </section>
+  );
+}
