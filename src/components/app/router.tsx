@@ -78,9 +78,19 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>() {
       }),
       { threshold: 0.12 }
     );
-    io.observe(node);
-    node.querySelectorAll(".reveal").forEach(el => io.observe(el));
-    return () => io.disconnect();
+    const observeAll = (root: Element) => {
+      if (root.classList?.contains("reveal")) io.observe(root);
+      root.querySelectorAll?.(".reveal:not(.in)").forEach(el => io.observe(el));
+    };
+    observeAll(node);
+    // late-mounted .reveal elements (async data grids) get observed too
+    const mo = new MutationObserver(muts => {
+      for (const m of muts) m.addedNodes.forEach(n => {
+        if (n instanceof HTMLElement) observeAll(n);
+      });
+    });
+    mo.observe(node, { childList: true, subtree: true });
+    return () => { io.disconnect(); mo.disconnect(); };
   }, [node]);
   return setNode;
 }

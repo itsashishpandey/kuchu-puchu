@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
 import { SectionHeading, DemoBadge, PrimaryCTA, CategoryIcon } from "@/components/shared/ui-bits";
 import { Link } from "@/components/app/router";
 import { get } from "@/lib/client";
-import { usd, compact, full } from "@/lib/format";
+import { usd, compact } from "@/lib/format";
 import { Slider } from "@/components/ui/slider";
 
 // ── Section 4 + 12: Earnings calculator ────────────────────────────────────
@@ -141,90 +141,6 @@ export function EarningsCalculator() {
               </PrimaryCTA>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Section 5: Trending videos (hover-preview grid) ────────────────────────
-
-export function TrendingVideos() {
-  const [videos, setVideos] = useState<{
-    id: string; title: string; thumbnailUrl: string | null; videoUrl: string;
-    views: number; likes: number; duration: number; category: string;
-    creator: { username: string; channelName: string; avatarUrl: string | null; verified: boolean };
-  }[]>([]);
-  const [hovered, setHovered] = useState<string | null>(null);
-
-  useEffect(() => {
-    get<{ videos: typeof videos }>("/public/videos?feed=trending&limit=8").then(d => setVideos(d.videos)).catch(() => {});
-  }, []);
-
-  return (
-    <section className="bg-surface py-16 md:py-24" aria-label="Trending videos">
-      <div className="mx-auto max-w-7xl px-4 md:px-6">
-        <div className="reveal mb-10 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-brand-red-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-red">
-              <Icons.Flame size={13} /> Trending now
-            </span>
-            <h2 className="font-display text-3xl font-bold md:text-[2.6rem]">What the world is watching</h2>
-            <p className="mt-3 max-w-xl text-muted-foreground">Real videos from approved creators. Hover to preview, tap to watch the full feed.</p>
-          </div>
-          <Link to="/trending" className="inline-flex items-center gap-1.5 rounded-full border bg-white px-5 py-2.5 text-sm font-semibold transition hover:border-brand-red/40 hover:text-brand-red">
-            View all trending <Icons.ArrowRight size={15} />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-          {videos.length === 0
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="shimmer aspect-[9/16] rounded-2xl" />
-              ))
-            : videos.map((v, i) => (
-                <button
-                  key={v.id}
-                  className="reveal group relative aspect-[9/16] overflow-hidden rounded-2xl bg-ink text-left shadow-md transition-all hover:-translate-y-1 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand-red"
-                  style={{ transitionDelay: `${i * 40}ms` }}
-                  onMouseEnter={() => setHovered(v.id)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => window.location.hash = `/feed?v=${v.id}`}
-                  aria-label={`Watch ${v.title} by ${v.creator.channelName}`}
-                >
-                  <img
-                    src={v.thumbnailUrl ?? ""} alt={v.title} loading="lazy"
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  {hovered === v.id && (
-                    <video
-                      src={v.videoUrl} muted loop playsInline autoPlay
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/10 to-ink/20" />
-                  <span className="absolute left-2.5 top-2.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
-                    #{i + 1} Trending
-                  </span>
-                  <span className="absolute right-2.5 top-2.5 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-                    {Math.floor(v.duration)}s
-                  </span>
-                  <div className="absolute inset-x-0 bottom-0 p-3">
-                    <p className="line-clamp-2 text-[13px] font-bold leading-snug text-white">{v.title}</p>
-                    <div className="mt-1.5 flex items-center gap-1.5">
-                      {v.creator.avatarUrl && (
-                        <img src={v.creator.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
-                      )}
-                      <span className="truncate text-[11px] text-white/75">@{v.creator.username}</span>
-                      {v.creator.verified && <Icons.BadgeCheck size={12} className="shrink-0 text-brand-blue" />}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-[11px] text-white/70">
-                      <span className="flex items-center gap-1"><Icons.Play size={11} fill="currentColor" /> {compact(v.views)}</span>
-                      <span className="flex items-center gap-1"><Icons.Heart size={11} fill="currentColor" /> {compact(v.likes)}</span>
-                    </div>
-                  </div>
-                </button>
-              ))}
         </div>
       </div>
     </section>

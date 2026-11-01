@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Hero, LiveEarnings, HowItWorks } from "./home-hero";
-import { EarningsCalculator, TrendingVideos, TopCreators } from "./home-calculator";
+import { Hero, StatsBand, HowItWorks } from "./home-hero";
+import { TrendingMarquee, FreshDrops } from "./home-rails";
+import { EarningsCalculator, TopCreators } from "./home-calculator";
+import { UploadAndEarn } from "./home-creator-appeal";
 import {
-  WhyJoin, EarnPerUpload, EarnFromViews, SuccessStories,
-  DashboardPreview, VideoCategories, CreatorCommunity,
+  SuccessStories, DashboardPreview, VideoCategories, CreatorCommunity,
 } from "./home-benefits";
 import { FAQ, FinalCTA } from "./home-faq";
 import { useReveal } from "@/components/app/router";
@@ -26,18 +27,18 @@ export function Home() {
 
   return (
     <div ref={setRef}>
+      {/* video-first: the platform itself leads, monetization appeal follows */}
       <Hero announcement={homepage?.announcement} />
-      <LiveEarnings />
+      <TrendingMarquee />
+      <StatsBand />
       <HowItWorks />
+      <UploadAndEarn rate={rates.ratePer1000Views} reward={rates.rewardPerUpload} />
       <EarningsCalculator />
-      <TrendingVideos />
+      <FreshDrops />
       <TopCreators />
-      <WhyJoin />
-      <EarnPerUpload reward={rates.rewardPerUpload} />
-      <EarnFromViews rate={rates.ratePer1000Views} />
+      <VideoCategories />
       <SuccessStories />
       <DashboardPreview />
-      <VideoCategories />
       <CreatorCommunity />
       <FAQ />
       <FinalCTA />
