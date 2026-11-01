@@ -108,20 +108,20 @@ export function App() {
   useEffect(() => {
     // SEO: dynamic title per hash route
     const titles: Record<string, string> = {
-      "": "Clipora — Create Videos. Get Views. Earn Real Money.",
-      about: "About Us — Clipora",
-      contact: "Contact Us — Clipora",
-      explore: "Explore Videos — Clipora",
-      trending: "Trending Videos — Clipora",
-      register: "Become a Creator — Clipora",
-      login: "Log In — Clipora",
-      feed: "Video Feed — Clipora",
-      dashboard: "Creator Dashboard — Clipora",
-      admin: "Admin Console — Clipora",
+      "": "Kuchu Puchu — Create Videos. Get Views. Earn Real Money.",
+      about: "About Us — Kuchu Puchu",
+      contact: "Contact Us — Kuchu Puchu",
+      explore: "Explore Videos — Kuchu Puchu",
+      trending: "Trending Videos — Kuchu Puchu",
+      register: "Become a Creator — Kuchu Puchu",
+      login: "Log In — Kuchu Puchu",
+      feed: "Video Feed — Kuchu Puchu",
+      dashboard: "Creator Dashboard — Kuchu Puchu",
+      admin: "Admin Console — Kuchu Puchu",
     };
     const apply = () => {
       const seg = (window.location.hash.replace(/^#\/?/, "").split("/")[0]) ?? "";
-      document.title = titles[seg] ?? (seg === "policies" ? "Policies — Clipora" : seg === "c" ? "Creator — Clipora" : titles[""]);
+      document.title = titles[seg] ?? (seg === "policies" ? "Policies — Kuchu Puchu" : seg === "c" ? "Creator — Kuchu Puchu" : titles[""]);
     };
     apply();
     window.addEventListener("hashchange", apply);

@@ -22,14 +22,14 @@ export function AboutPage() {
         <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-brand-blue/20 blur-3xl" aria-hidden />
         <div className="reveal relative mx-auto max-w-4xl px-4 text-center md:px-6">
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-yellow ring-1 ring-white/15">
-            About Clipora
+            About Kuchu Puchu
           </span>
           <h1 className="font-display text-4xl font-bold leading-tight md:text-6xl">
             We exist so creators <span className="grad-text">get paid fairly</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-white/70 md:text-lg">
-            Clipora is a short-video platform with a simple promise: original work earns real money,
-            transparently, from the very first upload.
+            Kuchu Puchu is a kids short-video platform with a simple promise: original cartoons, rhymes and
+            stories earn real money, transparently, from the very first upload.
           </p>
         </div>
       </section>
@@ -60,7 +60,7 @@ export function AboutPage() {
           <div className="reveal relative">
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-brand-red/15 to-brand-blue/15 blur-2xl" aria-hidden />
             { }
-            <img src="/images/hero-wide.webp" alt="Creators filming together in a studio"
+            <img src="/images/hero-wide.webp" alt="Cute cartoon characters celebrating together"
               className="relative w-full rounded-3xl object-cover shadow-xl" />
           </div>
         </div>
@@ -74,9 +74,9 @@ export function AboutPage() {
             <SectionHeading align="left" eyebrow="Our vision"
               title={<>A creator economy where <span className="grad-text-blue">1,000 true fans</span> pays the bills</>} />
             <p className="-mt-4 max-w-3xl text-muted-foreground">
-              By 2030 we want Clipora to be the platform where a creator with a laptop and an idea can build
-              sustainable income from 60-second originals — in any country, in any category, without needing
-              a million followers first. Fair monetization shouldn't be a lottery; it should be a system.
+              By 2030 we want Kuchu Puchu to be the platform where a creator with a laptop, a tablet and a story idea
+              can build sustainable income from 60-second kids originals — in any country, in any category, without
+              needing a million followers first. Fair monetization shouldn't be a lottery; it should be a system.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {[

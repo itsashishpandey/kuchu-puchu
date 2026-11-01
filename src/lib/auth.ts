@@ -2,7 +2,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
-export const SESSION_COOKIE = "clipora_session";
+export const SESSION_COOKIE = "kuchupuchu_session";
 const SESSION_DAYS = 14;
 
 // ── Passwords ──────────────────────────────────────────────────────────────

@@ -163,7 +163,7 @@ export function ContactPage() {
             </div>
             <div className="flex flex-col gap-3">
               {[
-                { icon: Icons.Mail, label: "creators@clipora.io", sub: "Creator-only priority lane" },
+                { icon: Icons.Mail, label: "creators@kuchupuchu.com", sub: "Creator-only priority lane" },
                 { icon: Icons.MessageCircle, label: "In-dashboard help", sub: "Dashboard → Notifications → Get help" },
               ].map(x => (
                 <div key={x.label} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/5">
@@ -218,10 +218,10 @@ export function ContactPage() {
         <div className="mx-auto max-w-7xl px-4 md:px-6">
           <div className="reveal grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: Icons.Mail, t: "General", v: "support@clipora.io", s: "All inquiries" },
-              { icon: Icons.UserRoundCheck, t: "Creators", v: "creators@clipora.io", s: "Priority lane" },
-              { icon: Icons.Banknote, t: "Payments", v: "payments@clipora.io", s: "Payout issues" },
-              { icon: Icons.Scale, t: "Copyright", v: "copyright@clipora.io", s: "Takedowns & disputes" },
+              { icon: Icons.Mail, t: "General", v: "support@kuchupuchu.com", s: "All inquiries" },
+              { icon: Icons.UserRoundCheck, t: "Creators", v: "creators@kuchupuchu.com", s: "Priority lane" },
+              { icon: Icons.Banknote, t: "Payments", v: "payments@kuchupuchu.com", s: "Payout issues" },
+              { icon: Icons.Scale, t: "Copyright", v: "copyright@kuchupuchu.com", s: "Takedowns & disputes" },
             ].map(x => (
               <div key={x.t} className="bento p-5 text-center">
                 <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-brand-red-soft">

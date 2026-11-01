@@ -231,69 +231,94 @@ export function TrendingVideos() {
   );
 }
 
-// ── Section 6: Top earning creators (consent-only) ─────────────────────────
+// ── Section 6: Top earning creators (consent-only, colourful Creator Economy cards) ──
 
 export function TopCreators() {
   const [creators, setCreators] = useState<{
     username: string; channelName: string; avatarUrl: string | null;
     category: string | null; verified: boolean; followerCount: number;
-    videoCount: number; verifiedEarnings: number;
+    videoCount: number; verifiedEarnings: number; theme?: string;
   }[]>([]);
 
   useEffect(() => {
     get<{ creators: typeof creators }>("/public/top-creators").then(d => setCreators(d.creators)).catch(() => {});
   }, []);
 
+  const themeOf = (t?: string) => (t === "PINK" ? "pink" : "blue");
+  const themeClasses = {
+    blue: {
+      card: "bg-gradient-to-b from-brand-blue-soft to-white border-brand-blue/20 hover:border-brand-blue/50",
+      chip: "bg-brand-blue-soft text-brand-blue",
+      earnings: "text-brand-blue",
+      glow: "from-brand-blue/25 to-brand-blue/5",
+      ring: "ring-brand-blue/30",
+      rank: "bg-brand-blue text-white",
+    },
+    pink: {
+      card: "bg-gradient-to-b from-brand-pink-soft to-white border-brand-pink/20 hover:border-brand-pink/50",
+      chip: "bg-brand-pink-soft text-brand-pink",
+      earnings: "text-brand-pink",
+      glow: "from-brand-pink/25 to-brand-pink/5",
+      ring: "ring-brand-pink/30",
+      rank: "bg-brand-pink text-white",
+    },
+  } as const;
+
   return (
     <section className="py-16 md:py-24" aria-label="Top earning creators">
       <div className="mx-auto max-w-7xl px-4 md:px-6">
         <SectionHeading
           eyebrow="Creator leaderboard"
-          title={<>Top earning <span className="grad-text-blue">creators</span></>}
+          title={<>Top earning <span className="grad-text">creators</span></>}
           subtitle="Verified lifetime earnings, shown only with each creator's explicit consent. No estimates, no inflated numbers."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {creators.length === 0
             ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-64 rounded-2xl" />)
-            : creators.slice(0, 8).map((c, i) => (
-              <Link
-                key={c.username} to={`/c/${c.username}`}
-                className="reveal bento group relative overflow-hidden p-5 transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <span className="absolute right-4 top-4 font-display text-3xl font-bold text-black/5">#{i + 1}</span>
-                <div className="relative">
-                  <div className="absolute -right-2 -top-2 h-20 w-20 rounded-full bg-gradient-to-br from-brand-red/15 to-brand-yellow/15 blur-xl" aria-hidden />
-                  <div className="relative flex items-center gap-3">
-                    {c.avatarUrl ? (
-                      <img src={c.avatarUrl} alt={c.channelName} className="h-14 w-14 rounded-full object-cover ring-2 ring-white shadow" />
-                    ) : (
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-red to-brand-yellow font-bold text-white">
-                        {c.channelName.slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1 truncate font-display text-sm font-bold">
-                        {c.channelName}
-                        {c.verified && <Icons.BadgeCheck size={14} className="shrink-0 text-brand-blue" />}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">@{c.username}</p>
+            : creators.slice(0, 8).map((c, i) => {
+                const t = themeClasses[themeOf(c.theme)];
+                return (
+                  <Link
+                    key={c.username} to={`/c/${c.username}`}
+                    className={`reveal group relative overflow-hidden rounded-2xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl ${t.card}`}
+                  >
+                    <span className={`absolute -left-1.5 top-3 rounded-r-full px-3 py-1 font-display text-xs font-bold shadow sticker-shadow ${t.rank}`}>
+                      #{i + 1}
+                    </span>
+                    <div className={`absolute right-3 top-3 h-16 w-16 rounded-full bg-gradient-to-br blur-xl ${t.glow}`} aria-hidden />
+                    <div className="relative mt-5">
+                      <div className="relative flex items-center gap-3">
+                        {c.avatarUrl ? (
+                          <img src={c.avatarUrl} alt={c.channelName} className={`h-14 w-14 rounded-full object-cover ring-2 ${t.ring} shadow`} />
+                        ) : (
+                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-blue to-brand-pink font-bold text-white">
+                            {c.channelName.slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1 truncate font-display text-sm font-bold">
+                            {c.channelName}
+                            {c.verified && <Icons.BadgeCheck size={14} className={`shrink-0 ${themeOf(c.theme) === "pink" ? "text-brand-pink" : "text-brand-blue"}`} />}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">@{c.username}</p>
+                        </div>
+                      </div>
+                      <div className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${t.chip}`}>
+                        <CategoryIcon name={c.category} size={13} /> {c.category ?? "Creator"}
+                      </div>
+                      <div className="mt-4 rounded-xl bg-white/80 p-3.5 shadow-sm backdrop-blur">
+                        <p className="text-[11px] font-medium text-muted-foreground">Verified lifetime earnings</p>
+                        <p className={`font-display text-2xl font-bold ${t.earnings}`}>{usd(c.verifiedEarnings)}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">with creator consent</p>
+                      </div>
+                      <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Icons.Video size={12} /> {c.videoCount} videos</span>
+                        <span className="flex items-center gap-1"><Icons.Users size={12} /> {compact(c.followerCount)} followers</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
-                    <CategoryIcon name={c.category} size={13} /> {c.category ?? "Creator"}
-                  </div>
-                  <div className="mt-4 rounded-xl bg-ink p-3.5 text-white">
-                    <p className="text-[11px] text-white/60">Verified lifetime earnings</p>
-                    <p className="font-display text-2xl font-bold text-brand-yellow">{usd(c.verifiedEarnings)}</p>
-                    <p className="mt-0.5 text-[11px] text-white/50">with creator consent</p>
-                  </div>
-                  <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Icons.Video size={12} /> {c.videoCount} videos</span>
-                    <span className="flex items-center gap-1"><Icons.Users size={12} /> {compact(c.followerCount)} followers</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                  </Link>
+                );
+              })}
         </div>
       </div>
     </section>

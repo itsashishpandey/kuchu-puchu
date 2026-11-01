@@ -1,58 +1,59 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { App } from "@/components/app/app";
 
-const display = Space_Grotesk({
+const display = Baloo_2({
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const body = Plus_Jakarta_Sans({
-  variable: "--font-body",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
 
+const body = Nunito({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://clipora.io"),
+  metadataBase: new URL("https://kuchupuchu.com"),
   title: {
-    default: "Clipora — Create Videos. Get Views. Earn Real Money.",
-    template: "%s | Clipora",
+    default: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
+    template: "%s | Kuchu Puchu",
   },
   description:
-    "Clipora pays creators for every qualified view and every approved original upload. Build your channel, grow your audience, and withdraw real earnings.",
+    "Kuchu Puchu pays kids-content creators for every qualified view and every approved original upload. Make cartoon videos, nursery rhymes and fun stories — build your channel and withdraw real earnings.",
   keywords: [
-    "creator monetization", "short video platform", "earn from videos",
-    "video creator earnings", "Clipora", "creator payouts",
+    "kids video platform", "creator monetization", "kids cartoon creators",
+    "nursery rhymes", "earn from kids videos", "Kuchu Puchu", "creator payouts",
+    "kids content", "cartoon shorts",
   ],
-  authors: [{ name: "Clipora" }],
+  authors: [{ name: "Kuchu Puchu" }],
   alternates: { canonical: "/" },
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/favicon.svg" }],
   },
   openGraph: {
-    title: "Clipora — Create Videos. Get Views. Earn Real Money.",
+    title: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
     description:
-      "The creator-first short video platform. $1.00 per 1,000 qualified views + $0.50 per approved original upload.",
-    url: "https://clipora.io",
-    siteName: "Clipora",
+      "The creator-first kids short video platform. $1.00 per 1,000 qualified views + $0.50 per approved original upload.",
+    url: "https://kuchupuchu.com",
+    siteName: "Kuchu Puchu",
     type: "website",
-    images: [{ url: "/images/hero-wide.webp", width: 1344, height: 672, alt: "Clipora creators" }],
+    images: [{ url: "/images/hero-wide.webp", width: 1344, height: 672, alt: "Kuchu Puchu creators" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Clipora — Create Videos. Get Views. Earn Real Money.",
-    description: "Earn from qualified views and approved original uploads.",
+    title: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
+    description: "Earn from qualified views and approved original kids uploads.",
   },
   robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FF1744",
+  themeColor: "#1677FF",
   width: "device-width",
   initialScale: 1,
 };
@@ -60,12 +61,12 @@ export const viewport: Viewport = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Clipora",
-  url: "https://clipora.io",
-  description: "Creator-first short video monetization platform.",
+  name: "Kuchu Puchu",
+  url: "https://kuchupuchu.com",
+  description: "Creator-first kids short video monetization platform.",
   potentialAction: {
     "@type": "SearchAction",
-    target: "https://clipora.io/#/explore?q={search_term_string}",
+    target: "https://kuchupuchu.com/#/explore?q={search_term_string}",
     "query-input": "required name=search_term_string",
   },
 };

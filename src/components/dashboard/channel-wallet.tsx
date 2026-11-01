@@ -70,7 +70,7 @@ export function ChannelPage() {
     <div>
       <DashboardPageHeader
         title="My Channel"
-        description="Your public identity on Clipora. Changes appear on your channel page immediately."
+        description="Your public identity on Kuchu Puchu. Changes appear on your channel page immediately."
         actions={user?.channel && (
           <Button variant="outline" className="rounded-full" onClick={() => navigate(`/c/${user.channel!.username}`)}>
             <Icons.ExternalLink size={15} className="mr-1.5" /> View public channel

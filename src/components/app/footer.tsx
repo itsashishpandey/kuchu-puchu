@@ -91,7 +91,7 @@ export function Footer() {
           <div>
             <Logo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The creator-first short video platform. Original videos earn from qualified views and approved uploads — transparently, from day one.
+              The creator-first kids video platform. Original cartoons, rhymes and stories earn from qualified views and approved uploads — transparently, from day one.
             </p>
             <div className="mt-5 flex gap-2">
               {[
@@ -109,8 +109,8 @@ export function Footer() {
               ))}
             </div>
             <div className="mt-5 space-y-1 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@clipora.io</p>
-              <p className="flex items-center gap-2"><Icons.MapPin size={14} /> Creator-first, worldwide</p>
+              <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@kuchupuchu.com</p>
+              <p className="flex items-center gap-2"><Icons.MapPin size={14} /> Made with 💙 & 💗 for kids creators worldwide</p>
             </div>
           </div>
           {COLUMNS.map(col => (
@@ -130,7 +130,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t pt-6 text-xs text-muted-foreground md:flex-row">
-          <p>© {new Date().getFullYear()} Clipora. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Kuchu Puchu. All rights reserved.</p>
           <p className="flex items-center gap-1.5">
             <Icons.FlaskConical size={13} className="text-brand-blue" />
             Demo environment — creators, videos and earnings shown are sample data for demonstration.

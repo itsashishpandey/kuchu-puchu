@@ -63,6 +63,7 @@ model Channel {
   category       String?
   country        String?
   socialLinks    String? // JSON: {instagram,youtube,x,tiktok,website}
+  theme          String   @default("BLUE") // BLUE for boys' channels, PINK for girls' channels
   followerCount  Int      @default(0)
   verified       Boolean  @default(false)
   showEarnings   Boolean  @default(false) // consent to display verified earnings publicly

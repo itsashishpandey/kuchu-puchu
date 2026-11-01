@@ -14,20 +14,21 @@ export function Logo({ dark = false, size = 36 }: { dark?: boolean; size?: numbe
         className="relative inline-flex items-center justify-center rounded-xl shadow-lg"
         style={{
           width: size, height: size,
-          background: "linear-gradient(135deg,#FF1744 20%,#FF5F3C 60%,#FFD600 120%)",
+          background: "linear-gradient(135deg,#1677FF 0%,#1677FF 49%,#FF4E9B 51%,#FF4E9B 100%)",
         }}
       >
-        <Icons.Play size={size * 0.42} fill="#fff" color="#fff" className="translate-x-[1px]" />
+        <Icons.Play size={size * 0.44} fill="#fff" color="#fff" className="translate-x-[1px]" />
         <span
-          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-brand-blue ring-2 ring-white"
+          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand-yellow ring-2 ring-white"
           aria-hidden
         />
       </span>
       <span
-        className={`font-display font-700 text-[1.35rem] leading-none tracking-tight ${dark ? "text-white" : "text-ink"}`}
-        style={{ fontWeight: 700 }}
+        className={`font-display text-[1.35rem] leading-none tracking-tight ${dark ? "text-white" : "text-ink"}`}
+        style={{ fontWeight: 800 }}
       >
-        Clipora
+        <span className="text-brand-blue">Kuchu</span>
+        <span className="text-brand-pink"> Puchu</span>
       </span>
     </span>
   );
@@ -46,7 +47,7 @@ export function SectionHeading({
       {eyebrow && (
         <span
           className={`mb-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider ${
-            light ? "bg-white/10 text-brand-yellow" : "bg-brand-red-soft text-brand-red"
+            light ? "bg-white/10 text-brand-yellow" : "bg-brand-pink-soft text-brand-pink"
           }`}
         >
           <Icons.Sparkles size={13} />
@@ -115,7 +116,7 @@ export function PhoneMockup({
 }: { children: React.ReactNode; className?: string; notch?: boolean }) {
   return (
     <div className={`relative mx-auto w-[270px] md:w-[300px] ${className ?? ""}`}>
-      <div className="absolute -inset-6 rounded-[3.2rem] bg-gradient-to-tr from-brand-red/20 via-brand-yellow/15 to-brand-blue/20 blur-2xl" aria-hidden />
+      <div className="absolute -inset-6 rounded-[3.2rem] bg-gradient-to-tr from-brand-blue/20 via-brand-yellow/10 to-brand-pink/25 blur-2xl" aria-hidden />
       <div className="relative rounded-[2.6rem] border-[10px] border-ink bg-ink shadow-2xl">
         {notch && (
           <div className="absolute left-1/2 top-2 z-20 h-5 w-28 -translate-x-1/2 rounded-full bg-ink" aria-hidden />
@@ -131,14 +132,14 @@ export function PhoneMockup({
 // ── Browser mockup ────────────────────────────────────────────────────────
 
 export function BrowserMockup({
-  children, url = "clipora.io", className,
+  children, url = "kuchupuchu.com", className,
 }: { children: React.ReactNode; url?: string; className?: string }) {
   return (
     <div className={`overflow-hidden rounded-2xl border bg-card shadow-xl ${className ?? ""}`}>
       <div className="flex items-center gap-2 border-b bg-secondary px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-brand-red" />
-        <span className="h-2.5 w-2.5 rounded-full bg-brand-yellow" />
         <span className="h-2.5 w-2.5 rounded-full bg-brand-blue" />
+        <span className="h-2.5 w-2.5 rounded-full bg-brand-pink" />
+        <span className="h-2.5 w-2.5 rounded-full bg-brand-yellow" />
         <span className="ml-3 flex-1 truncate rounded-full bg-background px-3 py-1 text-[11px] text-muted-foreground">
           https://{url}
         </span>
@@ -209,12 +210,24 @@ export function StatusBadge({ status, className }: { status: string; className?:
 
 export function CategoryIcon({ name, size = 18, className }: { name?: string | null; size?: number; className?: string }) {
   const map: Record<string, string> = {
+    "Cartoons & Animation": "Clapperboard",
+    "Nursery Rhymes": "Music",
+    "Kids Comedy": "Laugh",
+    "Learning & Fun": "GraduationCap",
+    "Story Time": "BookOpen",
+    "Kids Songs": "Mic",
+    "Toys & Play": "ToyBrick",
+    "Animals & Friends": "PawPrint",
+    "Arts & Crafts": "Palette",
+    "Dance & Fun": "PartyPopper",
+    "Family Adventures": "Baby",
+    "Science for Kids": "FlaskConical",
     Entertainment: "Film", Comedy: "Laugh", Lifestyle: "Coffee", Education: "GraduationCap",
     Food: "UtensilsCrossed", Travel: "Plane", Technology: "Cpu", Fitness: "Dumbbell",
     Beauty: "Flower2", Music: "Music", Pets: "PawPrint", Fashion: "Shirt",
     Gaming: "Gamepad2", Art: "Palette", Nature: "Mountain", Dance: "PartyPopper",
   };
-  const Icon = (Icons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[map[name ?? ""] ?? "Film"];
+  const Icon = (Icons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[map[name ?? ""] ?? "Sparkles"];
   return <Icon size={size} className={className} />;
 }
 
@@ -226,7 +239,7 @@ export function Avatar({
   const initials = name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand-red/80 to-brand-yellow/80 font-bold text-white ${ring ? "ring-2 ring-white ring-offset-2" : ""} ${className ?? ""}`}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand-blue to-brand-pink font-bold text-white ${ring ? "ring-2 ring-white ring-offset-2" : ""} ${className ?? ""}`}
       style={{ width: size, height: size, fontSize: size * 0.36 }}
     >
       {src ? (
@@ -270,7 +283,7 @@ export function PrimaryCTA({ children, to, className, size = "lg" }: {
   return (
     <Button
       size={size}
-      className={`grad-btn rounded-full px-7 text-white shadow-[0_8px_24px_-8px_rgba(255,23,68,0.5)] hover:shadow-[0_12px_32px_-8px_rgba(255,23,68,0.6)] transition-all hover:-translate-y-0.5 ${className ?? ""}`}
+      className={`grad-btn rounded-full px-7 text-white shadow-[0_8px_24px_-8px_rgba(22,119,255,0.55)] hover:shadow-[0_12px_32px_-8px_rgba(255,78,155,0.6)] transition-all hover:-translate-y-0.5 ${className ?? ""}`}
       onClick={() => navigate(to)}
     >
       {children}

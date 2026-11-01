@@ -45,7 +45,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return jsonError(
         user.suspensionReason
           ? `Account suspended: ${user.suspensionReason}`
-          : "Account suspended. Contact support@clipora.io.",
+          : "Account suspended. Contact support@kuchupuchu.com.",
         403
       );
     }
@@ -127,8 +127,8 @@ export async function POST(req: Request, ctx: Ctx) {
       body: `Thanks for applying, ${fullName}! Your channel "${channelName}" is now pending review. We usually review applications within 2 business days.`,
       link: "#/dashboard",
       email: {
-        to: email, subject: "We received your Clipora application",
-        body: `Hi ${fullName}, thanks for applying to Clipora. We're reviewing "${channelName}" and will email you within 2 business days.`,
+        to: email, subject: "We received your Kuchu Puchu application",
+        body: `Hi ${fullName}, thanks for applying to Kuchu Puchu. We're reviewing "${channelName}" and will email you within 2 business days.`,
       },
     });
 
@@ -164,8 +164,8 @@ export async function POST(req: Request, ctx: Ctx) {
         body: "We received a password reset request for your account. In this demo environment the reset link is recorded in the admin mail log instead of being emailed.",
         link: "#/login",
         email: {
-          to: email, subject: "Reset your Clipora password",
-          body: `Reset your password with this link (demo): https://clipora.io/reset?token=${token}`,
+          to: email, subject: "Reset your Kuchu Puchu password",
+          body: `Reset your password with this link (demo): https://kuchupuchu.com/reset?token=${token}`,
         },
       });
     }

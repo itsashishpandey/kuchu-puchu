@@ -26,9 +26,9 @@ export function WhyJoin() {
     <section className="py-16 md:py-24" aria-label="Why join our platform">
       <div className="mx-auto max-w-7xl px-4 md:px-6">
         <SectionHeading
-          eyebrow="Why Clipora"
+          eyebrow="Why Kuchu Puchu"
           title={<>Built for creators, <span className="grad-text">not advertisers</span></>}
-          subtitle="Everything on Clipora is designed around one question: does this help creators earn more, fairly?"
+          subtitle="Everything on Kuchu Puchu is designed around one question: does this help creators earn more, fairly?"
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {BENEFITS.map(b => (
@@ -178,17 +178,17 @@ export function EarnFromViews({ rate = 1 }: { rate?: number }) {
 
 const STORIES = [
   {
-    name: "Maya Torres", role: "Lifestyle · 148K followers", avatar: "/images/avatars/av01.webp",
-    quote: "I started posting morning-routine shorts between shifts. Eight months later, view earnings cover my rent — and the analytics finally show me which videos actually work.",
+    name: "Meera Iyer", role: "Nursery Rhymes · 211K followers", avatar: "/images/avatars/av02.webp",
+    quote: "I started posting sing-along rhymes with my daughter. Eight months later, view earnings cover her school fees — and the analytics show me exactly which songs kids love most.",
     metric: "$1,612 lifetime earnings",
   },
   {
-    name: "Priya Sharma", role: "Food · 211K followers", avatar: "/images/avatars/av03.webp",
-    quote: "The originality fingerprinting is what sold me. My recipes can't be re-uploaded by strangers for someone else's payout. That protection is priceless.",
+    name: "Aarav Mehta", role: "Cartoons & Animation · 148K followers", avatar: "/images/avatars/av01.webp",
+    quote: "The originality fingerprinting is what sold me. My hand-drawn Kuchu cartoons can't be re-uploaded by strangers for someone else's payout. That protection is priceless.",
     metric: "2 viral originals protected",
   },
   {
-    name: "Daniel Okafor", role: "Education · 119K followers", avatar: "/images/avatars/av08.webp",
+    name: "Riya Sharma", role: "Story Time · 188K followers", avatar: "/images/avatars/av04.webp",
     quote: "Withdrawals just work. Request on Monday, money's in my bank by Thursday, with a reference number I can actually track.",
     metric: "12 on-time payouts",
   },
@@ -200,7 +200,7 @@ export function SuccessStories() {
       <div className="mx-auto max-w-7xl px-4 md:px-6">
         <SectionHeading
           eyebrow="Success stories"
-          title={<>Creators growing with <span className="grad-text">Clipora</span></>}
+          title={<>Creators growing with <span className="grad-text">Kuchu Puchu</span></>}
           subtitle="Illustrative examples from our demo data — real testimonials and payout proof will appear here only with each creator's verified data and written permission."
         />
         <div className="grid gap-4 md:grid-cols-3">
@@ -210,13 +210,13 @@ export function SuccessStories() {
                 {Array.from({ length: 5 }).map((_, i) => <Icons.Star key={i} size={15} fill="currentColor" />)}
               </div>
               <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-ink/85">“{s.quote}”</blockquote>
-              <figcaption className="mt-5 flex items-center gap-3 border-t pt-4">
+              <figcaption className="mt-5 flex flex-wrap items-center gap-3 border-t pt-4">
                 <img src={s.avatar} alt={s.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-white shadow" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{s.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{s.role}</p>
                 </div>
-                <span className="ml-auto whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                <span className="w-full rounded-full bg-emerald-50 px-2.5 py-1 text-center text-[11px] font-bold text-emerald-700 sm:ml-auto sm:w-auto sm:whitespace-nowrap">
                   {s.metric}
                 </span>
               </figcaption>
@@ -244,11 +244,11 @@ export function DashboardPreview() {
         />
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_380px]">
           <div className="reveal">
-            <BrowserMockup url="clipora.io/dashboard">
+            <BrowserMockup url="kuchupuchu.com/dashboard">
               <div className="bg-surface p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-display text-lg font-bold">Good morning, Maya 👋</p>
+                    <p className="font-display text-lg font-bold">Good morning, Meera 👋</p>
                     <p className="text-xs text-muted-foreground">Here's how your channel is performing</p>
                   </div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">Approved</span>
@@ -332,7 +332,7 @@ export function VideoCategories() {
   }, []);
   const display = cats.length > 0
     ? cats
-    : ["Entertainment", "Comedy", "Lifestyle", "Education", "Food", "Travel", "Technology", "Fitness", "Beauty", "Music", "Pets", "Fashion"].map(name => ({ name, slug: name.toLowerCase(), videoCount: 0 }));
+    : ["Cartoons & Animation", "Nursery Rhymes", "Kids Comedy", "Learning & Fun", "Story Time", "Kids Songs", "Toys & Play", "Animals & Friends", "Arts & Crafts", "Dance & Fun", "Family Adventures", "Science for Kids"].map(name => ({ name, slug: name.toLowerCase(), videoCount: 0 }));
 
   return (
     <section className="bg-surface py-16 md:py-24" aria-label="Video categories">
@@ -340,7 +340,7 @@ export function VideoCategories() {
         <SectionHeading
           eyebrow="Find your niche"
           title={<>Every category has an <span className="grad-text">audience</span></>}
-          subtitle="From food to fintech — pick your lane, or invent your own. Categories power discovery in Explore and Trending."
+          subtitle="From cartoons to counting songs — pick your lane, or invent your own. Categories power discovery in Explore and Trending."
         />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {display.slice(0, 12).map((c, i) => (
@@ -382,7 +382,7 @@ export function CreatorCommunity() {
         <SectionHeading
           eyebrow="Creator community"
           title={<>You'll be in good <span className="grad-text">company</span></>}
-          subtitle="Thousands of creators publish on Clipora every week — sharing techniques, hosting challenges and lifting each other up."
+          subtitle="Thousands of kids-content creators publish on Kuchu Puchu every week — sharing animation tips, hosting challenges and lifting each other up."
         />
         {/* avatar marquee */}
         <div className="reveal relative mx-auto mb-10 max-w-3xl overflow-hidden py-2 [mask-image:linear-gradient(90deg,transparent,black_15%,black_85%,transparent)]">
@@ -399,7 +399,7 @@ export function CreatorCommunity() {
         </div>
         <div className="reveal grid gap-4 sm:grid-cols-3">
           {[
-            { icon: Icons.MessageSquareHeart, title: "Creator spaces", desc: "Category channels where creators swap editing tips, hooks and growth tactics." },
+            { icon: Icons.MessageSquareHeart, title: "Creator spaces", desc: "Category channels where creators swap animation tips, story ideas and growth tactics." },
             { icon: Icons.Trophy, title: "Weekly challenges", desc: "Themed challenges with featured placement in Explore for the best originals." },
             { icon: Icons.HandHeart, title: "Creator-first support", desc: "Real humans answering monetization, payout and policy questions within a day." },
           ].map(f => (

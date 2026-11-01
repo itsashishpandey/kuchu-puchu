@@ -390,9 +390,9 @@ export async function POST(req: Request, ctx: Ctx) {
         await notify({
           userId: user.id, type: "ACCOUNT_STATUS",
           title: "Your channel has been approved 🎉",
-          body: `Welcome to Clipora! "${user.channel?.name ?? user.name}" is now approved. You can upload original videos and start earning immediately.`,
+          body: `Welcome to Kuchu Puchu! "${user.channel?.name ?? user.name}" is now approved. You can upload original videos and start earning immediately.`,
           link: "#/dashboard/upload",
-          email: { to: user.email, subject: "Your Clipora channel is approved", body: "Start uploading original videos to earn from qualified views and approved uploads." },
+          email: { to: user.email, subject: "Your Kuchu Puchu channel is approved", body: "Start uploading original videos to earn from qualified views and approved uploads." },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_APPROVED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason || undefined });
         return Response.json({ ok: true, message: `${user.name} approved` });
@@ -405,7 +405,7 @@ export async function POST(req: Request, ctx: Ctx) {
           title: "Your application was not approved",
           body: `Reason: ${reason} You can update your channel details and re-apply.`,
           link: "#/dashboard",
-          email: { to: user.email, subject: "Your Clipora application was not approved", body: `Reason: ${reason}` },
+          email: { to: user.email, subject: "Your Kuchu Puchu application was not approved", body: `Reason: ${reason}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_REJECTED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason });
         return Response.json({ ok: true, message: `${user.name} rejected` });
@@ -416,8 +416,8 @@ export async function POST(req: Request, ctx: Ctx) {
         await notify({
           userId: user.id, type: "WARNING",
           title: "Account suspended",
-          body: `Your account has been suspended. Reason: ${reason} Contact support@clipora.io to appeal.`,
-          email: { to: user.email, subject: "Clipora account suspended", body: `Reason: ${reason}` },
+          body: `Your account has been suspended. Reason: ${reason} Contact support@kuchupuchu.com to appeal.`,
+          email: { to: user.email, subject: "Kuchu Puchu account suspended", body: `Reason: ${reason}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_SUSPENDED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason });
         return Response.json({ ok: true, message: `${user.name} suspended` });
@@ -813,10 +813,10 @@ export async function POST(req: Request, ctx: Ctx) {
       const branding = body?.branding;
       if (branding) {
         await setSetting("branding", {
-          name: String(branding.name || "Clipora").slice(0, 30),
+          name: String(branding.name || "Kuchu Puchu").slice(0, 30),
           tagline: String(branding.tagline || "").slice(0, 80),
-          supportEmail: String(branding.supportEmail || "support@clipora.io"),
-          domain: String(branding.domain || "clipora.io"),
+          supportEmail: String(branding.supportEmail || "support@kuchupuchu.com"),
+          domain: String(branding.domain || "kuchupuchu.com"),
         });
       }
       const payouts = body?.payouts;

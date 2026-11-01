@@ -43,16 +43,18 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
 
-  /* Clipora brand palette */
-  --color-brand-red: #ff1744;
-  --color-brand-red-soft: #ffe3e8;
-  --color-brand-yellow: #ffd600;
-  --color-brand-yellow-soft: #fff8d6;
+  /* Kuchu Puchu brand palette — blue for boys, pink for girls */
   --color-brand-blue: #1677ff;
-  --color-brand-blue-soft: #e3efff;
-  --color-ink: #151923;
-  --color-ink-soft: #232a3b;
-  --color-surface: #f6f7fb;
+  --color-brand-blue-soft: #e6f0ff;
+  --color-brand-pink: #ff4e9b;
+  --color-brand-pink-soft: #ffe6f2;
+  --color-brand-red: #ff4e9b;
+  --color-brand-red-soft: #ffe6f2;
+  --color-brand-yellow: #ffc531;
+  --color-brand-yellow-soft: #fff4d6;
+  --color-ink: #221f3d;
+  --color-ink-soft: #322d54;
+  --color-surface: #f7f6fc;
 }
 
 :root {
@@ -63,41 +65,41 @@
   --card-foreground: oklch(0.17 0.02 265);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.17 0.02 265);
-  --primary: #ff1744;
+  --primary: #1677ff;
   --primary-foreground: #ffffff;
   --secondary: #f1f3f9;
-  --secondary-foreground: #232a3b;
+  --secondary-foreground: #322d54;
   --muted: #f1f3f9;
   --muted-foreground: #6b7280;
-  --accent: #e3efff;
+  --accent: #e6f0ff;
   --accent-foreground: #0b4fc4;
   --destructive: #e5484d;
-  --border: #e7e9f0;
-  --input: #e7e9f0;
-  --ring: #ff1744;
-  --chart-1: #ff1744;
+  --border: #e8e7f0;
+  --input: #e8e7f0;
+  --ring: #1677ff;
+  --chart-1: #ff4e9b;
   --chart-2: #1677ff;
-  --chart-3: #ffd600;
+  --chart-3: #ffc531;
   --chart-4: #22c55e;
   --chart-5: #a855f7;
   --sidebar: #ffffff;
-  --sidebar-foreground: #232a3b;
-  --sidebar-primary: #ff1744;
+  --sidebar-foreground: #322d54;
+  --sidebar-primary: #1677ff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f6f7fb;
-  --sidebar-accent-foreground: #232a3b;
-  --sidebar-border: #e7e9f0;
-  --sidebar-ring: #ff1744;
+  --sidebar-accent: #f7f6fc;
+  --sidebar-accent-foreground: #322d54;
+  --sidebar-border: #e8e7f0;
+  --sidebar-ring: #1677ff;
 }
 
 .dark {
-  --background: #151923;
+  --background: #221f3d;
   --foreground: oklch(0.96 0.005 265);
-  --card: #1d2331;
+  --card: #2b2750;
   --card-foreground: oklch(0.96 0.005 265);
-  --popover: #1d2331;
+  --popover: #2b2750;
   --popover-foreground: oklch(0.96 0.005 265);
-  --primary: #ff1744;
+  --primary: #1677ff;
   --primary-foreground: #ffffff;
   --secondary: #232a3b;
   --secondary-foreground: oklch(0.96 0.005 265);
@@ -106,9 +108,9 @@
   --accent: #232a3b;
   --accent-foreground: oklch(0.96 0.005 265);
   --destructive: #ff6369;
-  --border: #2a3145;
-  --input: #2a3145;
-  --ring: #ff1744;
+  --border: #37325e;
+  --input: #37325e;
+  --ring: #1677ff;
 }
 
 @layer base {
@@ -126,7 +128,7 @@
 /* ── Brand utilities ─────────────────────────────────────────────────── */
 
 .grad-text {
-  background: linear-gradient(94deg, #ff1744 10%, #ff7a00 45%, #ffd600 75%);
+  background: linear-gradient(94deg, #1677ff 5%, #8b5cf6 45%, #ff4e9b 95%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -137,11 +139,23 @@
   background-clip: text;
   color: transparent;
 }
+.grad-text-pink {
+  background: linear-gradient(94deg, #ff4e9b 10%, #ff8ac2 60%, #ff4e9b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .grad-btn {
-  background: linear-gradient(94deg, #ff1744, #ff5f3c);
+  background: linear-gradient(94deg, #1677ff 0%, #7a5cff 52%, #ff4e9b 100%);
 }
 .grad-btn:hover {
-  background: linear-gradient(94deg, #e61239, #f04f2b);
+  background: linear-gradient(94deg, #0e63e0 0%, #6a49f0 52%, #f43e8d 100%);
+}
+.grad-blue {
+  background: linear-gradient(135deg, #1677ff, #4d9aff);
+}
+.grad-pink {
+  background: linear-gradient(135deg, #ff4e9b, #ff8ac2);
 }
 .grad-sun {
   background: linear-gradient(120deg, #ffd600, #ff8a00);
@@ -153,23 +167,38 @@
   border: 1px solid rgb(255 255 255 / 0.65);
 }
 .glass-dark {
-  background: rgb(21 25 35 / 0.55);
+  background: rgb(34 31 61 / 0.55);
   backdrop-filter: blur(18px) saturate(1.2);
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
   border: 1px solid rgb(255 255 255 / 0.12);
 }
 .bento {
-  @apply rounded-2xl border bg-card shadow-[0_1px_2px_rgb(21_25_35/0.04),0_8px_24px_-12px_rgb(21_25_35/0.12)];
+  @apply rounded-2xl border bg-card shadow-[0_1px_2px_rgb(34_31_61/0.04),0_8px_24px_-12px_rgb(34_31_61/0.12)];
 }
 .mesh-bg {
   background:
-    radial-gradient(60rem 30rem at 85% -10%, #ffe3e8 0%, transparent 60%),
-    radial-gradient(50rem 28rem at -10% 20%, #e3efff 0%, transparent 55%),
-    radial-gradient(40rem 24rem at 60% 110%, #fff8d6 0%, transparent 60%);
+    radial-gradient(60rem 30rem at 85% -10%, #ffe6f2 0%, transparent 60%),
+    radial-gradient(50rem 28rem at -10% 20%, #e6f0ff 0%, transparent 55%),
+    radial-gradient(40rem 24rem at 60% 110%, #fff4d6 0%, transparent 60%);
 }
 .dot-bg {
-  background-image: radial-gradient(#d8dce8 1px, transparent 1px);
+  background-image: radial-gradient(#ddd9ec 1px, transparent 1px);
   background-size: 22px 22px;
+}
+
+/* playful kid-brand extras */
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-bounce-soft { animation: bounce-soft 3.2s ease-in-out infinite; }
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+.animate-wiggle { animation: wiggle 2.8s ease-in-out infinite; }
+.sticker-shadow {
+  box-shadow: 0 2px 0 0 rgb(34 31 61 / 0.08), 0 10px 28px -10px rgb(122 92 255 / 0.35);
 }
 
 /* animated counters, floating cards */
@@ -193,17 +222,17 @@
   animation: shimmer 1.6s linear infinite;
 }
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgb(255 23 68 / 0.35); }
-  70% { box-shadow: 0 0 0 12px rgb(255 23 68 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(255 23 68 / 0); }
+  0% { box-shadow: 0 0 0 0 rgb(255 78 155 / 0.35); }
+  70% { box-shadow: 0 0 0 12px rgb(255 78 155 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(255 78 155 / 0); }
 }
 .pulse-ring { animation: pulse-ring 2s infinite; }
 
 /* custom scrollbar */
 .scroll-slim::-webkit-scrollbar { width: 6px; height: 6px; }
 .scroll-slim::-webkit-scrollbar-track { background: transparent; }
-.scroll-slim::-webkit-scrollbar-thumb { background: #d8dce8; border-radius: 9999px; }
-.scroll-slim::-webkit-scrollbar-thumb:hover { background: #b9bfd1; }
+.scroll-slim::-webkit-scrollbar-thumb { background: #ddd9ec; border-radius: 9999px; }
+.scroll-slim::-webkit-scrollbar-thumb:hover { background: #c4bfe0; }
 
 /* hide scrollbar for feed */
 .no-scrollbar::-webkit-scrollbar { display: none; }

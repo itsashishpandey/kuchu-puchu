@@ -53,7 +53,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <Icons.ShieldOff size={36} className="text-brand-red" />
         <h1 className="font-display text-2xl font-bold">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          This is the Clipora operations area. Log in with an admin account to continue.
+          This is the Kuchu Puchu operations area. Log in with an admin account to continue.
         </p>
         <Button className="grad-btn rounded-full text-white" onClick={() => navigate("/login")}>Go to login</Button>
       </div>
@@ -137,7 +137,7 @@ function Link_home() {
           style={{ background: "linear-gradient(135deg,#1677FF 20%,#5B8CFF 100%)" }}>
           <Icons.ShieldCheck size={18} />
         </span>
-        <span className="font-display text-lg font-bold tracking-tight">Clipora <span className="text-brand-blue">Admin</span></span>
+        <span className="font-display text-lg font-bold tracking-tight">Kuchu Puchu <span className="text-brand-blue">Admin</span></span>
       </span>
     </button>
   );

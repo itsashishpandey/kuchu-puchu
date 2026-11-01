@@ -11,7 +11,7 @@ import { Link } from "@/components/app/router";
 
 const FAQS = [
   {
-    q: "How exactly do I earn money on Clipora?",
+    q: "How exactly do I earn money on Kuchu Puchu?",
     a: "Two ways: (1) view revenue — $1.00 per 1,000 qualified views, calculated proportionally (no rounding down), for up to 4 months per video; and (2) upload rewards — $0.50 one-time for each approved original upload. Both credit to your pending balance, then clear to available after a 7-day holding period.",
   },
   {
@@ -44,11 +44,11 @@ const FAQS = [
   },
   {
     q: "Do I keep ownership of my videos?",
-    a: "Yes. You own your content. By uploading you grant Clipora the license needed to host, stream and monetize your videos on the platform — nothing more. You can request removal of your content at any time.",
+    a: "Yes. You own your content. By uploading you grant Kuchu Puchu the license needed to host, stream and monetize your videos on the platform — nothing more. You can request removal of your content at any time.",
   },
   {
     q: "Is there a cost or exclusivity requirement?",
-    a: "No. Creating a channel is free, and Clipora is non-exclusive — you're free to publish anywhere else. We earn when creators earn: a sustainable platform is the whole point.",
+    a: "No. Creating a channel is free, and Kuchu Puchu is non-exclusive — you're free to publish anywhere else. We earn when creators earn: a sustainable platform is the whole point.",
   },
 ];
 

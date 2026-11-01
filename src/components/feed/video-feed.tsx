@@ -47,7 +47,7 @@ export function VideoFeed() {
     const v = videos[0];
     const el = document.createElement("script");
     el.type = "application/ld+json";
-    el.id = "clipora-video-jsonld";
+    el.id = "kuchupuchu-video-jsonld";
     el.textContent = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "VideoObject",
@@ -63,7 +63,7 @@ export function VideoFeed() {
         userInteractionCount: v.views,
       },
     });
-    document.getElementById("clipora-video-jsonld")?.remove();
+    document.getElementById("kuchupuchu-video-jsonld")?.remove();
     document.head.appendChild(el);
     return () => el.remove();
   }, [videos]);
@@ -72,7 +72,7 @@ export function VideoFeed() {
     <div className="relative flex h-screen w-full overflow-hidden bg-ink text-white">
       {/* desktop left rail */}
       <aside className="hidden w-[260px] shrink-0 flex-col border-r border-white/10 p-5 lg:flex" aria-label="Feed navigation">
-        <button onClick={() => navigate("/")} aria-label="Clipora home" className="mb-8 w-fit">
+        <button onClick={() => navigate("/")} aria-label="Kuchu Puchu home" className="mb-8 w-fit">
           <Logo dark />
         </button>
         <nav className="space-y-1">
@@ -280,7 +280,7 @@ function FeedItem({
     const url = `${window.location.origin}/#/feed?v=${video.id}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: video.title, text: `Watch "${video.title}" on Clipora`, url });
+        await navigator.share({ title: video.title, text: `Watch "${video.title}" on Kuchu Puchu`, url });
       } else {
         await navigator.clipboard.writeText(url);
         toast({ title: "Link copied", description: "Share it anywhere — views support the creator." });

@@ -23,8 +23,9 @@ const COUNTRIES = [
   "United Arab Emirates", "Nigeria", "South Africa", "Other",
 ];
 const CATEGORIES = [
-  "Entertainment", "Comedy", "Lifestyle", "Education", "Food", "Travel", "Technology",
-  "Fitness", "Beauty", "Music", "Pets", "Fashion", "Gaming", "Art", "Nature", "Dance",
+  "Cartoons & Animation", "Nursery Rhymes", "Kids Comedy", "Learning & Fun", "Story Time",
+  "Kids Songs", "Toys & Play", "Animals & Friends", "Arts & Crafts", "Dance & Fun",
+  "Family Adventures", "Science for Kids",
 ];
 
 function AuthShell({ children, side }: { children: React.ReactNode; side: React.ReactNode }) {
@@ -135,9 +136,9 @@ export function LoginPage() {
         </p>
         <div className="mt-2.5 grid gap-1.5">
           {[
-            { label: "Creator — Maya (approved, rich data)", email: "maya@clipora.io", pass: "Creator@123" },
-            { label: "Creator — Sam (pending approval)", email: "sam@clipora.io", pass: "Creator@123" },
-            { label: "Admin — Ava (super admin)", email: "admin@clipora.io", pass: "Admin@123" },
+            { label: "Creator — Meera (approved, rich data)", email: "meera@kuchupuchu.com", pass: "Creator@123" },
+            { label: "Creator — Samir (pending approval)", email: "samir@kuchupuchu.com", pass: "Creator@123" },
+            { label: "Admin — Ava (super admin)", email: "admin@kuchupuchu.com", pass: "Admin@123" },
           ].map(a => (
             <button key={a.email} type="button" onClick={() => fill(a.email, a.pass)}
               className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-left text-xs ring-1 ring-black/5 transition hover:ring-brand-blue/40">
@@ -149,7 +150,7 @@ export function LoginPage() {
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        New to Clipora? <Link to="/register" className="font-bold text-brand-red hover:underline">Become a Creator</Link>
+        New to Kuchu Puchu? <Link to="/register" className="font-bold text-brand-red hover:underline">Become a Creator</Link>
       </p>
     </AuthShell>
   );
@@ -260,7 +261,7 @@ export function RegisterPage() {
   })();
 
   const step1Valid = form.fullName.trim().length >= 2 && /\S+@\S+\.\S+/.test(form.email) &&
-    /^\+?[\d\s-]{7,20}$/.test(form.mobile) && form.password.length >= 8;
+    /^\+?[\d\s-]{7,20}$/.test(form.mobile) && form.password.length >= 8 && !!form.country;
   const step2Valid = form.channelName.trim().length >= 3 && usernameState.available === true &&
     form.country && form.category;
 
@@ -306,7 +307,7 @@ export function RegisterPage() {
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {step === 1 ? "Tell us who you are — this stays private." :
-         step === 2 ? "Your channel is your public identity on Clipora." :
+         step === 2 ? "Your channel is your public identity on Kuchu Puchu." :
          "Add a face to the name (optional) and confirm the rules."}
       </p>
 

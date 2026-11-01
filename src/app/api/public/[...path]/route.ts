@@ -120,7 +120,7 @@ export async function GET(req: Request, ctx: Ctx) {
         creator: {
           select: {
             id: true, name: true, avatarUrl: true,
-            channel: { select: { username: true, name: true, verified: true } },
+            channel: { select: { username: true, name: true, verified: true, theme: true } },
           },
         },
       },
@@ -152,6 +152,7 @@ export async function GET(req: Request, ctx: Ctx) {
           id: v.creator.id, name: v.creator.name, avatarUrl: v.creator.avatarUrl,
           username: v.creator.channel?.username ?? "", channelName: v.creator.channel?.name ?? v.creator.name,
           verified: v.creator.channel?.verified ?? false,
+          theme: v.creator.channel?.theme ?? "BLUE",
         },
         liked: likedIds.has(v.id),
         following: followedIds.has(v.creator.id),
@@ -247,6 +248,7 @@ export async function GET(req: Request, ctx: Ctx) {
         return {
           username: c.username, channelName: c.name, avatarUrl: c.avatarUrl,
           category: c.category, verified: c.verified, followerCount: c.followerCount,
+          theme: c.theme,
           videoCount, verifiedEarnings: Math.round((agg._sum.amount ?? 0) * 100) / 100,
         };
       })
@@ -287,7 +289,7 @@ export async function POST(req: Request, ctx: Ctx) {
     await db.contactMessage.create({ data: { name, email, category, subject, message } });
     await db.mailLog.create({
       data: {
-        toEmail: email, subject: "We received your message — Clipora Support",
+        toEmail: email, subject: "We received your message — Kuchu Puchu Support",
         body: `Hi ${name}, thanks for reaching out about "${subject}". Our team replies within one business day.`,
       },
     });

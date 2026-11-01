@@ -175,7 +175,7 @@ function ChannelContent({ username }: { username: string }) {
               <p className="text-xs uppercase tracking-wider text-white/50">Verified lifetime earnings</p>
               <p className="mt-1 font-display text-3xl font-bold text-brand-yellow">{usd(data.verifiedEarnings)}</p>
               <p className="mt-2 text-xs leading-relaxed text-white/55">
-                Verified against Clipora's earnings ledger and displayed with this creator's explicit consent.
+                Verified against Kuchu Puchu's earnings ledger and displayed with this creator's explicit consent.
               </p>
             </div>
           ) : (

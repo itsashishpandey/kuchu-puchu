@@ -1,5 +1,5 @@
 /**
- * Clipora seed — realistic demo data, clearly separated from production data.
+ * Kuchu Puchu seed — kids-content creator demo data, clearly separated from production data.
  * Run: bun prisma/seed.ts
  */
 import { PrismaClient } from "@prisma/client";
@@ -23,7 +23,7 @@ const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
 async function main() {
-  console.log("🌱 Seeding Clipora…");
+  console.log("🌱 Seeding Kuchu Puchu…");
 
   // ── wipe ──
   await db.$transaction([
@@ -45,15 +45,15 @@ async function main() {
       {
         key: "branding",
         value: JSON.stringify({
-          name: "Clipora", tagline: "Create. Share. Earn.",
-          supportEmail: "support@clipora.io", domain: "clipora.io",
+          name: "Kuchu Puchu", tagline: "Create. Play. Earn.",
+          supportEmail: "support@kuchupuchu.com", domain: "kuchupuchu.com",
         }),
       },
       {
         key: "payouts",
         value: JSON.stringify({
           methods: [
-            { id: "BANK_TRANSFER", name: "Bank Transfer (ACH / SEPA)", regions: "US, EU, UK" },
+            { id: "BANK_TRANSFER", name: "Bank Transfer (ACH / SEPA / IMPS)", regions: "US, EU, UK, India" },
             { id: "PAYPAL", name: "PayPal", regions: "Worldwide" },
           ],
           processingDays: "3–5 business days",
@@ -62,9 +62,9 @@ async function main() {
       {
         key: "homepage",
         value: JSON.stringify({
-          heroTitle: "Create Videos. Get Views. Earn Real Money.",
+          heroTitle: "Create Kids Videos. Get Views. Earn Real Money.",
           heroSubtitle:
-            "Clipora pays creators for every qualified view and every approved original upload. No follower minimums — just original content.",
+            "Kuchu Puchu pays kids-content creators for every qualified view and every approved original upload. Cartoons, rhymes, stories and fun — your creativity, fairly rewarded.",
           announcement: "🎉 New: PayPal payouts are now available worldwide",
         }),
       },
@@ -77,64 +77,69 @@ async function main() {
     ],
   });
 
-  // ── categories ──
+  // ── categories (kids content) ──
   const cats = [
-    ["Entertainment", "entertainment", "Film"], ["Comedy", "comedy", "Laugh"],
-    ["Lifestyle", "lifestyle", "Coffee"], ["Education", "education", "GraduationCap"],
-    ["Food", "food", "UtensilsCrossed"], ["Travel", "travel", "Plane"],
-    ["Technology", "technology", "Cpu"], ["Fitness", "fitness", "Dumbbell"],
-    ["Beauty", "beauty", "Flower2"], ["Music", "music", "Music"],
-    ["Pets", "pets", "PawPrint"], ["Fashion", "fashion", "Shirt"],
-    ["Gaming", "gaming", "Gamepad2"], ["Art", "art", "Palette"],
-    ["Nature", "nature", "Mountain"], ["Dance", "dance", "PartyPopper"],
+    ["Cartoons & Animation", "cartoons", "Clapperboard"],
+    ["Nursery Rhymes", "rhymes", "Music"],
+    ["Kids Comedy", "comedy", "Laugh"],
+    ["Learning & Fun", "learning", "GraduationCap"],
+    ["Story Time", "stories", "BookOpen"],
+    ["Kids Songs", "songs", "Mic"],
+    ["Toys & Play", "toys", "ToyBrick"],
+    ["Animals & Friends", "animals", "PawPrint"],
+    ["Arts & Crafts", "crafts", "Palette"],
+    ["Dance & Fun", "dance", "PartyPopper"],
+    ["Family Adventures", "family", "Baby"],
+    ["Science for Kids", "science", "FlaskConical"],
   ] as const;
   for (const [name, slug, icon] of cats) {
     await db.category.create({
-      data: { name, slug, icon, description: `Original ${name.toLowerCase()} shorts from verified creators.` },
+      data: { name, slug, icon, description: `Original ${name.toLowerCase()} shorts made for little viewers.` },
     });
   }
 
   // ── admins ──
   const admin = await db.user.create({
     data: {
-      email: "admin@clipora.io", name: "Ava Sterling", passwordHash: hashPassword("Admin@123"),
+      email: "admin@kuchupuchu.com", name: "Ava Sterling", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "SUPER_ADMIN", status: "APPROVED", emailVerified: true,
       country: "United States", createdAt: daysAgo(300),
     },
   });
   await db.user.create({
     data: {
-      email: "finance@clipora.io", name: "Felix Grant", passwordHash: hashPassword("Admin@123"),
+      email: "finance@kuchupuchu.com", name: "Felix Grant", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "FINANCE", status: "APPROVED", emailVerified: true, country: "United Kingdom",
     },
   });
   await db.user.create({
     data: {
-      email: "moderator@clipora.io", name: "Mia Lopez", passwordHash: hashPassword("Admin@123"),
+      email: "moderator@kuchupuchu.com", name: "Mia Lopez", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "MODERATOR", status: "APPROVED", emailVerified: true, country: "Spain",
     },
   });
 
-  // ── creators ──
+  // ── creators (kids-content channels; theme: BLUE = boys' channels, PINK = girls' channels) ──
   type CreatorSpec = {
     email: string; name: string; username: string; channel: string; category: string;
     country: string; avatar: string; desc: string; status?: string; followers: number;
     verified?: boolean; showEarnings?: boolean; approvedDaysAgo: number;
+    theme: "BLUE" | "PINK";
     social?: Record<string, string>;
   };
   const creatorSpecs: CreatorSpec[] = [
-    { email: "maya@clipora.io", name: "Maya Torres", username: "mayacreates", channel: "Maya Creates", category: "Lifestyle", country: "United States", avatar: "/images/avatars/av01.webp", desc: "Slow living, morning routines and honest creator-life diaries. New shorts every week 🌤️", status: "APPROVED", followers: 148300, verified: true, showEarnings: true, approvedDaysAgo: 150, social: { instagram: "mayacreates", youtube: "MayaCreates", x: "mayacreates" } },
-    { email: "leo@clipora.io", name: "Leo Carter", username: "leocarter", channel: "Leo Carter", category: "Travel", country: "Australia", avatar: "/images/avatars/av02.webp", desc: "One planet, 60-second stories. Currently: everywhere 🌏", status: "APPROVED", followers: 96700, verified: true, showEarnings: true, approvedDaysAgo: 132, social: { instagram: "leocarter" } },
-    { email: "priya@clipora.io", name: "Priya Sharma", username: "priyacooks", channel: "Priya Cooks", category: "Food", country: "India", avatar: "/images/avatars/av03.webp", desc: "Street-food inspired recipes you can actually cook. 15-minute dinners, zero fuss 🌶️", status: "APPROVED", followers: 210900, verified: true, showEarnings: true, approvedDaysAgo: 141, social: { instagram: "priyacooks", youtube: "PriyaCooks" } },
-    { email: "marcus@clipora.io", name: "Marcus Webb", username: "marcusgroove", channel: "Marcus Groove", category: "Dance", country: "United States", avatar: "/images/avatars/av04.webp", desc: "Choreographer. I turn city streets into stages 🕺", status: "APPROVED", followers: 187500, verified: true, showEarnings: true, approvedDaysAgo: 118 },
-    { email: "sofia@clipora.io", name: "Sofia Chen", username: "sofiatech", channel: "Sofia Tech", category: "Technology", country: "Singapore", avatar: "/images/avatars/av05.webp", desc: "Honest tech reviews. No sponsors, just facts ⚡", status: "APPROVED", followers: 132200, verified: true, showEarnings: true, approvedDaysAgo: 110, social: { x: "sofiatech" } },
-    { email: "jack@clipora.io", name: "Jack Miller", username: "jacklaughs", channel: "Jack Laughs", category: "Comedy", country: "Canada", avatar: "/images/avatars/av06.webp", desc: "Sketches about the absurdity of everyday life 😅", status: "APPROVED", followers: 78400, approvedDaysAgo: 96 },
-    { email: "aisha@clipora.io", name: "Aisha Khan", username: "aishafit", channel: "Aisha Fit", category: "Fitness", country: "UAE", avatar: "/images/avatars/av07.webp", desc: "45-second workouts. Real coaching, real results 💪", status: "APPROVED", followers: 64800, showEarnings: true, approvedDaysAgo: 88 },
-    { email: "daniel@clipora.io", name: "Daniel Okafor", username: "danielexplains", channel: "Daniel Explains", category: "Education", country: "Nigeria", avatar: "/images/avatars/av08.webp", desc: "Money, science and history — explained in 60 seconds 🧠", status: "APPROVED", followers: 118600, verified: true, showEarnings: true, approvedDaysAgo: 80 },
-    { email: "chloe@clipora.io", name: "Chloe Laurent", username: "chloeglow", channel: "Chloe Glow", category: "Beauty", country: "France", avatar: "/images/avatars/av09.webp", desc: "Glass skin, clean beauty and honest product tests ✨", status: "APPROVED", followers: 156800, verified: true, showEarnings: true, approvedDaysAgo: 74 },
-    { email: "ravi@clipora.io", name: "Ravi Mehta", username: "ravistrings", channel: "Ravi Strings", category: "Music", country: "India", avatar: "/images/avatars/av10.webp", desc: "Acoustic covers from rooftops and living rooms 🎸", status: "APPROVED", followers: 52300, approvedDaysAgo: 66 },
-    { email: "emma@clipora.io", name: "Emma Wilson", username: "emmawags", channel: "Emma & Biscuit", category: "Pets", country: "United Kingdom", avatar: "/images/avatars/av11.webp", desc: "A golden retriever, a corgi and zero chill 🐶", status: "APPROVED", followers: 243100, verified: true, showEarnings: true, approvedDaysAgo: 58 },
-    { email: "diego@clipora.io", name: "Diego Ramirez", username: "diegofits", channel: "Diego Fits", category: "Fashion", country: "Mexico", avatar: "/images/avatars/av12.webp", desc: "Capsule wardrobes and styling hacks 👟", status: "APPROVED", followers: 71900, approvedDaysAgo: 50 },
+    { email: "meera@kuchupuchu.com", name: "Meera Iyer", username: "meeraplaytime", channel: "Meera's Playtime", category: "Nursery Rhymes", country: "India", avatar: "/images/avatars/av02.webp", desc: "Sing-along nursery rhymes and playful songs for tiny humans 🎵 New rhyme every week!", status: "APPROVED", followers: 210900, verified: true, showEarnings: true, approvedDaysAgo: 150, theme: "PINK", social: { instagram: "meeraplaytime", youtube: "MeerasPlaytime", x: "meeraplaytime" } },
+    { email: "aarav@kuchupuchu.com", name: "Aarav Mehta", username: "aaravtoons", channel: "Aarav Toons", category: "Cartoons & Animation", country: "India", avatar: "/images/avatars/av01.webp", desc: "Hand-drawn cartoon adventures with big hearts. Meet Kuchu and friends! ✏️", status: "APPROVED", followers: 148300, verified: true, showEarnings: true, approvedDaysAgo: 132, theme: "BLUE", social: { instagram: "aaravtoons", youtube: "AaravToons" } },
+    { email: "riya@kuchupuchu.com", name: "Riya Sharma", username: "bunnybloom", channel: "Bunny Bloom Tales", category: "Story Time", country: "India", avatar: "/images/avatars/av04.webp", desc: "Gentle bedtime stories and tiny tales that end with a smile 🌙", status: "APPROVED", followers: 187500, verified: true, showEarnings: true, approvedDaysAgo: 141, theme: "PINK", social: { instagram: "bunnybloomtales" } },
+    { email: "vikram@kuchupuchu.com", name: "Vikram Singh", username: "lioncubsongs", channel: "Lion Cub Songs", category: "Kids Songs", country: "United Kingdom", avatar: "/images/avatars/av07.webp", desc: "Roar-some songs and sing-along classics with Leo the lion cub 🦁", status: "APPROVED", followers: 96700, verified: true, showEarnings: true, approvedDaysAgo: 118, theme: "BLUE", social: { youtube: "LionCubSongs" } },
+    { email: "sara@kuchupuchu.com", name: "Sara Khan", username: "kittycraftclub", channel: "Kitty Craft Club", category: "Arts & Crafts", country: "UAE", avatar: "/images/avatars/av06.webp", desc: "Easy crafts, rainbow paintings and glitter galore with Mimi the kitten 🎨", status: "APPROVED", followers: 132200, verified: true, showEarnings: true, approvedDaysAgo: 110, theme: "PINK", social: { x: "kittycraftclub" } },
+    { email: "rohan@kuchupuchu.com", name: "Rohan Kapoor", username: "pandapals", channel: "Panda Pals", category: "Kids Comedy", country: "Singapore", avatar: "/images/avatars/av05.webp", desc: "Silly panda giggles, pranks and funny faces for little laughers 😹", status: "APPROVED", followers: 78400, approvedDaysAgo: 96, theme: "BLUE" },
+    { email: "karan@kuchupuchu.com", name: "Karan Patel", username: "dinodayout", channel: "Dino Day Out", category: "Learning & Fun", country: "India", avatar: "/images/avatars/av09.webp", desc: "Counting, colors and dino-sized fun facts for curious kids 🦕", status: "APPROVED", followers: 64800, showEarnings: true, approvedDaysAgo: 88, theme: "BLUE" },
+    { email: "ananya@kuchupuchu.com", name: "Ananya Reddy", username: "teddyhugs", channel: "Teddy Hugs Club", category: "Toys & Play", country: "India", avatar: "/images/avatars/av08.webp", desc: "Toy stories, block towers and tea parties with Tedy the teddy bear 🧸", status: "APPROVED", followers: 118600, verified: true, showEarnings: true, approvedDaysAgo: 80, theme: "PINK" },
+    { email: "pari@kuchupuchu.com", name: "Pari Gupta", username: "parispenguin", channel: "Pari's Penguin Parade", category: "Nursery Rhymes", country: "Canada", avatar: "/images/avatars/av10.webp", desc: "Skating penguins, winter rhymes and sparkling sing-alongs ⛸️", status: "APPROVED", followers: 156800, verified: true, showEarnings: true, approvedDaysAgo: 74, theme: "PINK" },
+    { email: "arjun@kuchupuchu.com", name: "Arjun Nair", username: "monkeymischief", channel: "Monkey Mischief", category: "Family Adventures", country: "India", avatar: "/images/avatars/av11.webp", desc: "Family day-outs, playground adventures and cheeky monkey business 🐒", status: "APPROVED", followers: 52300, approvedDaysAgo: 66, theme: "BLUE" },
+    { email: "ishita@kuchupuchu.com", name: "Ishita Verma", username: "uniwhispers", channel: "Uni-Whispers", category: "Dance & Fun", country: "Australia", avatar: "/images/avatars/av12.webp", desc: "Dance-alongs, wiggle songs and magical unicorn moments 🦄", status: "APPROVED", followers: 243100, verified: true, showEarnings: true, approvedDaysAgo: 58, theme: "PINK" },
+    { email: "kabir@kuchupuchu.com", name: "Kabir Anand", username: "bububuddy", channel: "Bubu & Buddy", category: "Animals & Friends", country: "India", avatar: "/images/avatars/av03.webp", desc: "Ellie the baby elephant and her tiny best friend Mouse 🐘💞", status: "APPROVED", followers: 94700, verified: true, showEarnings: true, approvedDaysAgo: 50, theme: "BLUE", social: { youtube: "BubuAndBuddy" } },
   ];
   const creators: Record<string, { id: string; username: string }> = {};
   for (const c of creatorSpecs) {
@@ -148,7 +153,7 @@ async function main() {
           create: {
             name: c.channel, username: c.username, description: c.desc, avatarUrl: c.avatar,
             category: c.category, country: c.country, followerCount: c.followers,
-            verified: !!c.verified, showEarnings: !!c.showEarnings,
+            verified: !!c.verified, showEarnings: !!c.showEarnings, theme: c.theme,
             socialLinks: c.social ? JSON.stringify(c.social) : null,
           },
         },
@@ -161,37 +166,37 @@ async function main() {
   // pending + rejected + suspended examples
   await db.user.create({
     data: {
-      email: "sam@clipora.io", name: "Sam Rivera", passwordHash: hashPassword("Creator@123"),
-      role: "CREATOR", status: "PENDING", emailVerified: true, country: "United States",
+      email: "samir@kuchupuchu.com", name: "Samir Rao", passwordHash: hashPassword("Creator@123"),
+      role: "CREATOR", status: "PENDING", emailVerified: true, country: "India",
       createdAt: daysAgo(2),
       channel: {
         create: {
-          name: "Sam Builds", username: "sambuilds", description: "Weekend woodworking and DIY projects 🪵",
-          category: "Education", country: "United States", avatarUrl: null,
+          name: "Samir Rhymes", username: "samirrhymes", description: "Action-rhymes and clap-along songs for energetic toddlers 👏",
+          category: "Nursery Rhymes", country: "India", avatarUrl: null, theme: "BLUE",
         },
       },
     },
   });
   await db.user.create({
     data: {
-      email: "kim@clipora.io", name: "Kim Park", passwordHash: hashPassword("Creator@123"),
+      email: "kim@kuchupuchu.com", name: "Kim Park", passwordHash: hashPassword("Creator@123"),
       role: "CREATOR", status: "REJECTED", rejectionReason:
-        "Channel name is too similar to an existing verified brand. Please choose a different channel name and re-apply.",
+        "Channel name is too similar to the Kuchu Puchu brand. Please choose a different channel name and re-apply.",
       emailVerified: true, country: "South Korea", createdAt: daysAgo(9),
-      channel: { create: { name: "Sofia Tech Reviews", username: "sofiatechreviews", description: "Tech reviews", category: "Technology", country: "South Korea" } },
+      channel: { create: { name: "Kuchu Cartoon TV", username: "kuchucartoontv", description: "Cartoon clips", category: "Cartoons & Animation", country: "South Korea", theme: "PINK" } },
     },
   });
   const suspended = await db.user.create({
     data: {
-      email: "trent@clipora.io", name: "Trent Cole", passwordHash: hashPassword("Creator@123"),
+      email: "tara@kuchupuchu.com", name: "Tara Bakshi", passwordHash: hashPassword("Creator@123"),
       role: "CREATOR", status: "SUSPENDED",
       suspensionReason: "Repeated community-guideline violations: spam comments on other creators' videos.",
-      emailVerified: true, country: "United States", createdAt: daysAgo(60),
-      channel: { create: { name: "Trent Clips", username: "trentclips", description: "Clips and reactions", category: "Entertainment", country: "United States" } },
+      emailVerified: true, country: "India", createdAt: daysAgo(60),
+      channel: { create: { name: "Tara Clips", username: "taraclips", description: "Clips and re-uploads", category: "Kids Comedy", country: "India", theme: "PINK" } },
     },
   });
 
-  // ── videos ──
+  // ── videos (kids content) ──
   type VideoSpec = {
     file: string; thumb: string; title: string; description: string; category: string;
     creator: string; hashtags: string[]; duration: number; publishedDaysAgo: number;
@@ -199,22 +204,22 @@ async function main() {
     status?: string;
   };
   const videoSpecs: VideoSpec[] = [
-    { file: "v12.mp4", thumb: "th12.webp", title: "My 5AM Morning Routine (Realistic Version)", description: "No 4-hour rituals. Just the 45 seconds that actually changed my mornings.", category: "Lifestyle", creator: "mayacreates", hashtags: ["morningroutine", "slowliving", "5am"], duration: 48, publishedDaysAgo: 62, views: 512400, qualRatio: 0.82, likes: 48200, shares: 3120, featured: true },
-    { file: "v14.mp4", thumb: "th14.webp", title: "Painting With My Left Hand for 60 Seconds", description: "I broke my right wrist, so obviously I made art with my left. Day 12.", category: "Art", creator: "mayacreates", hashtags: ["art", "challenge", "lefthanded"], duration: 42, publishedDaysAgo: 21, views: 1241500, qualRatio: 0.84, likes: 198600, shares: 12800, featured: true },
-    { file: "v02.mp4", thumb: "th02.webp", title: "This Beach in Bali Looks Unreal", description: "No filter needed. Location in comments 📍", category: "Travel", creator: "mayacreates", hashtags: ["bali", "travel", "beach"], duration: 52, publishedDaysAgo: 8, views: 187300, qualRatio: 0.79, likes: 22400, shares: 2980 },
-    { file: "v01.mp4", thumb: "th01.webp", title: "15-Minute Street Tacos That Actually Slap", description: "Corn tortillas, quick-pickled onions, and a 3-ingredient salsa. Full recipe on my channel.", category: "Food", creator: "priyacooks", hashtags: ["tacos", "streetfood", "recipe"], duration: 47, publishedDaysAgo: 55, views: 341800, qualRatio: 0.81, likes: 41700, shares: 5640, featured: true },
-    { file: "v16.mp4", thumb: "th16.webp", title: "Plating Pasta Like a Michelin Chef", description: "Twirl, height, sauce circle. That's the whole secret.", category: "Food", creator: "priyacooks", hashtags: ["pasta", "plating", "foodart"], duration: 44, publishedDaysAgo: 18, views: 128900, qualRatio: 0.77, likes: 15300, shares: 1410 },
-    { file: "v13.mp4", thumb: "th13.webp", title: "Sunrise at the Alpine Lake Nobody Talks About", description: "Woke up at 3AM for this. Worth it.", category: "Nature", creator: "leocarter", hashtags: ["sunrise", "hiking", "alps"], duration: 41, publishedDaysAgo: 12, views: 214600, qualRatio: 0.8, likes: 28900, shares: 4120, featured: true },
-    { file: "v03.mp4", thumb: "th03.webp", title: "Sunset Freestyle in Downtown LA", description: "One take. One golden hour. Full choreo on my channel.", category: "Dance", creator: "marcusgroove", hashtags: ["dance", "freestyle", "sunset"], duration: 49, publishedDaysAgo: 30, views: 892400, qualRatio: 0.83, likes: 112300, shares: 9840 },
-    { file: "v04.mp4", thumb: "th04.webp", title: "The $29 Earbuds That Beat $200 Ones", description: "I bought them expecting garbage. I was wrong. Full breakdown.", category: "Technology", creator: "sofiatech", hashtags: ["tech", "earbuds", "review"], duration: 51, publishedDaysAgo: 26, views: 458200, qualRatio: 0.78, likes: 51200, shares: 6210 },
-    { file: "v15.mp4", thumb: "th15.webp", title: "My 2026 Desk Setup Tour", description: "Cable management finally done. Parts list in comments.", category: "Gaming", creator: "sofiatech", hashtags: ["setup", "desksetup", "rgb"], duration: 48, publishedDaysAgo: 6, views: 76300, qualRatio: 0.74, likes: 8900, shares: 760 },
-    { file: "v05.mp4", thumb: "th05.webp", title: "Full-Body Burn in 45 Seconds", description: "No equipment. Do it with me — right now.", category: "Fitness", creator: "aishafit", hashtags: ["workout", "fitness", "homeworkout"], duration: 45, publishedDaysAgo: 15, views: 198700, qualRatio: 0.76, likes: 24100, shares: 3880 },
-    { file: "v06.mp4", thumb: "th06.webp", title: "5-Minute Glass Skin Routine", description: "Four products. That's it. Links in bio.", category: "Beauty", creator: "chloeglow", hashtags: ["glassskin", "skincare", "beauty"], duration: 43, publishedDaysAgo: 11, views: 389500, qualRatio: 0.79, likes: 56700, shares: 7230 },
-    { file: "v07.mp4", thumb: "th07.webp", title: "Why Compounding Is the 8th Wonder", description: "Einstein allegedly said it. Here's the 60-second proof.", category: "Education", creator: "danielexplains", hashtags: ["money", "investing", "compounding"], duration: 46, publishedDaysAgo: 150, views: 267800, qualRatio: 0.75, likes: 31400, shares: 5210 },
-    { file: "v08.mp4", thumb: "th08.webp", title: "My Corgi Reviews Sunglasses", description: "He has opinions. Strong ones.", category: "Pets", creator: "emmawags", hashtags: ["corgi", "dogs", "pets"], duration: 40, publishedDaysAgo: 4, views: 612300, qualRatio: 0.85, likes: 98700, shares: 12400, featured: true },
-    { file: "v09.mp4", thumb: "th09.webp", title: "3 Outfits, 1 Sneaker", description: "Capsule styling: one white sneaker, three fits.", category: "Fashion", creator: "diegofits", hashtags: ["fashion", "styling", "sneakers"], duration: 50, publishedDaysAgo: 9, views: 84600, qualRatio: 0.72, likes: 9800, shares: 1120 },
-    { file: "v10.mp4", thumb: "th10.webp", title: "Rooftop Acoustic Session — Golden Hour", description: "Recorded in one take on a Lisbon rooftop.", category: "Music", creator: "ravistrings", hashtags: ["acoustic", "livemusic", "rooftop"], duration: 57, publishedDaysAgo: 20, views: 132400, qualRatio: 0.81, likes: 18600, shares: 2440 },
-    { file: "v11.mp4", thumb: "th11.webp", title: "When the Group Chat Goes Quiet", description: "Tag the friend who does this.", category: "Comedy", creator: "jacklaughs", hashtags: ["comedy", "relatable", "groupchat"], duration: 42, publishedDaysAgo: 7, views: 421800, qualRatio: 0.8, likes: 71200, shares: 15600 },
+    { file: "v12.mp4", thumb: "th12.webp", title: "Twinkle Twinkle Little Star Remix ⭐", description: "Pari the penguin skates under the stars in our dreamiest remix yet. Sing along!", category: "Nursery Rhymes", creator: "meeraplaytime", hashtags: ["twinkletwinkle", "nurseryrhymes", "songsforkids"], duration: 48, publishedDaysAgo: 62, views: 512400, qualRatio: 0.82, likes: 48200, shares: 3120, featured: true },
+    { file: "v14.mp4", thumb: "th14.webp", title: "Rocket Trip to Candy Planet 🚀", description: "Countdown, lift-off and a whole planet made of lollipops! Kuchu's biggest adventure yet.", category: "Cartoons & Animation", creator: "meeraplaytime", hashtags: ["rocket", "candyplanet", "cartoon"], duration: 42, publishedDaysAgo: 21, views: 1241500, qualRatio: 0.84, likes: 198600, shares: 12800, featured: true },
+    { file: "v02.mp4", thumb: "th02.webp", title: "Bunny in the Rainbow Garden 🌈", description: "Bloom the bunny hops through a magical garden where flowers sing. Can you name every color?", category: "Story Time", creator: "meeraplaytime", hashtags: ["rainbow", "bunny", "colors"], duration: 52, publishedDaysAgo: 8, views: 187300, qualRatio: 0.79, likes: 22400, shares: 2980 },
+    { file: "v01.mp4", thumb: "th01.webp", title: "Baby Elephant's Bubble Bath Day 🛁", description: "Ellie discovers bubbles — and a little yellow duck friend. Splash along!", category: "Animals & Friends", creator: "bububuddy", hashtags: ["elephant", "bubblebath", "jungle"], duration: 47, publishedDaysAgo: 55, views: 612300, qualRatio: 0.85, likes: 98700, shares: 12400, featured: true },
+    { file: "v16.mp4", thumb: "th16.webp", title: "Puppy's Surprise Birthday Party 🎂", description: "Balloon, presents and one very happy puppy. Happy birthday, Coco!", category: "Family Adventures", creator: "bububuddy", hashtags: ["birthday", "puppy", "party"], duration: 44, publishedDaysAgo: 18, views: 128900, qualRatio: 0.77, likes: 15300, shares: 1410 },
+    { file: "v13.mp4", thumb: "th13.webp", title: "Baby Fox and the Magic Fireflies ✨", description: "A tiny fox follows glowing fireflies deep into the enchanted forest. A gentle goodnight story.", category: "Cartoons & Animation", creator: "aaravtoons", hashtags: ["fireflies", "fox", "bedtimestory"], duration: 41, publishedDaysAgo: 12, views: 892400, qualRatio: 0.83, likes: 112300, shares: 9840, featured: true },
+    { file: "v03.mp4", thumb: "th03.webp", title: "The Kuchu Puchu Dance Party! 💃", description: "Wiggle, giggle and dance with the whole gang. Can you do the Kuchu spin?", category: "Dance & Fun", creator: "uniwhispers", hashtags: ["danceparty", "dancealong", "kidsongs"], duration: 49, publishedDaysAgo: 30, views: 892400, qualRatio: 0.83, likes: 112300, shares: 9840 },
+    { file: "v04.mp4", thumb: "th04.webp", title: "The Little Sparrow Who Believed 🐦", description: "She was the smallest bird in the jungle — but she had the biggest dream. A story about courage.", category: "Story Time", creator: "kittycraftclub", hashtags: ["sparrow", "believeinyourself", "story"], duration: 51, publishedDaysAgo: 26, views: 458200, qualRatio: 0.78, likes: 51200, shares: 6210 },
+    { file: "v15.mp4", thumb: "th15.webp", title: "Best Friends Forever: Ellie & Mouse 💕", description: "The biggest hug in the meadow! Because friends come in every size.", category: "Animals & Friends", creator: "kittycraftclub", hashtags: ["friendship", "elephant", "mouse"], duration: 48, publishedDaysAgo: 6, views: 76300, qualRatio: 0.74, likes: 8900, shares: 760 },
+    { file: "v05.mp4", thumb: "th05.webp", title: "Panda's Bamboo Cookie Party 🍪", description: "Pom the panda bakes (and mostly eats) bamboo cookies. Count along — one, two, three!", category: "Kids Comedy", creator: "dinodayout", hashtags: ["panda", "cookies", "counting"], duration: 45, publishedDaysAgo: 15, views: 198700, qualRatio: 0.76, likes: 24100, shares: 3880 },
+    { file: "v06.mp4", thumb: "th06.webp", title: "Building the Tallest Block Tower 🧱", description: "Red, blue, pink — stack them high! What's the tallest tower YOU ever built?", category: "Toys & Play", creator: "teddyhugs", hashtags: ["blocks", "toys", "building"], duration: 43, publishedDaysAgo: 11, views: 389500, qualRatio: 0.79, likes: 56700, shares: 7230 },
+    { file: "v07.mp4", thumb: "th07.webp", title: "ABC Song with Lion Cub 🔤", description: "Leo the lion cub learns his ABCs on the classroom chalkboard. Sing every letter!", category: "Nursery Rhymes", creator: "parispenguin", hashtags: ["abc", "alphabet", "learningsongs"], duration: 46, publishedDaysAgo: 150, views: 267800, qualRatio: 0.75, likes: 31400, shares: 5210 },
+    { file: "v08.mp4", thumb: "th08.webp", title: "Kitty Paints a Rainbow 🎨", description: "Mimi the kitten paints the biggest rainbow ever — with one surprise splash of pink!", category: "Arts & Crafts", creator: "bunnybloom", hashtags: ["painting", "rainbow", "crafts"], duration: 40, publishedDaysAgo: 4, views: 612300, qualRatio: 0.85, likes: 98700, shares: 12400, featured: true },
+    { file: "v09.mp4", thumb: "th09.webp", title: "Sleepy Bunny's Bedtime Story 🌙", description: "Pajamas on, stars out. The perfect 40 seconds to end the day. Night night!", category: "Story Time", creator: "lioncubsongs", hashtags: ["bedtime", "sleepy", "goodnight"], duration: 40, publishedDaysAgo: 9, views: 84600, qualRatio: 0.72, likes: 9800, shares: 1120 },
+    { file: "v10.mp4", thumb: "th10.webp", title: "Dino's Rainy Day Puddle Jump 🦕", description: "Yellow boots, big puddles, gigantic splashes! Why is rain so much fun?", category: "Learning & Fun", creator: "monkeymischief", hashtags: ["rainyday", "puddles", "dinofun"], duration: 57, publishedDaysAgo: 20, views: 132400, qualRatio: 0.81, likes: 18600, shares: 2440 },
+    { file: "v11.mp4", thumb: "th11.webp", title: "Panda's Silly Toy Box Surprise 🧸", description: "What's inside the mystery toy box? Pom the panda finds out the goofy way!", category: "Kids Comedy", creator: "pandapals", hashtags: ["toybox", "surprise", "funny"], duration: 42, publishedDaysAgo: 7, views: 421800, qualRatio: 0.8, likes: 71200, shares: 15600 },
   ];
 
   const monetization = await db.monetizationSetting.findFirst();
@@ -270,10 +275,10 @@ async function main() {
     const publishedAt = daysAgo(2, 14);
     await db.video.create({
       data: {
-        contentId, creatorId: creators["jacklaughs"].id,
-        title: "15-Minute Street Tacos Tutorial (HD Re-Upload)",
+        contentId, creatorId: creators["pandapals"].id,
+        title: "Baby Elephant's Bubble Bath (HD Re-Upload)",
         description: "Re-uploading in higher quality!",
-        category: "Food", hashtags: JSON.stringify(["tacos", "streetfood"]),
+        category: "Animals & Friends", hashtags: JSON.stringify(["elephant", "bubblebath"]),
         videoUrl: "/videos/v01_dup.mp4", thumbnailUrl: "/images/thumbs/th01.webp",
         duration: 47, fileSizeMB: Math.round((buf.length / 1024 / 1024) * 10) / 10,
         resolution: "720x1280", format: "mp4",
@@ -286,14 +291,14 @@ async function main() {
     });
     await db.fraudFlag.create({
       data: {
-        userId: creators["jacklaughs"].id, videoId: contentId, type: "DUPLICATE_CONTENT",
+        userId: creators["pandapals"].id, videoId: contentId, type: "DUPLICATE_CONTENT",
         severity: "HIGH",
-        details: `VID-2026-000017 matches VID-2026-000004 (Priya Cooks) with 97% visual similarity and 99% audio similarity. Upload reward withheld pending review.`,
+        details: `VID-2026-000017 matches VID-2026-000004 (Bubu & Buddy) with 97% visual similarity and 99% audio similarity. Upload reward withheld pending review.`,
       },
     });
     await db.notification.create({
       data: {
-        userId: creators["jacklaughs"].id, type: "DUPLICATE",
+        userId: creators["pandapals"].id, type: "DUPLICATE",
         title: "Duplicate content detected",
         body: `Your upload ${contentId} was flagged: 97% similar to an existing video. Upload rewards are on hold until review. You can submit an appeal from My Videos.`,
         link: "#/dashboard/videos",
@@ -303,10 +308,10 @@ async function main() {
 
   // ── comments ──
   const commenters = [
-    ["Layla H.", "This is the content I signed up for 🔥"], ["Tomás R.", "Watched this 4 times already"],
-    ["Jenny W.", "How is this only 60 seconds, I need a whole series"], ["Ahmed K.", "Saving this immediately"],
-    ["Rosa M.", "The editing on this is so clean 👏"], ["Kevin P.", "Came for the tips, stayed for the vibes"],
-    ["Ines F.", "Okay this deserves way more views"], ["Dara S.", "Clipora algorithm finally showing me good stuff"],
+    ["Layla H.", "My toddler asks for this every night! 🥰"], ["Tomás R.", "Watched this 4 times with my son already"],
+    ["Jenny W.", "How is this only 60 seconds, we need a whole series"], ["Ahmed K.", "Saving this for road trips"],
+    ["Rosa M.", "The animation style is so soft and cute 👏"], ["Kevin P.", "My daughter now knows all her colors thanks to this"],
+    ["Ines F.", "Ellie the elephant deserves way more views"], ["Dara S.", "Kuchu Puchu finally showing my kids the good stuff"],
   ];
   for (const v of created) {
     const n = rand(3, 6);
@@ -322,10 +327,10 @@ async function main() {
     await db.video.update({ where: { id: v.id }, data: { commentsCount: n } });
   }
 
-  // ── follows (maya follows a few channels) ──
-  for (const uname of ["priyacooks", "danielexplains", "emmawags", "sofiatech"]) {
+  // ── follows (meera follows a few channels) ──
+  for (const uname of ["bunnybloom", "teddyhugs", "uniwhispers", "kittycraftclub"]) {
     await db.follow.create({
-      data: { followerId: creators["mayacreates"].id, channelId: (await db.channel.findUnique({ where: { username: uname } }))!.id },
+      data: { followerId: creators["meeraplaytime"].id, channelId: (await db.channel.findUnique({ where: { username: uname } }))!.id },
     });
   }
 
@@ -398,72 +403,72 @@ async function main() {
   }
 
   // ── withdrawals ──
-  const maya = creators["mayacreates"].id;
+  const meera = creators["meeraplaytime"].id;
   await db.withdrawal.create({
     data: {
-      userId: maya, amount: 600, method: "BANK_TRANSFER",
-      details: JSON.stringify({ accountName: "Maya Torres", maskedAccount: "•••• 4821", bank: "Chase" }),
-      status: "PAID", paymentRef: "PAY-8K2NQX91", adminNote: "Paid via ACH batch #42",
+      userId: meera, amount: 600, method: "BANK_TRANSFER",
+      details: JSON.stringify({ accountName: "Meera Iyer", maskedAccount: "•••• 4821", bank: "HDFC" }),
+      status: "PAID", paymentRef: "PAY-8K2NQX91", adminNote: "Paid via IMPS batch #42",
       createdAt: daysAgo(35), updatedAt: daysAgo(32),
     },
   });
   await db.withdrawal.create({
     data: {
-      userId: maya, amount: 250, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "Maya Torres", maskedAccount: "maya•••@clipora.io" }),
+      userId: meera, amount: 250, method: "PAYPAL",
+      details: JSON.stringify({ accountName: "Meera Iyer", maskedAccount: "meera•••@kuchupuchu.com" }),
       status: "PROCESSING", paymentRef: "PAY-3J7MDP24", adminNote: "PayPal payout submitted",
       createdAt: daysAgo(4), updatedAt: daysAgo(1),
     },
   });
   await db.withdrawal.create({
     data: {
-      userId: maya, amount: 150, method: "BANK_TRANSFER",
-      details: JSON.stringify({ accountName: "Maya Torres", maskedAccount: "•••• 4821", bank: "Chase" }),
+      userId: meera, amount: 150, method: "BANK_TRANSFER",
+      details: JSON.stringify({ accountName: "Meera Iyer", maskedAccount: "•••• 4821", bank: "HDFC" }),
       status: "REQUESTED", createdAt: daysAgo(0, 9),
     },
   });
   await db.withdrawal.create({
     data: {
-      userId: creators["leocarter"].id, amount: 120, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "Leo Carter", maskedAccount: "leo•••@clipora.io" }),
+      userId: creators["aaravtoons"].id, amount: 120, method: "PAYPAL",
+      details: JSON.stringify({ accountName: "Aarav Mehta", maskedAccount: "aarav•••@kuchupuchu.com" }),
       status: "PAID", paymentRef: "PAY-9Z4TQR58", createdAt: daysAgo(20), updatedAt: daysAgo(17),
     },
   });
   await db.withdrawal.create({
     data: {
-      userId: creators["priyacooks"].id, amount: 75, method: "BANK_TRANSFER",
-      details: JSON.stringify({ accountName: "Priya Sharma", maskedAccount: "•••• 7710", bank: "HDFC" }),
+      userId: creators["bunnybloom"].id, amount: 75, method: "BANK_TRANSFER",
+      details: JSON.stringify({ accountName: "Riya Sharma", maskedAccount: "•••• 7710", bank: "ICICI" }),
       status: "UNDER_REVIEW", createdAt: daysAgo(2),
     },
   });
   await db.withdrawal.create({
     data: {
-      userId: creators["marcusgroove"].id, amount: 30, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "M. Webb", maskedAccount: "mw•••@clipora.io" }),
+      userId: creators["lioncubsongs"].id, amount: 30, method: "PAYPAL",
+      details: JSON.stringify({ accountName: "V. Singh", maskedAccount: "vs•••@kuchupuchu.com" }),
       status: "REJECTED", adminNote: "PayPal account name does not match your verified channel name. Please update payment details and re-request.",
       createdAt: daysAgo(12), updatedAt: daysAgo(11),
     },
   });
 
   // ── fraud flags ──
-  const sofiaV = created.find(c => c.spec.file === "v04.mp4")!;
-  const mayaV12 = created.find(c => c.spec.file === "v12.mp4")!;
-  const mayaV14 = created.find(c => c.spec.file === "v14.mp4")!;
+  const saraV = created.find(c => c.spec.file === "v04.mp4")!;
+  const meeraV12 = created.find(c => c.spec.file === "v12.mp4")!;
+  const meeraV14 = created.find(c => c.spec.file === "v14.mp4")!;
   await db.fraudFlag.create({
     data: {
-      userId: sofiaV.creatorId, videoId: sofiaV.contentId, type: "VIEW_BOT", severity: "MEDIUM",
+      userId: saraV.creatorId, videoId: saraV.contentId, type: "VIEW_BOT", severity: "MEDIUM",
       details: "42 views from a known bot user-agent were excluded from qualified views in the last 24h.",
     },
   });
   await db.fraudFlag.create({
     data: {
-      userId: mayaV12.creatorId, videoId: mayaV12.contentId, type: "RAPID_REFRESH", severity: "LOW",
+      userId: meeraV12.creatorId, videoId: meeraV12.contentId, type: "RAPID_REFRESH", severity: "LOW",
       details: "One viewer generated 14 views in 10 minutes (daily cap is 3). Extra views were not credited.",
     },
   });
   await db.fraudFlag.create({
     data: {
-      userId: mayaV14.creatorId, videoId: mayaV14.contentId, type: "SELF_VIEW", severity: "LOW",
+      userId: meeraV14.creatorId, videoId: meeraV14.contentId, type: "SELF_VIEW", severity: "LOW",
       details: "23 self-views detected from the creator's own device. Self-views are never monetized.",
     },
   });
@@ -474,22 +479,22 @@ async function main() {
     },
   });
 
-  // ── notifications for maya ──
-  const mayaN = [
+  // ── notifications for meera ──
+  const meeraN = [
     ["APPLICATION_SUBMITTED", "Application received", "Your creator application is now pending review. We usually review within 2 business days.", daysAgo(154)],
-    ["ACCOUNT_STATUS", "Welcome to Clipora, creator! 🎉", "Your channel Maya Creates has been approved. You can now upload videos and start earning.", daysAgo(150)],
-    ["VIDEO_STATUS", "Video approved: My 5AM Morning Routine", "Your video passed originality checks and is now live and monetized.", daysAgo(61)],
+    ["ACCOUNT_STATUS", "Welcome to Kuchu Puchu, creator! 🎉", "Your channel Meera's Playtime has been approved. You can now upload videos and start earning.", daysAgo(150)],
+    ["VIDEO_STATUS", "Video approved: Twinkle Twinkle Little Star Remix ⭐", "Your video passed originality checks and is now live and monetized.", daysAgo(61)],
     ["EARNING", "You earned $18.24 yesterday", "Earnings from qualified views were credited to your pending balance.", daysAgo(1)],
     ["EARNING", "Upload reward credited", "$0.50 was credited for your approved original upload VID-2026-000002.", daysAgo(20)],
     ["WITHDRAWAL", "Withdrawal paid ✅", "Your $600.00 withdrawal (PAY-8K2NQX91) has been paid to your bank account.", daysAgo(32)],
     ["WITHDRAWAL", "Withdrawal processing", "Your $250.00 PayPal withdrawal is being processed. Expect it within 3–5 business days.", daysAgo(1)],
     ["LIMIT", "Daily upload limit reached", "You've used 2 of 2 uploads today. Your upload allowance resets at midnight.", daysAgo(6)],
     ["MONETIZATION", "Monetization window reminder", "VID-2026-000001 stops generating view earnings on its 4-month anniversary. It stays public — it just stops earning.", daysAgo(3)],
-    ["ANNOUNCEMENT", "PayPal payouts now worldwide 🌍", "You can now receive Clipora payouts via PayPal in every supported country.", daysAgo(9)],
+    ["ANNOUNCEMENT", "PayPal payouts now worldwide 🌍", "You can now receive Kuchu Puchu payouts via PayPal in every supported country.", daysAgo(9)],
   ] as const;
-  for (const [type, title, body, at] of mayaN) {
+  for (const [type, title, body, at] of meeraN) {
     await db.notification.create({
-      data: { userId: maya, type, title, body, read: at < daysAgo(5), createdAt: at },
+      data: { userId: meera, type, title, body, read: at < daysAgo(5), createdAt: at },
     });
   }
   // notifications for others (approval etc.)
@@ -498,7 +503,7 @@ async function main() {
       data: {
         userId: creators[uname].id, type: "ACCOUNT_STATUS",
         title: "Your channel has been approved 🎉",
-        body: "Welcome to Clipora! You can now upload original videos and start earning.",
+        body: "Welcome to Kuchu Puchu! You can now upload original videos and start earning.",
         createdAt: daysAgo(rand(10, 100)),
       },
     });
@@ -507,21 +512,21 @@ async function main() {
   // ── mail log (simulated outbound emails) ──
   await db.mailLog.createMany({
     data: [
-      { toEmail: "maya@clipora.io", subject: "Your Clipora creator account is approved", body: "Hi Maya, your channel Maya Creates has been approved. Start uploading to earn.", createdAt: daysAgo(150) },
-      { toEmail: "maya@clipora.io", subject: "Withdrawal paid: $600.00", body: "Your withdrawal PAY-8K2NQX91 was paid to your bank account.", createdAt: daysAgo(32) },
-      { toEmail: "kim@clipora.io", subject: "Your Clipora application was not approved", body: "Channel name is too similar to an existing verified brand. You may re-apply with a new channel name.", createdAt: daysAgo(8) },
-      { toEmail: "sam@clipora.io", subject: "We received your application", body: "Thanks for applying to Clipora. Our team is reviewing your channel — usually within 2 business days.", createdAt: daysAgo(2) },
+      { toEmail: "meera@kuchupuchu.com", subject: "Your Kuchu Puchu creator account is approved", body: "Hi Meera, your channel Meera's Playtime has been approved. Start uploading to earn.", createdAt: daysAgo(150) },
+      { toEmail: "meera@kuchupuchu.com", subject: "Withdrawal paid: $600.00", body: "Your withdrawal PAY-8K2NQX91 was paid to your bank account.", createdAt: daysAgo(32) },
+      { toEmail: "kim@kuchupuchu.com", subject: "Your Kuchu Puchu application was not approved", body: "Channel name is too similar to the Kuchu Puchu brand. You may re-apply with a new channel name.", createdAt: daysAgo(8) },
+      { toEmail: "samir@kuchupuchu.com", subject: "We received your application", body: "Thanks for applying to Kuchu Puchu. Our team is reviewing your channel — usually within 2 business days.", createdAt: daysAgo(2) },
     ],
   });
 
   // ── audit logs ──
   await db.auditLog.createMany({
     data: [
-      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_APPROVED", targetType: "CREATOR", targetId: creators["mayacreates"].username, details: "Approved after originality review", createdAt: daysAgo(150) },
-      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_REJECTED", targetType: "CREATOR", targetId: "sofiatechreviews", details: "Channel name too similar to existing brand", createdAt: daysAgo(8) },
+      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_APPROVED", targetType: "CREATOR", targetId: creators["meeraplaytime"].username, details: "Approved after originality review", createdAt: daysAgo(150) },
+      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_REJECTED", targetType: "CREATOR", targetId: "kuchucartoontv", details: "Channel name too similar to Kuchu Puchu brand", createdAt: daysAgo(8) },
       { actorId: admin.id, actorEmail: admin.email, action: "VIDEO_APPROVED", targetType: "VIDEO", targetId: "VID-2026-000001", details: "Passed duplicate checks", createdAt: daysAgo(55) },
-      { actorId: admin.id, actorEmail: admin.email, action: "WITHDRAWAL_PAID", targetType: "WITHDRAWAL", targetId: "PAY-8K2NQX91", details: "$600 ACH payout to Maya Torres", createdAt: daysAgo(32) },
-      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_SUSPENDED", targetType: "CREATOR", targetId: "trentclips", details: "Spam comments — 3rd strike", createdAt: daysAgo(5) },
+      { actorId: admin.id, actorEmail: admin.email, action: "WITHDRAWAL_PAID", targetType: "WITHDRAWAL", targetId: "PAY-8K2NQX91", details: "$600 IMPS payout to Meera Iyer", createdAt: daysAgo(32) },
+      { actorId: admin.id, actorEmail: admin.email, action: "CREATOR_SUSPENDED", targetType: "CREATOR", targetId: "taraclips", details: "Spam comments — 3rd strike", createdAt: daysAgo(5) },
     ],
   });
 
@@ -530,7 +535,7 @@ async function main() {
   await db.contentReport.create({
     data: {
       videoId: reported.id, reporterKey: randomBytes(12).toString("hex"),
-      reason: "COPYRIGHT", details: "Contains a 10-second clip from a licensed TV show.",
+      reason: "COPYRIGHT", details: "Contains a 10-second clip from a licensed cartoon show.",
       status: "OPEN", createdAt: daysAgo(1),
     },
   });
@@ -538,19 +543,19 @@ async function main() {
   // ── contact + newsletter ──
   await db.contactMessage.createMany({
     data: [
-      { name: "Omar Haddad", email: "omar@example.com", category: "PAYMENTS", subject: "PayPal not available in my country?", message: "Hi! I'd love to join but PayPal payouts aren't available in Morocco. Are bank transfers coming?", createdAt: daysAgo(3) },
-      { name: "Greta Lind", email: "greta@example.com", category: "CREATOR_SUPPORT", subject: "Duplicate flag by mistake", message: "My video was flagged as duplicate but it's 100% my own footage. How do I appeal?", createdAt: daysAgo(1) },
+      { name: "Omar Haddad", email: "omar@example.com", category: "PAYMENTS", subject: "PayPal not available in my country?", message: "Hi! I make nursery rhyme videos with my daughter and would love to join, but PayPal payouts aren't available in Morocco. Are bank transfers coming?", createdAt: daysAgo(3) },
+      { name: "Greta Lind", email: "greta@example.com", category: "CREATOR_SUPPORT", subject: "Duplicate flag by mistake", message: "My hand-drawn cartoon was flagged as duplicate but it's 100% my own animation. How do I appeal?", createdAt: daysAgo(1) },
     ],
   });
   await db.newsletterSubscriber.createMany({
     data: [
-      { email: "creator.news@example.com" }, { email: "sam@example.com" }, { email: "hello@example.com" },
+      { email: "creator.news@example.com" }, { email: "samir@example.com" }, { email: "hello@example.com" },
     ],
   });
 
   // ── summary ──
-  const walletMaya = await db.ledgerEntry.aggregate({ _sum: { amount: true }, where: { userId: maya } });
-  console.log("Maya lifetime earnings ≈ $", (walletMaya._sum.amount ?? 0).toFixed(2));
+  const walletMeera = await db.ledgerEntry.aggregate({ _sum: { amount: true }, where: { userId: meera } });
+  console.log("Meera lifetime earnings ≈ $", (walletMeera._sum.amount ?? 0).toFixed(2));
   console.log("✅ Seed complete:", {
     creators: await db.user.count({ where: { role: "CREATOR" } }),
     videos: await db.video.count(),

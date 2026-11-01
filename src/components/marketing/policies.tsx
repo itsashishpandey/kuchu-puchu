@@ -16,7 +16,7 @@ const POLICIES: Record<string, Policy> = {
     sections: [
       {
         h: "1. Who can earn",
-        p: ["Only approved creators with monetization in good standing can earn on Clipora. Accounts that are pending, rejected or suspended cannot upload or earn, and their content does not generate view revenue."],
+        p: ["Only approved creators with monetization in good standing can earn on Kuchu Puchu. Accounts that are pending, rejected or suspended cannot upload or earn, and their content does not generate view revenue."],
         list: [
           "Creator account status must be APPROVED.",
           "Videos must be approved and original — duplicates never earn.",
@@ -57,7 +57,7 @@ const POLICIES: Record<string, Policy> = {
   },
   community: {
     title: "Community Guidelines",
-    intro: "The rules that keep Clipora safe, original and worth watching.",
+    intro: "The rules that keep Kuchu Puchu safe, original and worth watching.",
     updated: "Last updated: November 1, 2026",
     sections: [
       {
@@ -93,7 +93,7 @@ const POLICIES: Record<string, Policy> = {
     sections: [
       {
         h: "1. Ownership",
-        p: ["Creators retain full ownership of uploaded content. By uploading, you grant Clipora a non-exclusive license to host, stream, display and monetize your videos on the platform. Nothing more."],
+        p: ["Creators retain full ownership of uploaded content. By uploading, you grant Kuchu Puchu a non-exclusive license to host, stream, display and monetize your videos on the platform. Nothing more."],
       },
       {
         h: "2. Duplicate detection",
@@ -104,7 +104,7 @@ const POLICIES: Record<string, Policy> = {
       },
       {
         h: "3. Reporting infringement",
-        p: ["If your work was re-uploaded without permission, use the Report → Copyright option on the video or email copyright@clipora.io. Verified reports result in removal of the infringing copy and forfeiture of any associated earnings."],
+        p: ["If your work was re-uploaded without permission, use the Report → Copyright option on the video or email copyright@kuchupuchu.com. Verified reports result in removal of the infringing copy and forfeiture of any associated earnings."],
       },
       {
         h: "4. Counter-notices & appeals",
@@ -150,7 +150,7 @@ const POLICIES: Record<string, Policy> = {
   },
   terms: {
     title: "Terms & Conditions",
-    intro: "The agreement between you and Clipora — in readable English.",
+    intro: "The agreement between you and Kuchu Puchu — in readable English.",
     updated: "Last updated: November 1, 2026",
     sections: [
       {

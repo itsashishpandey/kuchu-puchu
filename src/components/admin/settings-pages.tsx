@@ -558,7 +558,7 @@ export function AdminReportsPage() {
         const blob = new Blob([csv], { type: "text/csv" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `clipora-${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `kuchupuchu-${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         toast({ title: `Exported ${kind}`, description: `${rows.length} rows downloaded as CSV.` });
         setExporting("");

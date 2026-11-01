@@ -46,7 +46,7 @@ export function Navbar() {
       }`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:px-6" aria-label="Main">
-        <Link to="/" aria-label="Clipora home"><Logo /></Link>
+        <Link to="/" aria-label="Kuchu Puchu home"><Logo /></Link>
 
         <div className="hidden items-center gap-1 lg:flex">
           {NAV.map(item => (
