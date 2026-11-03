@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
+import { usd } from "@/lib/format";
+import { usePublicSettings, money } from "@/lib/use-public-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +43,7 @@ export function AuthShell({ children, side }: { children: React.ReactNode; side:
 }
 
 export function AuthSide({ title, sub }: { title: React.ReactNode; sub: string }) {
+  const live = usePublicSettings();
   return (
     <div className="relative flex h-full flex-col justify-end p-12 text-white">
       <div className="absolute inset-0" aria-hidden>
@@ -53,9 +56,9 @@ export function AuthSide({ title, sub }: { title: React.ReactNode; sub: string }
         <p className="mt-4 max-w-md text-white/70">{sub}</p>
         <div className="mt-8 grid grid-cols-3 gap-3">
           {[
-            { l: "Per 1K qualified views", v: "$1.00" },
-            { l: "Per approved upload", v: "₹30" },
-            { l: "Minimum payout", v: "$25" },
+            { l: "Per 1K qualified views", v: usd(live.ratePer1000Views) },
+            { l: "Per approved upload", v: usd(live.rewardPerUpload) },
+            { l: "Minimum payout", v: money(live.minWithdrawalAmount) },
           ].map(s => (
             <div key={s.l} className="glass-dark rounded-xl p-3.5">
               <p className="font-display text-lg font-bold text-brand-yellow">{s.v}</p>

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getSessionUser, viewerKeyFromRequest, jsonError } from "@/lib/auth";
-import { getMonetizationSettings } from "@/lib/monetization";
+import { getMonetizationSettings, getUploadRules, getViewCounting } from "@/lib/monetization";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { loadTaxonomy, selectable, taxonomyCounts, resolveFilterParams, languageCodesFromParam } from "@/lib/taxonomy";
 import { VIDEO_CARD_INCLUDE, viewerFlags, toVideoDTO } from "@/lib/video-dto";
@@ -52,6 +52,8 @@ export async function GET(req: Request, ctx: Ctx) {
   // GET /api/public/settings — public rates + homepage config
   if (seg === "settings") {
     const settings = await getMonetizationSettings();
+    const rules = await getUploadRules();
+    const viewCounting = await getViewCounting();
     const branding = await db.platformSetting.findUnique({ where: { key: "branding" } });
     const homepage = await db.platformSetting.findUnique({ where: { key: "homepage" } });
     return Response.json({
@@ -63,7 +65,18 @@ export async function GET(req: Request, ctx: Ctx) {
       minMonthlyChannelViews: settings.minMonthlyChannelViews,
       monetizationDurationMonths: settings.monetizationDurationMonths,
       minWithdrawalAmount: settings.minWithdrawalAmount,
+      holdingPeriodDays: settings.holdingPeriodDays,
       monetizationPaused: settings.monetizationPaused,
+      // upload rules (Admin → Upload Rules / Platform → Video length), for the public pages
+      minDurationSec: rules.minDurationSec,
+      maxDurationSec: rules.maxDurationSec,
+      maxFileSizeMB: rules.maxFileSizeMB,
+      formats: rules.formats,
+      maxDailyUploads: rules.maxDailyUploads,
+      maxWeeklyUploads: rules.maxWeeklyUploads,
+      // which plays count as views (Admin → Platform → View counting)
+      appOnlyViews: viewCounting.appOnly,
+      repeatWindowHours: viewCounting.repeatWindowHours,
       branding: branding ? JSON.parse(branding.value) : null,
       homepage: homepage ? JSON.parse(homepage.value) : null,
     });

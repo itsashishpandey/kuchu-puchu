@@ -3,22 +3,23 @@
 import * as Icons from "lucide-react";
 import { PrimaryCTA, SecondaryCTA } from "@/components/shared/ui-bits";
 import { usd } from "@/lib/format";
+import { usePublicSettings, money, plural, unlockTarget, lengthRange, formatList } from "@/lib/use-public-settings";
 
 // ── Creator appeal: upload videos & earn money ─────────────────────────────
 
-export function UploadAndEarn({
-  rate = 1, reward = 0.32, rewardInr = 30,
-}: { rate?: number; reward?: number; rewardInr?: number }) {
+export function UploadAndEarn() {
+  const live = usePublicSettings();
+  const rate = live.ratePer1000Views, reward = live.rewardPerUpload;
   const steps = [
-    { icon: Icons.UploadCloud, title: "Upload", desc: "20–90s original, MP4/MOV — up to 2 a day" },
+    { icon: Icons.UploadCloud, title: "Upload", desc: `${lengthRange(live, "s")} original, ${formatList(live).replace(" or ", "/")} — up to ${live.maxDailyUploads} a day` },
     { icon: Icons.Fingerprint, title: "Verified", desc: "fingerprinted so no one can steal it" },
     { icon: Icons.CheckCircle2, title: "Approved", desc: "quick review, usually within a day" },
     { icon: Icons.BadgeDollarSign, title: "Paid", desc: "reward + views earnings credited" },
   ];
   const chips = [
     "Proportional payouts — no rounding down",
-    "Each video earns for 4 months",
-    "$25 minimum withdrawal",
+    `Each video earns for ${plural(live.monetizationDurationMonths, "month")}`,
+    `${money(live.minWithdrawalAmount)} minimum withdrawal`,
     "Bank transfer or PayPal",
     "You keep your rights",
     "Non-exclusive — post anywhere",
@@ -57,7 +58,7 @@ export function UploadAndEarn({
                   <span className="rounded-xl bg-brand-blue-soft p-2"><Icons.UploadCloud size={16} className="text-brand-blue" /></span>
                   <div>
                     <p className="text-[11px] text-ink/60">Upload approved — reward credited</p>
-                    <p className="text-sm font-bold text-ink">+₹{rewardInr}</p>
+                    <p className="text-sm font-bold text-ink">+{usd(reward)}</p>
                   </div>
                 </div>
                 <Icons.CheckCircle2 size={20} className="text-emerald-500" />
@@ -83,9 +84,9 @@ export function UploadAndEarn({
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-brand-pink/10 blur-xl" aria-hidden />
                 <span className="inline-flex rounded-xl bg-brand-pink-soft p-3"><Icons.UploadCloud size={22} className="text-brand-pink" /></span>
                 <p className="mt-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Per approved upload</p>
-                <p className="mt-1 font-display text-4xl font-extrabold text-brand-pink">₹{rewardInr} <span className="text-base font-bold text-ink/50">≈ {usd(reward)}</span></p>
+                <p className="mt-1 font-display text-4xl font-extrabold text-brand-pink">{usd(reward)}</p>
                 <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                  A one-time reward for every original video our team approves — credited automatically, exactly once per video, once your channel unlocks earning with 2,500 views within 30 days.
+                  A one-time reward for every original video our team approves — credited automatically, exactly once per video, once your channel unlocks earning with {unlockTarget(live)}.
                 </p>
               </div>
               <div className="reveal bento group relative overflow-hidden p-6 transition-all hover:-translate-y-1 hover:shadow-xl" style={{ transitionDelay: "80ms" }}>

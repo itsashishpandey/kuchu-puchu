@@ -13,12 +13,13 @@ import {
   DUP_VISUAL_THRESHOLD, DUP_AUDIO_THRESHOLD,
 } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
+import { CHUNK_BYTES, pieceCount, writeChunk, finishedUpload, moveUpload, dropUpload } from "@/lib/chunked-upload";
 import { loadTaxonomy, clearTaxonomyCounts } from "@/lib/taxonomy";
 import { parseTagInput, firstError, reviewFor, writeVideoTags, validateVideoTags } from "@/lib/video-tags";
 import { detectLanguages, suggestCategories } from "@/lib/discovery/suggest";
 import { tagLabels } from "@/lib/video-dto";
 import { getChannelPreferences, setChannelPreferences, resolveChannelCategories, resolveChannelLanguages, listParam } from "@/lib/channel-prefs";
-import { writeFile, mkdir, unlink } from "fs/promises";
+import { writeFile, readFile, mkdir, unlink } from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -406,6 +407,38 @@ export async function POST(req: Request, ctx: Ctx) {
   const me = r.me;
 
   // ── UPLOAD VIDEO ──────────────────────────────────────────────────────
+  // ── UPLOAD PIECE: POST /api/creator/upload-chunk?id=<32 hex>&index=<n>&size=<total bytes>&name=<file name>
+  // The website sends videos in 2 MB pieces (body = raw bytes), then calls /upload with uploadId.
+  if (seg === "upload-chunk") {
+    if (me.status !== "APPROVED") return jsonError("Your account must be approved before you can upload videos", 403);
+    if (!rateLimit(`upload-chunk:${me.id}`, 600, 3600_000)) return jsonError("Too many upload attempts", 429);
+    const q = new URL(req.url).searchParams;
+    const uploadId = q.get("id") || "";
+    const index = Number(q.get("index"));
+    const totalBytes = Number(q.get("size"));
+    if (!Number.isInteger(totalBytes) || totalBytes <= 0) return jsonError("Invalid upload size");
+    const declared = Number(req.headers.get("content-length") || 0);
+    if (declared > CHUNK_BYTES + 1024) return jsonError("Upload piece is too large", 413);
+
+    if (index === 0) {
+      // refuse a file that can't be accepted before any of it is sent
+      const limits = await remainingUploads(me.id);
+      if (limits.dailyRemaining <= 0) return jsonError(`Daily upload limit reached (${limits.rules.maxDailyUploads} per day). Try again tomorrow.`);
+      if (limits.weeklyRemaining <= 0) return jsonError(`Weekly upload limit reached (${limits.rules.maxWeeklyUploads} per week).`);
+      const formats = limits.rules.formats.split(",").map(f => f.trim().toLowerCase());
+      const ext = ((q.get("name") || "").split(".").pop() || "").toLowerCase();
+      if (!formats.includes(ext)) return jsonError(`Unsupported format ".${ext}". Supported: ${formats.join(", ").toUpperCase()}`);
+      if (totalBytes > limits.rules.maxFileSizeMB * 1024 * 1024) {
+        return jsonError(`File is too large (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Maximum is ${limits.rules.maxFileSizeMB}MB.`);
+      }
+    }
+
+    const data = Buffer.from(await req.arrayBuffer());
+    const r = await writeChunk(me.id, uploadId, index, totalBytes, data);
+    if (!r.ok) return jsonError(r.error, r.status);
+    return Response.json({ received: r.received, pieces: pieceCount(totalBytes), bytes: r.bytes });
+  }
+
   if (seg === "upload") {
     if (me.status !== "APPROVED") {
       return jsonError("Your account must be approved before you can upload videos", 403);
@@ -445,20 +478,35 @@ export async function POST(req: Request, ctx: Ctx) {
     const primaryTag = tagValue.tags[0];
     const category = taxonomy.categories.find(c => c.id === primaryTag.categoryId)?.subcategories.find(x => x.id === primaryTag.subcategoryId)?.nameEn ?? "Uncategorized";
 
-    const file = form.get("video");
-    if (!file || !(file instanceof File) || file.size === 0) return jsonError("Video file is required");
+    // the video: sent in pieces to /upload-chunk (website), or inside this form (older app builds)
+    const uploadId = get("uploadId");
+    let source: { name: string; size: number; part?: string; file?: File };
+    if (uploadId) {
+      const part = await finishedUpload(me.id, uploadId, parseInt(get("fileSize"), 10));
+      if (!part) {
+        await dropUpload(me.id, uploadId);
+        return jsonError("The video didn't finish uploading. Please try again.");
+      }
+      source = { name: get("fileName") || "video.mp4", size: part.size, part: part.path };
+    } else {
+      const file = form.get("video");
+      if (!file || !(file instanceof File) || file.size === 0) return jsonError("Video file is required");
+      source = { name: file.name, size: file.size, file };
+    }
+    // refusals before the file is moved into place also remove the uploaded pieces
+    const refuse = async (msg: string) => { if (uploadId) await dropUpload(me.id, uploadId); return jsonError(msg); };
 
     // limits
     const limits = await remainingUploads(me.id);
-    if (limits.dailyRemaining <= 0) return jsonError(`Daily upload limit reached (${limits.rules.maxDailyUploads} per day). Try again tomorrow.`);
-    if (limits.weeklyRemaining <= 0) return jsonError(`Weekly upload limit reached (${limits.rules.maxWeeklyUploads} per week).`);
+    if (limits.dailyRemaining <= 0) return refuse(`Daily upload limit reached (${limits.rules.maxDailyUploads} per day). Try again tomorrow.`);
+    if (limits.weeklyRemaining <= 0) return refuse(`Weekly upload limit reached (${limits.rules.maxWeeklyUploads} per week).`);
 
     const rules = limits.rules;
     const formats = rules.formats.split(",").map(f => f.trim().toLowerCase());
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!formats.includes(ext)) return jsonError(`Unsupported format ".${ext}". Supported: ${formats.join(", ").toUpperCase()}`);
-    if (file.size > rules.maxFileSizeMB * 1024 * 1024) {
-      return jsonError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is ${rules.maxFileSizeMB}MB.`);
+    const ext = (source.name.split(".").pop() || "").toLowerCase();
+    if (!formats.includes(ext)) return refuse(`Unsupported format ".${ext}". Supported: ${formats.join(", ").toUpperCase()}`);
+    if (source.size > rules.maxFileSizeMB * 1024 * 1024) {
+      return refuse(`File is too large (${(source.size / 1024 / 1024).toFixed(1)}MB). Maximum is ${rules.maxFileSizeMB}MB.`);
     }
 
     // save to disk
@@ -468,8 +516,14 @@ export async function POST(req: Request, ctx: Ctx) {
     try {
     const fname = `${contentId}.${ext}`;
     const fpath = path.join(dir, fname);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(fpath, buffer);
+    let buffer: Buffer;
+    if (source.part) {
+      await moveUpload(source.part, fpath);
+      buffer = await readFile(fpath);
+    } else {
+      buffer = Buffer.from(await source.file!.arrayBuffer());
+      await writeFile(fpath, buffer);
+    }
 
     // server-side validation: the length is measured here (never trusted from the browser);
     // a rejected file is deleted straight away
@@ -577,7 +631,7 @@ export async function POST(req: Request, ctx: Ctx) {
         ),
         videoUrl: `/uploads/videos/${fname}`, thumbnailUrl,
         duration: Math.round(duration * 10) / 10,
-        fileSizeMB: Math.round((file.size / 1024 / 1024) * 10) / 10,
+        fileSizeMB: Math.round((source.size / 1024 / 1024) * 10) / 10,
         resolution: width && height ? `${width}x${height}` : "unknown",
         format: ext,
         status, duplicateOfId, similarityScore, duplicateStatus,

@@ -1,6 +1,7 @@
 // Plain server-rendered policy page (no JavaScript needed) for store reviewers, crawlers and links
 // from the app: /privacy, /terms, /community-guidelines, /account-deletion.
-import { POLICIES, type Policy } from "@/lib/policies-data";
+import { POLICIES, livePolicy, type Policy } from "@/lib/policies-data";
+import { DEFAULT_PUBLIC_SETTINGS } from "@/lib/public-settings";
 
 const LINKS = [
   { href: "/privacy", label: "Privacy Policy" },
@@ -36,4 +37,5 @@ export function StaticPolicy({ policy, children }: { policy?: Policy; children?:
   );
 }
 
-export const policy = (slug: keyof typeof POLICIES | string) => POLICIES[slug];
+// these pages have no live numbers today; any {placeholder} added later still reads well
+export const policy = (slug: keyof typeof POLICIES | string) => (POLICIES[slug] ? livePolicy(POLICIES[slug], DEFAULT_PUBLIC_SETTINGS) : undefined);

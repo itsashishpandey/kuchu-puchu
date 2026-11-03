@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { PrimaryCTA } from "@/components/shared/ui-bits";
 import { Link, navigate } from "@/components/app/router";
 
-import { POLICIES } from "@/lib/policies-data";
+import { POLICIES, livePolicy } from "@/lib/policies-data";
+import { usePublicSettings } from "@/lib/use-public-settings";
 
 const SLUGS = [
   { slug: "monetization", label: "Earnings & monetization", icon: Icons.BadgeDollarSign },
@@ -17,7 +18,8 @@ const SLUGS = [
 ];
 
 export function PolicyPage({ slug }: { slug: string }) {
-  const policy = POLICIES[slug];
+  const live = usePublicSettings();
+  const policy = POLICIES[slug] ? livePolicy(POLICIES[slug], live) : undefined;
   if (!policy) {
     return (
       <div className="mx-auto max-w-2xl px-4 pb-24 pt-40 text-center">

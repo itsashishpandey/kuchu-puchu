@@ -6,17 +6,19 @@ import {
 } from "@/components/ui/accordion";
 import { SectionHeading, PrimaryCTA, SecondaryCTA } from "@/components/shared/ui-bits";
 import { Link } from "@/components/app/router";
+import { usd } from "@/lib/format";
+import { usePublicSettings, money, plural, unlockTarget, lengthRange, formatList, fillNumbers, type PublicSettings } from "@/lib/use-public-settings";
 
 // ── Section 14: FAQ ────────────────────────────────────────────────────────
 
-const FAQS = [
+const faqs = (s: PublicSettings) => [
   {
     q: "How exactly do I earn money on Kuchu Puchu?",
-    a: "Two ways: (1) view revenue — $1.00 per 1,000 qualified views, calculated proportionally (no rounding down), for up to 4 months per video; and (2) upload rewards — ₹30 one-time for each approved original upload. Earning unlocks once — the first time your channel gets 2,500 genuine views within 30 days. Both credit to your pending balance, then clear to available after a 7-day holding period.",
+    a: `Two ways: (1) view revenue — ${usd(s.ratePer1000Views)} per 1,000 qualified views, calculated proportionally (no rounding down), for up to ${plural(s.monetizationDurationMonths, "month")} per video; and (2) upload rewards — ${usd(s.rewardPerUpload)} one-time for each approved original upload. Earning unlocks once — the first time your channel gets ${s.minMonthlyChannelViews.toLocaleString("en-US")} genuine views within 30 days. Both credit to your pending balance, then clear to available after a ${s.holdingPeriodDays}-day holding period.`,
   },
   {
     q: "What counts as a qualified view?",
-    a: "A view in the Kuchu Puchu mobile app from a real person who actually watches. The same viewer counts once per video every 4 hours (repeat plays in between don't count). We also exclude website plays, bot traffic and creator self-views. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.",
+    a: fillNumbers("A view {whereViewsCount} from a real person who actually watches. The same viewer counts once per video {repeatWindow} (repeat plays in between don't count). We also exclude {websitePlays}bot traffic and creator self-views. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.", s),
   },
   {
     q: "Why does my account need approval before I can upload?",
@@ -24,7 +26,7 @@ const FAQS = [
   },
   {
     q: "What video rules apply to uploads?",
-    a: "Defaults: 20–90 seconds duration (set by the platform), MP4 or MOV, up to 200MB, max 2 uploads per day and 4 per week. Videos then pass an originality check (file checksum + visual and audio fingerprinting) and, in most cases, a quick manual review before going live.",
+    a: `Currently: ${lengthRange(s)} long (set by the platform), ${formatList(s)}, up to ${s.maxFileSizeMB}MB, max ${s.maxDailyUploads} uploads per day and ${s.maxWeeklyUploads} per week. Videos then pass an originality check (file checksum + visual and audio fingerprinting) and, in most cases, a quick manual review before going live.`,
   },
   {
     q: "What happens if someone re-uploads my video?",
@@ -32,11 +34,11 @@ const FAQS = [
   },
   {
     q: "How do withdrawals work?",
-    a: "Once your available balance is at least $25, request a payout to your bank account or PayPal. Requests move through Requested → Under Review → Approved → Processing → Paid, and every step is visible in your dashboard with payment references.",
+    a: `Once your available balance is at least ${money(s.minWithdrawalAmount)}, request a payout to your bank account or PayPal. Requests move through Requested → Under Review → Approved → Processing → Paid, and every step is visible in your dashboard with payment references.`,
   },
   {
     q: "When do my videos stop earning?",
-    a: "Each video earns view revenue for 4 months from publication (configurable by the platform, shown on each video in your dashboard). After that the video stays public — it just stops generating new view earnings.",
+    a: `Each video earns view revenue for ${plural(s.monetizationDurationMonths, "month")} from publication (configurable by the platform, shown on each video in your dashboard). After that the video stays public — it just stops generating new view earnings.`,
   },
   {
     q: "Do rate changes affect money I've already earned?",
@@ -53,6 +55,7 @@ const FAQS = [
 ];
 
 export function FAQ() {
+  const live = usePublicSettings();
   return (
     <section className="py-16 md:py-24" aria-label="Frequently asked questions">
       <div className="mx-auto max-w-4xl px-4 md:px-6">
@@ -62,7 +65,7 @@ export function FAQ() {
           subtitle="Everything creators ask before their first payout. Something missing? Our team replies within a business day."
         />
         <Accordion type="single" collapsible className="reveal space-y-3">
-          {FAQS.map((f, i) => (
+          {faqs(live).map((f, i) => (
             <AccordionItem
               key={i} value={`q${i}`}
               className="bento overflow-hidden border-none px-5 data-[state=open]:shadow-md"
@@ -87,6 +90,7 @@ export function FAQ() {
 // ── Section 15: Final CTA ─────────────────────────────────────────────────
 
 export function FinalCTA() {
+  const live = usePublicSettings();
   return (
     <section className="relative overflow-hidden bg-ink py-20 md:py-28" aria-label="Get started">
       <div className="absolute inset-0" aria-hidden>
@@ -114,7 +118,7 @@ export function FinalCTA() {
           </SecondaryCTA>
         </div>
         <p className="mt-6 text-xs text-white/45">
-          No credit card · No follower minimum · Withdraw anytime over $25
+          No credit card · No follower minimum · Withdraw anytime from {money(live.minWithdrawalAmount)}
         </p>
       </div>
     </section>

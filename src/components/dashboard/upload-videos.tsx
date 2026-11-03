@@ -17,6 +17,8 @@ import {
 import { DashboardPageHeader } from "./shell";
 import { StatusBadge, EmptyState } from "@/components/shared/ui-bits";
 import { navigate } from "@/components/app/router";
+import { uploadInPieces } from "@/lib/upload-in-pieces";
+import { usePublicSettings, plural, unlockTarget } from "@/lib/use-public-settings";
 import { get, post, patch, api, type TagFormValue, type TagSuggestions, type VideoTag, type VideoLanguage } from "@/lib/client";
 import { VideoTagEditor, EMPTY_TAGS, validateTagForm, tagFormFields, tagFormBody, tagFormFromVideo } from "@/components/shared/video-tag-editor";
 import { useCategories } from "@/lib/use-taxonomy";
@@ -30,6 +32,8 @@ type UploadRules = {
   maxResolution: string; formats: string; maxDailyUploads: number; maxWeeklyUploads: number;
   requireVideoApproval: boolean; rewardRequiresApproval: boolean;
 };
+
+const mb = (bytes: number) => `${(bytes / 1048576).toFixed(bytes < 10 * 1048576 ? 1 : 0)} MB`;
 
 export function UploadPage() {
   const [rules, setRules] = useState<UploadRules | null>(null);
@@ -50,6 +54,17 @@ export function UploadPage() {
   const [kidsSafe, setKidsSafe] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const live = usePublicSettings();
+  // what the progress bar is doing: sending the file, or the server checking it
+  const [stage, setStage] = useState<{ step: "sending" | "checking"; sent: number; total: number; retrying: boolean } | null>(null);
+
+  // leaving the page mid-upload would throw the upload away
+  useEffect(() => {
+    if (!uploading) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [uploading]);
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<{
     contentId: string; title: string; status: string;
@@ -124,9 +139,9 @@ export function UploadPage() {
 
   const submit = async () => {
     if (!file || !canSubmit) return;
-    setUploading(true); setProgress(0);
+    setUploading(true); setProgress(0.5);
+    setStage({ step: "sending", sent: 0, total: file.size, retrying: false });
     const fd = new FormData();
-    fd.append("video", file);
     fd.append("title", title.trim());
     fd.append("description", description.trim());
     const tf = tagFormFields(tagValue);
@@ -139,12 +154,26 @@ export function UploadPage() {
     fd.append("kidsSafeDeclaration", "true");
     if (thumbFile) fd.append("thumbnail", thumbFile);
 
-    // simulated progress + real fetch
+    let checkingTimer: ReturnType<typeof setInterval> | undefined;
     try {
-      const progressTimer = setInterval(() => setProgress(p => Math.min(p + Math.random() * 12, 92)), 400);
+      // 1) the file, in small pieces (real progress: 0–90%)
+      const uploadId = await uploadInPieces(file, {
+        onProgress: (sent, total) => {
+          setProgress(Math.max(0.5, (sent / total) * 90));
+          setStage({ step: "sending", sent, total, retrying: false });
+        },
+        onRetry: () => setStage(st => st && { ...st, retrying: true }),
+      });
+      fd.append("uploadId", uploadId);
+      fd.append("fileName", file.name);
+      fd.append("fileSize", String(file.size));
+
+      // 2) the details; the server checks length, originality and fingerprints (90–99%)
+      setStage({ step: "checking", sent: file.size, total: file.size, retrying: false });
+      setProgress(90);
+      checkingTimer = setInterval(() => setProgress(p => Math.min(p + 0.6, 99)), 500);
       const res = await fetch("/api/creator/upload", { method: "POST", body: fd });
-      clearInterval(progressTimer);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: `The server didn't answer (HTTP ${res.status}). Please try again.` }));
       if (!res.ok) throw new Error(data.error || "Upload failed");
       setProgress(100);
       setResult(data.video);
@@ -153,6 +182,8 @@ export function UploadPage() {
       setProgress(0);
       toast({ title: "Upload failed", description: (e as Error).message, variant: "destructive" });
     } finally {
+      clearInterval(checkingTimer);
+      setStage(null);
       setUploading(false);
     }
   };
@@ -296,14 +327,26 @@ export function UploadPage() {
               {progress > 0 && (
                 <div>
                   <div className="mb-1.5 flex justify-between text-xs">
-                    <span className="font-semibold">{progress < 100 ? "Uploading & fingerprinting…" : "Complete"}</span>
-                    <span className="text-muted-foreground">{Math.round(progress)}%</span>
+                    <span className="font-semibold">
+                      {progress >= 100 ? "Complete" : stage?.step === "checking" ? "Checking your video…" : "Uploading…"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {stage?.step === "sending" ? `${mb(stage.sent)} of ${mb(stage.total)} · ` : ""}{Math.round(progress)}%
+                    </span>
                   </div>
                   <Progress value={progress} className="h-2" />
-                  {progress > 40 && progress < 100 && (
+                  {stage?.step === "sending" && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Icons.UploadCloud size={12} className="text-brand-blue" />
+                      {stage.retrying
+                        ? "The connection dropped — retrying automatically…"
+                        : "Sending your video. Keep this page open — slow connections just take a little longer."}
+                    </p>
+                  )}
+                  {stage?.step === "checking" && (
                     <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                       <Icons.Fingerprint size={12} className="text-brand-blue" />
-                      Computing SHA-256 checksum, visual fingerprint and audio fingerprint…
+                      Measuring the length and computing the checksum, visual fingerprint and audio fingerprint…
                     </p>
                   )}
                 </div>
@@ -389,8 +432,8 @@ export function UploadPage() {
               <p className="flex items-center gap-1.5 text-sm font-bold"><Icons.BadgeDollarSign size={16} className="text-brand-yellow" /> Earning potential</p>
               <p className="mt-2 text-xs leading-relaxed text-white/65">
                 Once approved, this video earns{" "}
-                <strong className="text-brand-yellow">$1.00 per 1,000 qualified views</strong> for 4 months,
-                plus a <strong className="text-brand-yellow">₹30</strong> one-time upload reward, once your channel has unlocked earning (2,500 views within 30 days — a one-time target).
+                <strong className="text-brand-yellow">{usd(live.ratePer1000Views)} per 1,000 qualified views</strong> for {plural(live.monetizationDurationMonths, "month")},
+                plus a <strong className="text-brand-yellow">{usd(live.rewardPerUpload)}</strong> one-time upload reward, once your channel has unlocked earning ({unlockTarget(live)} — a one-time target).
               </p>
             </div>
           </div>

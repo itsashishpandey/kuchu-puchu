@@ -16,7 +16,8 @@ import { ToastAction } from "@/components/ui/toast";
 import { Logo, Avatar } from "@/components/shared/ui-bits";
 import { navigate, useRoute } from "@/components/app/router";
 import { get, post, type FeedVideo, type FeedPage, type FeedMeta, type SessionUser } from "@/lib/client";
-import { compact } from "@/lib/format";
+import { compact, usd } from "@/lib/format";
+import { usePublicSettings, unlockTarget, repeatWindow } from "@/lib/use-public-settings";
 import { useAuth } from "@/components/app/auth-provider";
 import { useLanguages, useCategories, useUiLocale, getGuestLanguages, setGuestLanguages, defaultGuestLanguages } from "@/lib/use-taxonomy";
 import { LanguageCombobox } from "@/components/shared/video-tag-editor";
@@ -743,6 +744,7 @@ function ReportDialog({
 // ── Desktop right info panel (shows first video contextually) ─────────────
 
 function InfoPanel({ video }: { video: FeedVideo }) {
+  const live = usePublicSettings();
   return (
     <div className="flex h-full flex-col overflow-y-auto p-5">
       <p className="mb-4 text-xs font-bold uppercase tracking-wider text-white/40">Now playing</p>
@@ -782,10 +784,10 @@ function InfoPanel({ video }: { video: FeedVideo }) {
           <Icons.BadgeDollarSign size={14} /> How this video earns
         </p>
         <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-white/65">
-          <li>• $1.00 per 1,000 qualified views (4-month window)</li>
-          <li>• ₹30 one-time approved-upload reward</li>
-          <li>• Earning unlocks once a channel gets 2,500 views within 30 days</li>
-          <li>• Only app views count — once per viewer every 4 hours</li>
+          <li>• {usd(live.ratePer1000Views)} per 1,000 qualified views ({live.monetizationDurationMonths}-month window)</li>
+          <li>• {usd(live.rewardPerUpload)} one-time approved-upload reward</li>
+          <li>• Earning unlocks once a channel gets {unlockTarget(live)}</li>
+          <li>• {live.appOnlyViews ? "Only app views count" : "App and website views count"} — once per viewer {repeatWindow(live)}</li>
         </ul>
         <Progress value={0} className="mt-3 h-0" />
       </div>

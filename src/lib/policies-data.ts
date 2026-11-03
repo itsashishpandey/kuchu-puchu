@@ -1,13 +1,16 @@
 // Policy texts — shared by the in-app policy pages (#/policies/<slug>) and the plain server-rendered
 // /privacy and /terms pages that store reviewers and crawlers can read without JavaScript.
+// {placeholders} such as {uploadReward} are filled with the live admin numbers (in USD) — see livePolicy().
+import { fillNumbers, type PublicSettings } from "@/lib/public-settings";
+
 export type PolicySection = { h: string; p: string[]; list?: string[] };
 export type Policy = { title: string; intro: string; updated: string; sections: PolicySection[] };
 
 export const POLICIES: Record<string, Policy> = {
   monetization: {
     title: "Creator Earnings & Monetization Policy",
-    intro: "How views, uploads and payouts turn into money — the complete, plain-language rules.",
-    updated: "Last updated: November 1, 2026",
+    intro: "How views, uploads and payouts turn into money — the complete, plain-language rules. All amounts are in US dollars.",
+    updated: "Last updated: November 3, 2026",
     sections: [
       {
         h: "1. Who can earn",
@@ -21,17 +24,17 @@ export const POLICIES: Record<string, Policy> = {
       {
         h: "2. View revenue",
         p: [
-          "Creators earn the current rate (default: $1.00) per 1,000 qualified views. Earnings are calculated proportionally per qualified view event — we never round down to complete thousands.",
-          "A view is qualified when a real viewer watches in the Kuchu Puchu mobile app with genuine watch time. The same viewer counts once per video every 4 hours; repeat plays in between, website plays, bot traffic and creator self-views don't count. Kuchu Puchu may adjust these rules in the admin settings.",
+          "Creators earn {rate} per 1,000 qualified views (the current rate). Earnings are calculated proportionally per qualified view event — we never round down to complete thousands.",
+          "A view is qualified when a real viewer watches {whereViewsCount} with genuine watch time. The same viewer counts once per video {repeatWindow}; repeat plays in between, {websitePlays}bot traffic and creator self-views don't count. Kuchu Puchu may adjust these rules in the admin settings.",
         ],
       },
       {
         h: "3. Upload rewards",
-        p: ["Each approved original upload earns a one-time reward (default: ₹30, credited in USD at the exchange rate set by Kuchu Puchu), exactly once per video after approval. Re-uploads, duplicates and re-encoding of existing content never receive rewards."],
+        p: ["Each approved original upload earns a one-time reward of {uploadReward}, exactly once per video after approval. Re-uploads, duplicates and re-encoding of existing content never receive rewards."],
       },
       {
         h: "3a. Unlocking earnings",
-        p: ["A channel unlocks earning — upload rewards and view earnings — the first time it has at least 2,500 genuine views within 30 days, and stays unlocked after that. Creator self-views, bots, automated refreshes and views beyond the per-viewer daily cap don't count. Uploads approved before a channel unlocks earning don't receive an upload reward."],
+        p: ["A channel unlocks earning — upload rewards and view earnings — the first time it has at least {unlockViews} genuine views within 30 days, and stays unlocked after that. Creator self-views, bots, automated refreshes, {websitePlays}and repeat plays by the same viewer within the repeat window don't count. Uploads approved before a channel unlocks earning don't receive an upload reward."],
       },
       {
         h: "3b. Complaints and strikes",
@@ -39,12 +42,12 @@ export const POLICIES: Record<string, Policy> = {
       },
       {
         h: "4. Earning duration",
-        p: ["View revenue accrues for a maximum of 4 months from a video's first publication date. After the window expires the video remains publicly available but stops generating new view earnings."],
+        p: ["View revenue accrues for {months} from a video's first publication date. After the window expires the video remains publicly available but stops generating new view earnings."],
       },
       {
         h: "5. Holding period & balances",
         p: [
-          "Newly credited earnings are pending for 7 days (fraud-review holding period) before becoming available.",
+          "Newly credited earnings are pending for {holdDays} days (fraud-review holding period) before becoming available.",
           "Available balance = credited earnings past holding, minus funds locked in active withdrawal requests.",
         ],
       },
@@ -216,19 +219,19 @@ export const POLICIES: Record<string, Policy> = {
   },
   payment: {
     title: "Payment & Withdrawal Policy",
-    intro: "How money moves from your balance to your bank.",
-    updated: "Last updated: November 1, 2026",
+    intro: "How money moves from your balance to your bank. All amounts are in US dollars.",
+    updated: "Last updated: November 3, 2026",
     sections: [
       {
         h: "1. Balances",
         p: [
-          "Pending: credited earnings inside the 7-day holding period, plus funds locked in active withdrawal requests.",
+          "Pending: credited earnings inside the {holdDays}-day holding period, plus funds locked in active withdrawal requests.",
           "Available: withdrawable funds. Lifetime: everything you've ever earned.",
         ],
       },
       {
         h: "2. Requesting a withdrawal",
-        p: ["Minimum withdrawal is $25 (configurable by the platform). Requests are submitted to your saved payout method — bank transfer (ACH/SEPA) or PayPal, subject to regional availability. Your available balance is immediately reduced by the requested amount."],
+        p: ["Minimum withdrawal is {minPayout} (configurable by the platform). Requests are submitted to your saved payout method — bank transfer (ACH/SEPA) or PayPal, subject to regional availability. Your available balance is immediately reduced by the requested amount."],
       },
       {
         h: "3. Processing stages",
@@ -249,3 +252,14 @@ export const POLICIES: Record<string, Policy> = {
     ],
   },
 };
+
+/** A policy with its {placeholders} filled with the live numbers. */
+export function livePolicy(policy: Policy, s: PublicSettings): Policy {
+  const f = (t: string) => fillNumbers(t, s);
+  return {
+    ...policy,
+    title: f(policy.title),
+    intro: f(policy.intro),
+    sections: policy.sections.map(sec => ({ h: f(sec.h), p: sec.p.map(f), list: sec.list?.map(f) })),
+  };
+}

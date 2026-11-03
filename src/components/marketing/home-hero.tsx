@@ -6,7 +6,8 @@ import {
   PrimaryCTA, SecondaryCTA, StatCounter, SectionHeading, ANDROID_APK_URL, ANDROID_APK_NOTE,
 } from "@/components/shared/ui-bits";
 import { get } from "@/lib/client";
-import { compact } from "@/lib/format";
+import { compact, usd } from "@/lib/format";
+import { usePublicSettings, money, unlockTarget, lengthRange, type PublicSettings } from "@/lib/use-public-settings";
 
 // ── Section 1: Hero — video-first, creator-appeal ─────────────────────────
 
@@ -52,6 +53,7 @@ function HeroVideoCard({
 }
 
 export function Hero({ announcement }: { announcement?: string }) {
+  const live = usePublicSettings();
   return (
     <section className="relative overflow-hidden mesh-bg pt-16" aria-label="Hero">
       {/* playful floating decorations */}
@@ -98,8 +100,8 @@ export function Hero({ announcement }: { announcement?: string }) {
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink/70 md:text-lg">
             Kuchu Puchu is the safe video platform made only for kids aged 3–8 — and it pays the
-            creators who make it. Upload original short cartoons, rhymes and stories (20–90 seconds). Once your
-            channel gets 2,500 views within 30 days, earn on every qualified view plus a reward for every
+            creators who make it. Upload original short cartoons, rhymes and stories ({lengthRange(live)}). Once your
+            channel gets {unlockTarget(live)}, earn on every qualified view plus a reward for every
             approved upload.
           </p>
 
@@ -122,8 +124,8 @@ export function Hero({ announcement }: { announcement?: string }) {
 
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-2 sm:gap-3">
             {[
-              { label: "Per 1,000 qualified views", value: "$1.00" },
-              { label: "Per approved upload", value: "₹30" },
+              { label: "Per 1,000 qualified views", value: usd(live.ratePer1000Views) },
+              { label: "Per approved upload", value: usd(live.rewardPerUpload) },
               { label: "Payout methods", value: "Bank + PayPal" },
             ].map(s => (
               <div key={s.label} className="glass min-w-0 rounded-xl px-2 py-2.5 sm:px-3.5 sm:py-3">
@@ -239,26 +241,27 @@ export function StatsBand() {
 
 // ── Section 3: How it works ────────────────────────────────────────────────
 
-const STEPS = [
+const steps = (s: PublicSettings) => [
   { icon: Icons.UserPlus, title: "Sign Up", desc: "Create your kids-content channel in under 3 minutes. Pick your category and tell us about your videos." },
   { icon: Icons.ShieldCheck, title: "Get Approved", desc: "Our team reviews every application — usually within 2 business days — to keep content original and safe for little viewers." },
-  { icon: Icons.UploadCloud, title: "Upload Videos", desc: "Post original 20–90 second cartoons, rhymes and stories. Every upload is fingerprinted to protect originality." },
-  { icon: Icons.DollarSign, title: "Earn Money", desc: "Once your channel unlocks earning (2,500 views within 30 days), get $1.00 per 1,000 qualified views plus ₹30 for every approved upload. Watch earnings credit in real time." },
-  { icon: Icons.Banknote, title: "Withdraw", desc: "Request payouts to your bank or PayPal once your available balance passes $25. No lock-in, ever." },
+  { icon: Icons.UploadCloud, title: "Upload Videos", desc: `Post original ${lengthRange(s, "-second")} cartoons, rhymes and stories. Every upload is fingerprinted to protect originality.` },
+  { icon: Icons.DollarSign, title: "Earn Money", desc: `Once your channel unlocks earning (${unlockTarget(s)}), get ${usd(s.ratePer1000Views)} per 1,000 qualified views plus ${usd(s.rewardPerUpload)} for every approved upload. Watch earnings credit in real time.` },
+  { icon: Icons.Banknote, title: "Withdraw", desc: `Request payouts to your bank or PayPal once your available balance reaches ${money(s.minWithdrawalAmount)}. No lock-in, ever.` },
 ];
 
 export function HowItWorks() {
+  const live = usePublicSettings();
   return (
     <section className="bg-surface py-14 md:py-20" aria-label="How it works">
       <div className="mx-auto max-w-7xl px-4 md:px-6">
         <SectionHeading
           eyebrow="How it works"
           title={<>From sign-up to <span className="grad-text-blue">first payout</span></>}
-          subtitle="Five steps. No follower minimums, no invitation codes — reach 2,500 views within 30 days once and earning stays unlocked."
+          subtitle={`Five steps. No follower minimums, no invitation codes — reach ${unlockTarget(live)} once and earning stays unlocked.`}
         />
         <div className="relative grid gap-4 md:grid-cols-3 lg:grid-cols-5">
           <div className="absolute left-0 right-0 top-10 hidden border-t-2 border-dashed border-brand-blue/25 lg:block" aria-hidden />
-          {STEPS.map((s, i) => (
+          {steps(live).map((s, i) => (
             <div key={s.title} className="reveal bento relative p-5 text-center transition-all hover:-translate-y-1 hover:shadow-lg">
               <div className="relative mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-black/5">
                 <s.icon size={30} className={i % 2 === 0 ? "text-brand-blue" : "text-brand-pink"} />

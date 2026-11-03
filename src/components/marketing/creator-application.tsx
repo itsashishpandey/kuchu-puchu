@@ -5,6 +5,8 @@
 // files and email token never leave memory.
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
+import { usd } from "@/lib/format";
+import { usePublicSettings, lengthRange } from "@/lib/use-public-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +54,7 @@ export function CreatorApplicationPage() {
   const { data: categories = [] } = useCategories("en");
   const { data: languages = [] } = useLanguages();
   const [rules, setRules] = useState<Rules | null>(null);
+  const live = usePublicSettings();
   const [step, setStep] = useState(1);
   const [d, setD] = useState<Draft>(EMPTY);
   const [password, setPassword] = useState("");
@@ -172,7 +175,7 @@ export function CreatorApplicationPage() {
 
   return (
     <AuthShell side={<AuthSide title={<>Turn creativity into <span className="grad-text">income</span></>}
-      sub={`Free to join, non-exclusive, and you keep ownership of every video. Earn ₹${rules?.uploadRewardInr ?? 30} per approved upload and $${(rules?.ratePer1000Views ?? 1).toFixed(2)} per 1,000 qualified views once your channel unlocks earning with ${(rules?.minMonthlyChannelViews ?? 2500).toLocaleString()} views within 30 days.`} />}>
+      sub={`Free to join, non-exclusive, and you keep ownership of every video. Earn ${usd(rules?.uploadRewardUsd ?? live.rewardPerUpload)} per approved upload and ${usd(rules?.ratePer1000Views ?? live.ratePer1000Views)} per 1,000 qualified views once your channel unlocks earning with ${(rules?.minMonthlyChannelViews ?? live.minMonthlyChannelViews).toLocaleString("en-US")} views within 30 days.`} />}>
       <div ref={topRef} />
       <div className="mb-6">
         <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
@@ -401,8 +404,8 @@ export function CreatorApplicationPage() {
               <p className="flex items-center gap-1.5 text-xs font-bold text-ink"><Icons.Clock size={13} className="text-brand-blue" /> What happens next?</p>
               <ol className="mt-2 space-y-1">
                 <li>1. We review your channel and ID — usually within 2 business days.</li>
-                <li>2. Once approved you can upload original short videos (20–90 seconds by default).</li>
-                <li>3. You earn ₹{rules?.uploadRewardInr ?? 30} per approved upload and ${(rules?.ratePer1000Views ?? 1).toFixed(2)} per 1,000 qualified views once your channel unlocks earning — a one-time target of {(rules?.minMonthlyChannelViews ?? 2500).toLocaleString()} views within 30 days.</li>
+                <li>2. Once approved you can upload original short videos ({lengthRange(live)}).</li>
+                <li>3. You earn {usd(rules?.uploadRewardUsd ?? live.rewardPerUpload)} per approved upload and {usd(rules?.ratePer1000Views ?? live.ratePer1000Views)} per 1,000 qualified views once your channel unlocks earning — a one-time target of {(rules?.minMonthlyChannelViews ?? live.minMonthlyChannelViews).toLocaleString("en-US")} views within 30 days.</li>
               </ol>
             </div>
           </>

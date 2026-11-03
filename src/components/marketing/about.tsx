@@ -1,6 +1,8 @@
 "use client";
 
 import * as Icons from "lucide-react";
+import { usd } from "@/lib/format";
+import { usePublicSettings, plural, unlockTarget } from "@/lib/use-public-settings";
 import { SectionHeading, PrimaryCTA, SecondaryCTA, StatCounter } from "@/components/shared/ui-bits";
 import { useReveal } from "@/components/app/router";
 
@@ -13,6 +15,7 @@ const VALUES = [
 
 export function AboutPage() {
   const setRef = useReveal<HTMLDivElement>();
+  const live = usePublicSettings();
   return (
     <div ref={setRef}>
       {/* 1. Hero */}
@@ -131,12 +134,12 @@ export function AboutPage() {
             <div className="reveal bento p-6">
               <span className="rounded-xl bg-brand-blue-soft p-3"><Icons.Eye size={22} className="text-brand-blue" /></span>
               <h3 className="mt-4 font-display text-lg font-bold">Qualified views</h3>
-              <p className="mt-2 text-sm text-muted-foreground">$1.00 per 1,000 qualified views, credited proportionally per event and valid for 4 months per video. Fraudulent, bot and self views never count.</p>
+              <p className="mt-2 text-sm text-muted-foreground">{usd(live.ratePer1000Views)} per 1,000 qualified views, credited proportionally per event and valid for {plural(live.monetizationDurationMonths, "month")} per video. Fraudulent, bot and self views never count.</p>
             </div>
             <div className="reveal bento p-6">
               <span className="rounded-xl bg-brand-red-soft p-3"><Icons.BadgeDollarSign size={22} className="text-brand-red" /></span>
               <h3 className="mt-4 font-display text-lg font-bold">Upload rewards</h3>
-              <p className="mt-2 text-sm text-muted-foreground">₹30 one-time per approved original upload (paid in USD at the current rate), once your channel has unlocked earning by reaching 2,500 views within 30 days — credited after our originality and quality review, exactly once per video.</p>
+              <p className="mt-2 text-sm text-muted-foreground">{usd(live.rewardPerUpload)} one-time per approved original upload, once your channel has unlocked earning by reaching {unlockTarget(live)} — credited after our originality and quality review, exactly once per video.</p>
             </div>
             <div className="reveal bento p-6">
               <span className="rounded-xl bg-brand-yellow-soft p-3"><Icons.BookOpenCheck size={22} className="text-brand-yellow" /></span>

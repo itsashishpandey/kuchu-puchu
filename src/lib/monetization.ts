@@ -57,7 +57,7 @@ const unlockedIds = new Set<string>(); // unlocks are permanent, so a hit never 
 export function forgetUnlock(creatorId: string) { unlockedIds.delete(creatorId); viewsCache.delete(creatorId); }
 
 /** Unlocked already, or reaching the target right now (then it's recorded once and the creator is told). */
-export async function monetizationUnlock(creatorId: string, opts: { fresh?: boolean; settings?: { minMonthlyChannelViews: number; rewardPerUploadInr: number; ratePer1000Views: number } } = {}) {
+export async function monetizationUnlock(creatorId: string, opts: { fresh?: boolean; settings?: { minMonthlyChannelViews: number; rewardPerUpload: number; ratePer1000Views: number } } = {}) {
   if (unlockedIds.has(creatorId)) return { unlocked: true, unlockedAt: null as Date | null };
   const u = await db.user.findUnique({ where: { id: creatorId }, select: { monetizationUnlockedAt: true } });
   if (u?.monetizationUnlockedAt) { unlockedIds.add(creatorId); return { unlocked: true, unlockedAt: u.monetizationUnlockedAt }; }
@@ -72,7 +72,7 @@ export async function monetizationUnlock(creatorId: string, opts: { fresh?: bool
       data: {
         userId: creatorId, type: "MONETIZATION", link: "#/dashboard",
         title: "🎉 Monetization unlocked!",
-        body: `Your channel reached ${s.minMonthlyChannelViews.toLocaleString()} views within 30 days. From now on you earn ${inr(s.rewardPerUploadInr)} for every approved upload and $${s.ratePer1000Views.toFixed(2)} per 1,000 qualified views — for good.`,
+        body: `Your channel reached ${s.minMonthlyChannelViews.toLocaleString()} views within 30 days. From now on you earn $${s.rewardPerUpload.toFixed(2)} for every approved upload and $${s.ratePer1000Views.toFixed(2)} per 1,000 qualified views — for good.`,
       },
     }).catch(() => {});
   }
@@ -90,7 +90,6 @@ export async function channelMonetization(creatorId: string, fresh = false) {
   };
 }
 
-export const inr = (n: number) => `₹${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 export async function getUploadRules() {
   let rule = await db.uploadRule.findFirst();
@@ -242,7 +241,7 @@ export async function creditUploadReward(opts: {
       userId: opts.userId, videoId: opts.videoId, type: "UPLOAD_REWARD",
       amount: settings.rewardPerUpload, status: "PENDING", availableAt,
       rateSnapshot: settings.rewardPerUpload,
-      description: `Approved upload reward for ${opts.contentId} (${inr(settings.rewardPerUploadInr)} at ₹${settings.inrPerUsd}/$1)`,
+      description: `Approved upload reward for ${opts.contentId}`,
       reference: `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
     },
   });

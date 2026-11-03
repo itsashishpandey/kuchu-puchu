@@ -6,6 +6,7 @@ import { SectionHeading, PrimaryCTA, CategoryIcon } from "@/components/shared/ui
 import { Link } from "@/components/app/router";
 import { get } from "@/lib/client";
 import { usd, compact } from "@/lib/format";
+import { usePublicSettings, money, plural } from "@/lib/use-public-settings";
 import { Slider } from "@/components/ui/slider";
 
 // ── Section 4 + 12: Earnings calculator ────────────────────────────────────
@@ -13,15 +14,12 @@ import { Slider } from "@/components/ui/slider";
 export function EarningsCalculator() {
   const [views, setViews] = useState(100000);
   const [uploads, setUploads] = useState(10);
-  const [rates, setRates] = useState<{ ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr?: number; minMonthlyChannelViews?: number } | null>(null);
-
-  useEffect(() => {
-    get<{ ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr: number; minMonthlyChannelViews: number }>("/public/settings")
-      .then(setRates).catch(() => setRates({ ratePer1000Views: 1, rewardPerUpload: 0.32, rewardPerUploadInr: 30, minMonthlyChannelViews: 2500 }));
-  }, []);
-
-  const rate = rates?.ratePer1000Views ?? 1;
-  const reward = rates?.rewardPerUpload ?? 0.32;
+  const live = usePublicSettings();
+  const rate = live.ratePer1000Views;
+  const reward = live.rewardPerUpload;
+  // worked example: 100K views + 10 approved uploads at the current rates
+  const exViews = (100000 / 1000) * rate;
+  const exUploads = 10 * reward;
   const viewEarnings = (views / 1000) * rate;
   const uploadEarnings = uploads * reward;
   const total = viewEarnings + uploadEarnings;
@@ -73,12 +71,12 @@ export function EarningsCalculator() {
               <div className="rounded-xl bg-brand-blue-soft p-4">
                 <p className="text-xs font-semibold text-brand-blue">Views revenue</p>
                 <p className="mt-1 font-display text-2xl font-bold">{usd(viewEarnings)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{compact(views)} qualified views ÷ 1,000 × ${rate.toFixed(2)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{compact(views)} qualified views ÷ 1,000 × {usd(rate)}</p>
               </div>
               <div className="rounded-xl bg-brand-red-soft p-4">
                 <p className="text-xs font-semibold text-brand-red">Upload rewards</p>
                 <p className="mt-1 font-display text-2xl font-bold">{usd(uploadEarnings)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{uploads} approved uploads × ${reward.toFixed(2)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{uploads} approved uploads × {usd(reward)}</p>
               </div>
             </div>
 
@@ -91,7 +89,7 @@ export function EarningsCalculator() {
             </div>
 
             <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
-              Estimates assume all views count as qualified under our <Link to="/policies/monetization" className="underline hover:text-ink">monetization rules</Link> and all uploads are approved original content. Actual earnings depend on view quality, duration window (4 months per video) and rates in effect at the time.
+              Estimates assume all views count as qualified under our <Link to="/policies/monetization" className="underline hover:text-ink">monetization rules</Link> and all uploads are approved original content. Actual earnings depend on view quality, duration window ({plural(live.monetizationDurationMonths, "month")} per video) and rates in effect at the time.
             </p>
           </div>
 
@@ -100,24 +98,24 @@ export function EarningsCalculator() {
             <div className="reveal bento overflow-hidden">
               <div className="grad-sun flex items-center gap-2 px-5 py-3">
                 <Icons.Lightbulb size={16} className="text-ink" />
-                <p className="text-sm font-bold text-ink">Worked example — default rates</p>
+                <p className="text-sm font-bold text-ink">Worked example — current rates</p>
               </div>
               <div className="space-y-3 p-5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2 text-muted-foreground"><Icons.Eye size={15} className="text-brand-blue" /> 100,000 qualified views</span>
-                  <span className="font-bold">{usd(100)}</span>
+                  <span className="font-bold">{usd(exViews)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2 text-muted-foreground"><Icons.UploadCloud size={15} className="text-brand-red" /> 10 approved videos</span>
-                  <span className="font-bold">{usd(5)}</span>
+                  <span className="font-bold">{usd(exUploads)}</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold">Estimated total</span>
-                    <span className="font-display text-2xl font-bold text-brand-red">{usd(105)}</span>
+                    <span className="font-display text-2xl font-bold text-brand-red">{usd(exViews + exUploads)}</span>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Worked example at the current rates.</p>
+                <p className="text-[11px] text-muted-foreground">{usd(rate)} per 1,000 views and {usd(reward)} per approved upload.</p>
               </div>
             </div>
 
@@ -126,9 +124,9 @@ export function EarningsCalculator() {
               <ul className="space-y-2.5 text-[13px] text-muted-foreground">
                 {[
                   "View earnings are calculated proportionally — no rounding down to full thousands.",
-                  "Each video keeps earning views revenue for 4 months from publication.",
-                  "Earnings clear to your available balance after a 7-day holding period.",
-                  "Withdraw to bank or PayPal from just $25.",
+                  `Each video keeps earning views revenue for ${plural(live.monetizationDurationMonths, "month")} from publication.`,
+                  `Earnings clear to your available balance after a ${live.holdingPeriodDays}-day holding period.`,
+                  `Withdraw to bank or PayPal from just ${money(live.minWithdrawalAmount)}.`,
                 ].map(t => (
                   <li key={t} className="flex gap-2">
                     <Icons.CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />

@@ -73,7 +73,7 @@ export function OverviewPage() {
     <div>
       <DashboardPageHeader
         title="Overview"
-        description={`${usd(data.settings.ratePer1000Views)} per 1,000 qualified views + ₹${data.settings.rewardPerUploadInr ?? 30} (≈ ${usd(data.settings.rewardPerUpload)}) per approved upload`}
+        description={`${usd(data.settings.ratePer1000Views)} per 1,000 qualified views + ${usd(data.settings.rewardPerUpload)} per approved upload`}
         actions={
           <div className="flex gap-2">
             <Button className="grad-btn rounded-full text-white" onClick={() => navigate("/dashboard/upload")}>
@@ -102,7 +102,7 @@ export function OverviewPage() {
                   <>
                     <p className="mt-3 font-display text-2xl font-bold text-emerald-600">Earning is on</p>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {m.unlockedAt ? `Unlocked ${fmtDate(m.unlockedAt)}. ` : ""}Every approved upload earns ₹{m.uploadRewardInr} (≈ {usd(m.uploadRewardUsd)}) and every qualified view earns — for good.
+                      {m.unlockedAt ? `Unlocked ${fmtDate(m.unlockedAt)}. ` : ""}Every approved upload earns {usd(m.uploadRewardUsd)} and every qualified view earns — for good.
                     </p>
                   </>
                 ) : (
@@ -110,7 +110,7 @@ export function OverviewPage() {
                     <p className="mt-3 font-display text-2xl font-bold">{m.last30DaysViews.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">/ {m.threshold.toLocaleString()} views in the last 30 days</span></p>
                     <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-gradient-to-r from-brand-pink to-brand-yellow" style={{ width: `${pct}%` }} /></div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Get {(m.threshold - m.last30DaysViews).toLocaleString()} more genuine views within 30 days to unlock earning — it's a one-time target, then upload rewards (₹{m.uploadRewardInr} each) and view earnings stay on. Only views in the Kuchu Puchu app count — each viewer once every few hours; self-views and bots never count.
+                      Get {(m.threshold - m.last30DaysViews).toLocaleString()} more genuine views within 30 days to unlock earning — it's a one-time target, then upload rewards ({usd(m.uploadRewardUsd)} each) and view earnings stay on. Only views in the Kuchu Puchu app count — each viewer once every few hours; self-views and bots never count.
                     </p>
                   </>
                 )}

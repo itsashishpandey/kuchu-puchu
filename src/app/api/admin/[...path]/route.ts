@@ -3,7 +3,7 @@ import { VIDEO_CARD_INCLUDE, toVideoDTO, safeJsonArray } from "@/lib/video-dto";
 import { loadTaxonomy as loadTaxonomyForVideo } from "@/lib/taxonomy";
 import { getSessionUser, hashPassword, jsonError } from "@/lib/auth";
 import { getViewCounting, forgetViewCounting } from "@/lib/monetization";
-import { getMonetizationSettings, getUploadRules, walletSummary, creditUploadReward, round2, channelMonetization, inr, forgetUnlock } from "@/lib/monetization";
+import { getMonetizationSettings, getUploadRules, walletSummary, creditUploadReward, round2, channelMonetization, forgetUnlock } from "@/lib/monetization";
 import { notify, audit, setSetting, getSetting, payoutRef } from "@/lib/platform";
 import { rateLimit } from "@/lib/rate-limit";
 import { readPrivate } from "@/lib/private-files";
@@ -676,7 +676,7 @@ export async function POST(req: Request, ctx: Ctx) {
           userId: video.creatorId, type: "VIDEO_STATUS",
           title: "Video approved 🎉",
           body: rewarded
-            ? `"${video.title}" (${video.contentId}) is live. ${inr(settings.rewardPerUploadInr)} upload reward credited (≈ $${settings.rewardPerUpload.toFixed(2)}), and qualified views earn $${settings.ratePer1000Views.toFixed(2)} per 1,000.`
+            ? `"${video.title}" (${video.contentId}) is live. $${settings.rewardPerUpload.toFixed(2)} upload reward credited, and qualified views earn $${settings.ratePer1000Views.toFixed(2)} per 1,000.`
             : `"${video.title}" (${video.contentId}) is live. Earning unlocks once your channel gets ${m.threshold.toLocaleString()} views within 30 days (you're at ${m.last30DaysViews.toLocaleString()}) — after that, every approved upload and qualified view earns.`,
           link: "#/dashboard/videos",
           email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Approved: ${video.title}`, body: "Your video passed review and is now earning." },
@@ -1034,7 +1034,7 @@ export async function POST(req: Request, ctx: Ctx) {
           await notify({
             userId: c.id, type: "MONETIZATION",
             title: "Monetization rates updated",
-            body: `New rates effective ${next.effectiveDate.toLocaleDateString()}: $${next.ratePer1000Views.toFixed(2)} per 1,000 qualified views and ${inr(next.rewardPerUploadInr)} (≈ $${next.rewardPerUpload.toFixed(2)}) per approved upload. New channels unlock earning once they get ${next.minMonthlyChannelViews.toLocaleString()} views within 30 days. Earnings already credited are not affected.`,
+            body: `New rates effective ${next.effectiveDate.toLocaleDateString()}: $${next.ratePer1000Views.toFixed(2)} per 1,000 qualified views and $${next.rewardPerUpload.toFixed(2)} per approved upload. New channels unlock earning once they get ${next.minMonthlyChannelViews.toLocaleString()} views within 30 days. Earnings already credited are not affected.`,
           });
         }
       }
