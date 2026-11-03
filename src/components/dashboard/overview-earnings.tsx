@@ -18,6 +18,8 @@ type Overview = {
     totalVideos: number; totalQualifiedViews: number; earningsThisMonth: number;
     remainingDailyUploads: number; remainingWeeklyUploads: number;
     dailyUploadLimit: number; weeklyUploadLimit: number;
+    monetization?: { eligible: boolean; unlocked?: boolean; unlockedAt?: string | null; last30DaysViews: number; threshold: number; uploadRewardInr: number; uploadRewardUsd: number; inrPerUsd: number };
+    standing?: { strikes: number; limit: number; list: { reason: string; contentId: string | null; createdAt: string }[] };
   };
   chart: { date: string; earnings: number }[];
   videos: {
@@ -29,7 +31,7 @@ type Overview = {
     id: string; type: string; amount: number; description: string;
     reference: string | null; createdAt: string;
   }[];
-  settings: { ratePer1000Views: number; rewardPerUpload: number };
+  settings: { ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr?: number };
 };
 
 const TYPE_ICON: Record<string, { icon: React.ElementType; color: string }> = {
@@ -71,7 +73,7 @@ export function OverviewPage() {
     <div>
       <DashboardPageHeader
         title="Overview"
-        description={`Earning $${data.settings.ratePer1000Views.toFixed(2)} per 1,000 qualified views + $${data.settings.rewardPerUpload.toFixed(2)} per approved upload`}
+        description={`${usd(data.settings.ratePer1000Views)} per 1,000 qualified views + ₹${data.settings.rewardPerUploadInr ?? 30} (≈ ${usd(data.settings.rewardPerUpload)}) per approved upload`}
         actions={
           <div className="flex gap-2">
             <Button className="grad-btn rounded-full text-white" onClick={() => navigate("/dashboard/upload")}>
@@ -83,6 +85,61 @@ export function OverviewPage() {
           </div>
         }
       />
+
+      {/* monetization threshold + channel standing */}
+      {(data.kpis.monetization || data.kpis.standing) && (
+        <div className="mb-4 grid gap-4 md:grid-cols-2">
+          {data.kpis.monetization && (() => {
+            const m = data.kpis.monetization!;
+            const pct = Math.min(100, Math.round((m.last30DaysViews / Math.max(1, m.threshold)) * 100));
+            return (
+              <div className={`bento p-5 ${m.eligible ? "ring-1 ring-emerald-200" : "ring-1 ring-brand-yellow/40"}`}>
+                <div className="flex items-center justify-between">
+                  <p className="flex items-center gap-2 text-sm font-bold"><Icons.BadgeDollarSign size={17} className="text-brand-pink" /> Monetization</p>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${m.eligible ? "bg-emerald-50 text-emerald-700" : "bg-brand-yellow-soft text-ink"}`}>{m.eligible ? "Unlocked ✓" : "Locked"}</span>
+                </div>
+                {m.eligible ? (
+                  <>
+                    <p className="mt-3 font-display text-2xl font-bold text-emerald-600">Earning is on</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {m.unlockedAt ? `Unlocked ${fmtDate(m.unlockedAt)}. ` : ""}Every approved upload earns ₹{m.uploadRewardInr} (≈ {usd(m.uploadRewardUsd)}) and every qualified view earns — for good.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-3 font-display text-2xl font-bold">{m.last30DaysViews.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">/ {m.threshold.toLocaleString()} views in the last 30 days</span></p>
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-gradient-to-r from-brand-pink to-brand-yellow" style={{ width: `${pct}%` }} /></div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Get {(m.threshold - m.last30DaysViews).toLocaleString()} more genuine views within 30 days to unlock earning — it's a one-time target, then upload rewards (₹{m.uploadRewardInr} each) and view earnings stay on. Only views in the Kuchu Puchu app count — each viewer once every few hours; self-views and bots never count.
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          {data.kpis.standing && (
+            <div className={`bento p-5 ${data.kpis.standing.strikes ? "ring-1 ring-rose-200" : ""}`}>
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-sm font-bold"><Icons.ShieldCheck size={17} className="text-brand-blue" /> Channel standing</p>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${data.kpis.standing.strikes ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                  {data.kpis.standing.strikes} of {data.kpis.standing.limit} strikes
+                </span>
+              </div>
+              {data.kpis.standing.list.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">No strikes — your channel is in good standing. Each upheld complaint is a strike; {data.kpis.standing.limit} strikes suspend the channel.</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {data.kpis.standing.list.map((s, i) => (
+                    <li key={i} className="rounded-lg bg-rose-50/60 px-3 py-2 text-xs">
+                      <span className="font-semibold">{fmtDate(s.createdAt)}{s.contentId ? ` · ${s.contentId}` : ""}</span> — {s.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* KPI bento */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -346,7 +403,9 @@ type AnalyticsData = {
     likes: number; commentsCount: number; shares: number; earned: number;
     recentQualified: number; recentExcluded: number;
     exclusions: Record<string, number>;
+    completionRate?: number | null;
   }[];
+  breakdowns?: BreakdownData;
 };
 
 const EXCLUSION_LABELS: Record<string, string> = {
@@ -354,6 +413,8 @@ const EXCLUSION_LABELS: Record<string, string> = {
   BOT_USER_AGENT: "Bot / crawler traffic",
   INSUFFICIENT_WATCH_TIME: "Under 2s watch time",
   DUPLICATE_VIEWER_DAILY_CAP: "Repeat views over daily cap",
+  REPEAT_VIEW_WITHIN_WINDOW: "Repeat views (same viewer within the repeat window)",
+  WEB_VIEW_NOT_COUNTED: "Website views (only app views count)",
   VIDEO_NOT_APPROVED: "Video not approved",
   MONETIZATION_WINDOW_EXPIRED: "Earning window expired",
   VIDEO_MONETIZATION_DISABLED: "Monetization disabled",
@@ -378,13 +439,14 @@ export function AnalyticsPage() {
         <EmptyState icon="BarChart3" title="No analytics yet" description="Upload a video to start tracking performance." />
       ) : (
         <div className="space-y-4">
+          {data.breakdowns && <Breakdowns b={data.breakdowns} />}
           {data.videos.map(v => (
             <div key={v.contentId} className="bento p-5">
               <div className="flex flex-wrap items-center gap-4">
                 {v.thumbnailUrl && <img src={v.thumbnailUrl} alt="" className="h-16 w-11 rounded-lg object-cover" />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-sm font-bold">{v.title}</p>
-                  <p className="text-xs text-muted-foreground">{v.contentId}</p>
+                  <p className="text-xs text-muted-foreground">{v.contentId}{typeof v.completionRate === "number" ? ` · ${v.completionRate}% watched to the end` : ""}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold text-brand-red">{usd(v.earned)}</p>
@@ -430,6 +492,69 @@ export function AnalyticsPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── audience breakdowns (by language / category / subcategory / country + completion) ──
+
+type BreakRow = { key: string; label: string; emoji?: string | null; videos: number; taggedVideos: number; views: number; qualifiedViews: number; likes: number };
+type BreakdownData = {
+  primaryAttribution: boolean;
+  byLanguage: BreakRow[]; byCategory: BreakRow[]; bySubcategory: BreakRow[];
+  byCountry: { country: string; views: number; qualifiedViews: number }[];
+  completion: { overallRate: number | null; trackedViews: number; completedViews: number };
+};
+
+function Breakdowns({ b }: { b: BreakdownData }) {
+  const [tab, setTab] = useState<"language" | "category" | "subcategory" | "country">("language");
+  const rows = tab === "language" ? b.byLanguage : tab === "category" ? b.byCategory : tab === "subcategory" ? b.bySubcategory : [];
+  const max = Math.max(1, ...rows.map(r => r.views), ...b.byCountry.map(c => c.views));
+  return (
+    <div className="bento p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-base font-bold">Audience breakdown</p>
+          <p className="text-xs text-muted-foreground">Each video's views are counted once — under its primary language, category and subcategory.</p>
+        </div>
+        <div className="rounded-xl bg-secondary/70 px-3 py-2 text-right">
+          <p className="font-display text-lg font-bold">{b.completion.overallRate === null ? "—" : `${b.completion.overallRate}%`}</p>
+          <p className="text-[10px] text-muted-foreground">watched to the end{b.completion.trackedViews ? ` (${b.completion.trackedViews} tracked views)` : ""}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {(["language", "category", "subcategory", "country"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition ${tab === t ? "bg-ink text-white" : "bg-secondary hover:bg-secondary/70"}`}>
+            By {t}
+          </button>
+        ))}
+      </div>
+      <div className="mt-4 overflow-x-auto">
+        {tab === "country" ? (
+          b.byCountry.length === 0 ? <p className="text-sm text-muted-foreground">No views yet.</p> : (
+            <table className="w-full min-w-[420px] text-sm">
+              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-2 font-semibold">Country</th><th className="font-semibold">Views</th><th className="font-semibold">Qualified</th><th className="w-1/3" /></tr></thead>
+              <tbody>{b.byCountry.map(c => (
+                <tr key={c.country} className="border-t"><td className="py-2">{c.country}</td><td>{compact(c.views)}</td><td>{compact(c.qualifiedViews)}</td>
+                  <td><div className="h-1.5 rounded-full bg-secondary"><div className="h-full rounded-full bg-brand-blue" style={{ width: `${(c.views / max) * 100}%` }} /></div></td></tr>
+              ))}</tbody>
+            </table>
+          )
+        ) : rows.length === 0 ? <p className="text-sm text-muted-foreground">No tagged videos yet.</p> : (
+          <table className="w-full min-w-[520px] text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground">
+              <th className="py-2 font-semibold capitalize">{tab}</th><th className="font-semibold">Primary videos</th><th className="font-semibold">Tagged in</th><th className="font-semibold">Views</th><th className="font-semibold">Qualified</th><th className="w-1/4" />
+            </tr></thead>
+            <tbody>{rows.map(r => (
+              <tr key={r.key} className="border-t">
+                <td className="py-2">{r.emoji ? `${r.emoji} ` : ""}{r.label}</td><td>{r.videos}</td><td>{r.taggedVideos}</td><td>{compact(r.views)}</td><td>{compact(r.qualifiedViews)}</td>
+                <td><div className="h-1.5 rounded-full bg-secondary"><div className="h-full rounded-full bg-brand-pink" style={{ width: `${(r.views / max) * 100}%` }} /></div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

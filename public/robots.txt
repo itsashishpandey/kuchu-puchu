@@ -2,5 +2,5 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-# Clipora — creator-first short video platform
-Sitemap: https://clipora.io/sitemap.xml
+# Kuchu Puchu — kids cartoon shorts
+Sitemap: https://mykuchupuchu.com/sitemap.xml

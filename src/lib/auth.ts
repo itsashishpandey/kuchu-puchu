@@ -1,5 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
 
 export const SESSION_COOKIE = "kuchupuchu_session";
@@ -62,6 +62,9 @@ export type SafeUser = {
     category: string | null;
     showEarnings: boolean;
   } | null;
+  /** Language & interest onboarding (viewers and creators). Clients show it until completed. */
+  onboarding: { completed: boolean; step: number };
+  interfaceLocale: string;
 };
 
 export function toSafeUser(user: {
@@ -69,6 +72,7 @@ export function toSafeUser(user: {
   status: string; avatarUrl: string | null; rejectionReason: string | null;
   suspensionReason: string | null; monetizationEligible: boolean;
   channel?: SafeUser["channel"] | null;
+  recoPrefs?: { onboardingCompletedAt: Date | null; onboardingStep: number; interfaceLocale: string } | null;
 }): SafeUser {
   return {
     id: user.id, email: user.email, name: user.name, role: user.role,
@@ -83,24 +87,38 @@ export function toSafeUser(user: {
           showEarnings: user.channel.showEarnings,
         }
       : null,
+    onboarding: { completed: !!user.recoPrefs?.onboardingCompletedAt, step: user.recoPrefs?.onboardingStep ?? 0 },
+    interfaceLocale: user.recoPrefs?.interfaceLocale ?? "en",
   };
 }
 
+/**
+ * The session token for this request: the website sends it as a cookie, the
+ * mobile app as `Authorization: Bearer <token>`. Both resolve to the same
+ * Session row.
+ */
+async function sessionToken(): Promise<string | null> {
+  const auth = (await headers()).get("authorization") || "";
+  const bearer = auth.match(/^Bearer\s+([a-f0-9]{64})$/i)?.[1];
+  if (bearer) return bearer;
+  return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
+}
+
 export async function getSessionUser(): Promise<SafeUser | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = await sessionToken();
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { token },
-    include: { user: { include: { channel: true } } },
+    include: { user: { include: { channel: true, recoPrefs: true } } },
   });
   if (!session || session.expiresAt < new Date()) return null;
+  // a suspension takes effect immediately on every device (app tokens last 14 days)
+  if (session.user.status === "SUSPENDED") return null;
   return toSafeUser(session.user);
 }
 
 export async function destroySession(): Promise<void> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = await sessionToken();
   if (token) await db.session.deleteMany({ where: { token } });
 }
 

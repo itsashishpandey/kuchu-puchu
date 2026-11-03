@@ -136,7 +136,7 @@ export function AboutPage() {
             <div className="reveal bento p-6">
               <span className="rounded-xl bg-brand-red-soft p-3"><Icons.BadgeDollarSign size={22} className="text-brand-red" /></span>
               <h3 className="mt-4 font-display text-lg font-bold">Upload rewards</h3>
-              <p className="mt-2 text-sm text-muted-foreground">$0.50 one-time per approved original upload — credited after our originality and quality review, exactly once per video.</p>
+              <p className="mt-2 text-sm text-muted-foreground">₹30 one-time per approved original upload (paid in USD at the current rate), once your channel has unlocked earning by reaching 2,500 views within 30 days — credited after our originality and quality review, exactly once per video.</p>
             </div>
             <div className="reveal bento p-6">
               <span className="rounded-xl bg-brand-yellow-soft p-3"><Icons.BookOpenCheck size={22} className="text-brand-yellow" /></span>

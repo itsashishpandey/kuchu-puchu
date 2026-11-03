@@ -46,9 +46,16 @@ local-*
 *.log
 dev.log
 dev.out.log
-test
+/test
 prompt
 
 server.log
 # Skills directory
 /skills/
+# never commit: creators' ID documents, runtime uploads, local builds and temp scripts
+/private-uploads/
+/public/uploads/
+/*.apk
+*.tmp.mjs
+# the deploy target (user@server) stays on this machine
+deploy/.deploy.env

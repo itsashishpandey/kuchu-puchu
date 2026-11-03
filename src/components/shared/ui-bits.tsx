@@ -5,26 +5,28 @@ import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { navigate } from "@/components/app/router";
 
+/** Android app download — the APK is served by the web server from outside the build
+ *  (so redeploys never delete it), with no-store caching so phones always get the latest. */
+export const ANDROID_APK_URL = "/downloads/my-kuchu-puchu.apk";
+// From 2 Nov 2026 the app has a new ID (kuchupuchu.com) and signing key, so older installs can't update in place.
+export const ANDROID_APK_NOTE = "Installed the app before 2 Nov 2026? Uninstall the old version first.";
+
 // ── Logo ───────────────────────────────────────────────────────────────────
 
 export function Logo({ dark = false, size = 36 }: { dark?: boolean; size?: number }) {
   return (
     <span className="inline-flex items-center gap-2 select-none">
+      {/* the app icon (boy + girl + play button) is the brand mark */}
+      <img
+        src="/brand/icon-96.png"
+        alt=""
+        width={size}
+        height={size}
+        className="shrink-0 shadow-lg"
+        style={{ width: size, height: size, borderRadius: size * 0.28 }}
+      />
       <span
-        className="relative inline-flex items-center justify-center rounded-xl shadow-lg"
-        style={{
-          width: size, height: size,
-          background: "linear-gradient(135deg,#1677FF 0%,#1677FF 49%,#FF4E9B 51%,#FF4E9B 100%)",
-        }}
-      >
-        <Icons.Play size={size * 0.44} fill="#fff" color="#fff" className="translate-x-[1px]" />
-        <span
-          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand-yellow ring-2 ring-white"
-          aria-hidden
-        />
-      </span>
-      <span
-        className={`font-display text-[1.35rem] leading-none tracking-tight ${dark ? "text-white" : "text-ink"}`}
+        className={`font-display text-[1.35rem] leading-none tracking-tight whitespace-nowrap ${dark ? "text-white" : "text-ink"}`}
         style={{ fontWeight: 800 }}
       >
         <span className="text-brand-blue">Kuchu</span>
@@ -132,7 +134,7 @@ export function PhoneMockup({
 // ── Browser mockup ────────────────────────────────────────────────────────
 
 export function BrowserMockup({
-  children, url = "kuchupuchu.com", className,
+  children, url = "mykuchupuchu.com", className,
 }: { children: React.ReactNode; url?: string; className?: string }) {
   return (
     <div className={`overflow-hidden rounded-2xl border bg-card shadow-xl ${className ?? ""}`}>
@@ -185,6 +187,8 @@ const STATUS_STYLES: Record<string, string> = {
   LOW: "bg-slate-100 text-slate-600 border-slate-200",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
   HIGH: "bg-rose-50 text-rose-700 border-rose-200",
+  ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  RESOLVED: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const STATUS_TEXT: Record<string, string> = {
@@ -194,6 +198,7 @@ const STATUS_TEXT: Record<string, string> = {
   PENDING_REVIEW: "Pending review", CONFIRMED_DUPLICATE: "Duplicate", FALSE_POSITIVE: "Cleared",
   OPEN: "Open", DISMISSED: "Dismissed", CONFIRMED: "Confirmed", NEW: "New",
   LOW: "Low", MEDIUM: "Medium", HIGH: "High", IN_PROGRESS: "In progress", RESOLVED: "Resolved",
+  ACTIVE: "Active",
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
@@ -210,6 +215,12 @@ export function StatusBadge({ status, className }: { status: string; className?:
 
 export function CategoryIcon({ name, size = 18, className }: { name?: string | null; size?: number; className?: string }) {
   const map: Record<string, string> = {
+    // the 15 kids categories (ages 3–8)
+    "Rhymes & Songs": "Music", "Stories & Fairy Tales": "BookOpen", "Early Learning": "GraduationCap",
+    "Science & Nature": "FlaskConical", Animals: "PawPrint", "Dance & Movement": "PartyPopper",
+    "Our World": "Globe", "Good Habits & Feelings": "Heart", "Kids Cooking": "UtensilsCrossed",
+    "Learn Languages": "Languages", "Sports & Outdoor Play": "Trophy",
+    // older labels
     "Cartoons & Animation": "Clapperboard",
     "Nursery Rhymes": "Music",
     "Kids Comedy": "Laugh",

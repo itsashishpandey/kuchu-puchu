@@ -13,22 +13,20 @@ import {
 } from "@/components/ui/select";
 import { Logo } from "@/components/shared/ui-bits";
 import { navigate, Link } from "@/components/app/router";
-import { api, post } from "@/lib/client";
+import { api, post, type SessionUser } from "@/lib/client";
 import { useAuth } from "@/components/app/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { useCategories, useLanguages } from "@/lib/use-taxonomy";
+import { LanguageCombobox } from "@/components/shared/video-tag-editor";
+import { needsOnboarding } from "@/components/discovery/onboarding";
 
 const COUNTRIES = [
   "United States", "United Kingdom", "Canada", "Australia", "India", "Germany", "France",
   "Spain", "Italy", "Netherlands", "Brazil", "Mexico", "Japan", "South Korea", "Singapore",
   "United Arab Emirates", "Nigeria", "South Africa", "Other",
 ];
-const CATEGORIES = [
-  "Cartoons & Animation", "Nursery Rhymes", "Kids Comedy", "Learning & Fun", "Story Time",
-  "Kids Songs", "Toys & Play", "Animals & Friends", "Arts & Crafts", "Dance & Fun",
-  "Family Adventures", "Science for Kids",
-];
 
-function AuthShell({ children, side }: { children: React.ReactNode; side: React.ReactNode }) {
+export function AuthShell({ children, side }: { children: React.ReactNode; side: React.ReactNode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <div className="flex flex-col px-6 pb-10 pt-8 md:px-12">
@@ -42,7 +40,7 @@ function AuthShell({ children, side }: { children: React.ReactNode; side: React.
   );
 }
 
-function AuthSide({ title, sub }: { title: React.ReactNode; sub: string }) {
+export function AuthSide({ title, sub }: { title: React.ReactNode; sub: string }) {
   return (
     <div className="relative flex h-full flex-col justify-end p-12 text-white">
       <div className="absolute inset-0" aria-hidden>
@@ -56,7 +54,7 @@ function AuthSide({ title, sub }: { title: React.ReactNode; sub: string }) {
         <div className="mt-8 grid grid-cols-3 gap-3">
           {[
             { l: "Per 1K qualified views", v: "$1.00" },
-            { l: "Per approved upload", v: "$0.50" },
+            { l: "Per approved upload", v: "₹30" },
             { l: "Minimum payout", v: "$25" },
           ].map(s => (
             <div key={s.l} className="glass-dark rounded-xl p-3.5">
@@ -83,11 +81,12 @@ export function LoginPage() {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      const res = await post<{ user: { role: string; status: string } }>("/auth/login", { email, password });
+      const res = await post<{ user: SessionUser }>("/auth/login", { email, password });
       await refresh();
       const role = res.user.role;
       toast({ title: "Welcome back 👋", description: "You're logged in." });
-      navigate(role === "ADMIN" ? "/admin" : "/dashboard");
+      // first visit since languages & interests were introduced → offer onboarding (skippable)
+      navigate(needsOnboarding(res.user) ? "/onboarding" : role === "ADMIN" ? "/admin" : role === "CREATOR" ? "/dashboard" : "/feed");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -95,7 +94,6 @@ export function LoginPage() {
     }
   };
 
-  const fill = (e: string, p: string) => { setEmail(e); setPassword(p); };
 
   return (
     <AuthShell side={<AuthSide title={<>Welcome back to <span className="grad-text">your earnings</span></>} sub="Log in to upload videos, track qualified views and manage your payouts." />}>
@@ -130,27 +128,9 @@ export function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 rounded-2xl bg-brand-blue-soft p-4">
-        <p className="flex items-center gap-1.5 text-xs font-bold text-brand-blue">
-          <Icons.FlaskConical size={13} /> Demo accounts (click to fill)
-        </p>
-        <div className="mt-2.5 grid gap-1.5">
-          {[
-            { label: "Creator — Meera (approved, rich data)", email: "meera@kuchupuchu.com", pass: "Creator@123" },
-            { label: "Creator — Samir (pending approval)", email: "samir@kuchupuchu.com", pass: "Creator@123" },
-            { label: "Admin — Ava (super admin)", email: "admin@kuchupuchu.com", pass: "Admin@123" },
-          ].map(a => (
-            <button key={a.email} type="button" onClick={() => fill(a.email, a.pass)}
-              className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-left text-xs ring-1 ring-black/5 transition hover:ring-brand-blue/40">
-              <span className="font-semibold">{a.label}</span>
-              <Icons.Wand2 size={13} className="text-brand-blue" />
-            </button>
-          ))}
-        </div>
-      </div>
-
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        New to Kuchu Puchu? <Link to="/register" className="font-bold text-brand-red hover:underline">Become a Creator</Link>
+        New here? <Link to="/join" className="font-bold text-brand-red hover:underline">Create a free account</Link>
+        {" "}· <Link to="/register" className="font-bold text-brand-blue hover:underline">Become a Creator</Link>
       </p>
     </AuthShell>
   );
@@ -210,267 +190,88 @@ export function ForgotPasswordPage() {
   );
 }
 
-// ── REGISTER ───────────────────────────────────────────────────────────────
+// ── REGISTER: the creator application lives in creator-application.tsx ──
 
-export function RegisterPage() {
+// ── JOIN (free parent account — kids watch without one) ─────────────────────
+
+export function JoinPage() {
   const { refresh } = useAuth();
-  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", country: "" });
+  const [agree, setAgree] = useState(false);
+  const [parent, setParent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const avatarFile = useRef<File | null>(null);
-  const [form, setForm] = useState({
-    fullName: "", email: "", mobile: "", password: "",
-    channelName: "", username: "", description: "", country: "", category: "",
-  });
-  const [usernameState, setUsernameState] = useState<{ checking: boolean; available: boolean | null; reason: string | null }>({
-    checking: false, available: null, reason: null,
-  });
-  const [agree, setAgree] = useState(false);
-
-  // username availability check (debounced)
-  useEffect(() => {
-    const u = form.username.trim().toLowerCase();
-    if (!u) { setUsernameState({ checking: false, available: null, reason: null }); return; }
-    if (!/^[a-z0-9_]{3,20}$/.test(u)) {
-      setUsernameState({ checking: false, available: false, reason: "3–20 characters: a–z, 0–9, _" });
-      return;
-    }
-    setUsernameState(s => ({ ...s, checking: true }));
-    const t = setTimeout(async () => {
-      try {
-        const res = await api<{ available: boolean; reason: string | null }>(`/public/check-username?username=${u}`);
-        setUsernameState({ checking: false, available: res.available, reason: res.reason });
-      } catch {
-        setUsernameState({ checking: false, available: null, reason: null });
-      }
-    }, 450);
-    return () => clearTimeout(t);
-  }, [form.username]);
-
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
-
-  const pwStrength = (() => {
-    let s = 0;
-    if (form.password.length >= 8) s++;
-    if (/[A-Z]/.test(form.password)) s++;
-    if (/[0-9]/.test(form.password)) s++;
-    if (/[^A-Za-z0-9]/.test(form.password)) s++;
-    return s;
-  })();
-
-  const step1Valid = form.fullName.trim().length >= 2 && /\S+@\S+\.\S+/.test(form.email) &&
-    /^\+?[\d\s-]{7,20}$/.test(form.mobile) && form.password.length >= 8 && !!form.country;
-  const step2Valid = form.channelName.trim().length >= 3 && usernameState.available === true &&
-    form.country && form.category;
+  const valid = form.fullName.trim().length >= 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && agree && parent;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agree) { setError("Please accept the Terms and Community Guidelines to continue."); return; }
+    if (!valid) return;
     setBusy(true); setError("");
     try {
       const fd = new FormData();
+      fd.append("accountType", "VIEWER");
+      fd.append("parentConfirm", "true");
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      if (avatarFile.current) fd.append("avatar", avatarFile.current);
       await api("/auth/register", { method: "POST", body: fd });
       await refresh();
-      toast({ title: "Application submitted 🎉", description: "Your channel is now pending review — usually within 2 business days." });
-      navigate("/dashboard");
+      navigate("/onboarding");
     } catch (err) {
       setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
 
   return (
-    <AuthShell side={
-      <AuthSide title={<>Turn creativity into <span className="grad-text">income</span></>}
-        sub="Free to join, non-exclusive, and you keep ownership of every video you upload. Approved creators start earning from their first upload." />
-    }>
-      <div className="mb-6 flex items-center gap-2">
-        {[1, 2, 3].map(n => (
-          <div key={n} className="flex flex-1 items-center gap-2">
-            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
-              step > n ? "bg-emerald-500 text-white" : step === n ? "grad-btn text-white" : "bg-secondary text-muted-foreground"
-            }`}>
-              {step > n ? <Icons.Check size={14} /> : n}
-            </span>
-            {n < 3 && <div className={`h-1 flex-1 rounded-full ${step > n ? "bg-emerald-400" : "bg-secondary"}`} />}
-          </div>
-        ))}
-      </div>
-
-      <h1 className="font-display text-3xl font-bold">
-        {step === 1 ? "Create your account" : step === 2 ? "Set up your channel" : "Almost there"}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {step === 1 ? "Tell us who you are — this stays private." :
-         step === 2 ? "Your channel is your public identity on Kuchu Puchu." :
-         "Add a face to the name (optional) and confirm the rules."}
-      </p>
-
+    <AuthShell side={<AuthSide title={<>Safe videos for kids, <span className="grad-text">in your language</span></>} sub="Kids aged 3–8 watch without an account. A free parent account lets you save videos, follow creators and set your family's languages and favourite topics." />}>
+      <h1 className="font-display text-3xl font-bold">Create a parent account</h1>
+      <p className="mt-2 text-sm text-muted-foreground">For parents and guardians aged 18+. Kids don't need an account to watch — please don't let a child create one.</p>
       {error && (
         <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-rose-50 p-3.5 text-sm text-rose-700 ring-1 ring-rose-200">
           <Icons.AlertCircle size={17} className="mt-0.5 shrink-0" /> {error}
         </div>
       )}
-
       <form onSubmit={submit} className="mt-6 space-y-4">
-        {step === 1 && (
-          <>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-name">Full name</Label>
-              <Input id="r-name" required value={form.fullName} onChange={set("fullName")} placeholder="Alex Rivera" className="h-11 rounded-xl" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-email">Email address</Label>
-              <Input id="r-email" type="email" required autoComplete="email" value={form.email} onChange={set("email")} placeholder="you@example.com" className="h-11 rounded-xl" />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="r-mobile">Mobile number</Label>
-                <Input id="r-mobile" required value={form.mobile} onChange={set("mobile")} placeholder="+1 555 010 2030" className="h-11 rounded-xl" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="r-country">Country</Label>
-                <Select value={form.country} onValueChange={v => setForm(f => ({ ...f, country: v }))}>
-                  <SelectTrigger className="h-11 rounded-xl" id="r-country"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-password">Password</Label>
-              <Input id="r-password" type="password" required autoComplete="new-password" value={form.password} onChange={set("password")} placeholder="8+ characters" className="h-11 rounded-xl" />
-              {form.password && (
-                <div className="mt-1 flex items-center gap-2">
-                  <Progress value={pwStrength * 25} className="h-1.5 flex-1" />
-                  <span className="text-[11px] font-semibold text-muted-foreground">
-                    {["Weak", "Weak", "Okay", "Good", "Strong"][pwStrength]}
-                  </span>
-                </div>
-              )}
-            </div>
-            <Button type="button" disabled={!step1Valid} onClick={() => setStep(2)} className="grad-btn h-12 w-full rounded-xl text-white">
-              Continue <Icons.ArrowRight size={16} className="ml-1" />
-            </Button>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-channel">Channel name</Label>
-              <Input id="r-channel" required value={form.channelName} onChange={set("channelName")} placeholder="Alex Creates" className="h-11 rounded-xl" />
-              <p className="text-[11px] text-muted-foreground">This is how viewers will know you. Must be unique.</p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-username">Channel username</Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
-                <Input id="r-username" required value={form.username}
-                  onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") }))}
-                  placeholder="alexcreates" className="h-11 rounded-xl pl-8" />
-                {form.username && (
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                    {usernameState.checking ? <Icons.Loader2 size={16} className="animate-spin text-muted-foreground" /> :
-                     usernameState.available ? <Icons.CheckCircle2 size={16} className="text-emerald-500" /> :
-                     usernameState.available === false ? <Icons.XCircle size={16} className="text-rose-500" /> : null}
-                  </span>
-                )}
-              </div>
-              {usernameState.reason && (
-                <p className={`text-[11px] ${usernameState.available ? "text-emerald-600" : "text-rose-500"}`}>{usernameState.reason}</p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-category">Content category</Label>
-              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                <SelectTrigger className="h-11 rounded-xl" id="r-category"><SelectValue placeholder="What will you create?" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="r-desc">Channel description</Label>
-              <Textarea id="r-desc" value={form.description} onChange={set("description")} rows={3}
-                placeholder="Tell viewers what your channel is about…" className="rounded-xl" />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} className="h-12 rounded-xl">Back</Button>
-              <Button type="button" disabled={!step2Valid} onClick={() => setStep(3)} className="grad-btn h-12 flex-1 rounded-xl text-white">
-                Continue <Icons.ArrowRight size={16} className="ml-1" />
-              </Button>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <div className="grid gap-1.5">
-              <Label>Profile photo <span className="font-normal text-muted-foreground">(optional)</span></Label>
-              <label className="flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed p-4 transition hover:border-brand-red/50">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="Preview" className="h-16 w-16 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                    <Icons.Camera size={22} className="text-muted-foreground" />
-                  </span>
-                )}
-                <div>
-                  <p className="text-sm font-semibold">{avatarFile.current ? avatarFile.current.name : "Upload a photo"}</p>
-                  <p className="text-xs text-muted-foreground">PNG, JPG or WebP · max 5MB</p>
-                </div>
-                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) { avatarFile.current = f; setAvatarPreview(URL.createObjectURL(f)); }
-                  }} />
-              </label>
-            </div>
-
-            <div className="rounded-2xl bg-secondary p-4">
-              <p className="flex items-center gap-1.5 text-xs font-bold">
-                <Icons.Clock size={13} className="text-brand-blue" /> What happens next?
-              </p>
-              <ol className="mt-2 space-y-1.5 text-[13px] text-muted-foreground">
-                <li>1. Your application enters review (usually ≤ 2 business days)</li>
-                <li>2. Once approved, you can upload videos and start earning</li>
-                <li>3. We'll notify you in-app and by email about your status</li>
-              </ol>
-            </div>
-
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
-              <Checkbox checked={agree} onCheckedChange={v => setAgree(!!v)} className="mt-0.5" />
-              <span className="text-[13px] leading-relaxed text-muted-foreground">
-                I agree to the{" "}
-                <Link to="/policies/terms" className="font-semibold text-brand-red hover:underline">Terms &amp; Conditions</Link>,{" "}
-                <Link to="/policies/community" className="font-semibold text-brand-red hover:underline">Community Guidelines</Link> and{" "}
-                <Link to="/policies/privacy" className="font-semibold text-brand-red hover:underline">Privacy Policy</Link>.
-                I will only upload original content I own the rights to.
-              </span>
-            </label>
-
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} className="h-12 rounded-xl">Back</Button>
-              <Button type="submit" disabled={busy || !agree} className="grad-btn h-12 flex-1 rounded-xl text-white">
-                {busy ? "Submitting…" : "Submit application"} <Icons.Send size={15} className="ml-1.5" />
-              </Button>
-            </div>
-          </>
-        )}
+        <div className="grid gap-1.5">
+          <Label htmlFor="j-name">Your name (parent or guardian)</Label>
+          <Input id="j-name" required value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="Priya Sharma" className="h-11 rounded-xl" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="j-email">Email address</Label>
+          <Input id="j-email" type="email" required autoComplete="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com" className="h-11 rounded-xl" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="j-password">Password</Label>
+          <Input id="j-password" type="password" required autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="8+ characters" className="h-11 rounded-xl" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="j-country">Country <span className="font-normal text-muted-foreground">(optional)</span></Label>
+          <Select value={form.country || undefined} onValueChange={v => setForm(f => ({ ...f, country: v }))}>
+            <SelectTrigger className="h-11 rounded-xl" id="j-country"><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent className="max-h-72">{COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">Creators you follow can see your name and country — you can make your follows private any time.</p>
+        </div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
+          <Checkbox checked={parent} onCheckedChange={v => setParent(!!v)} className="mt-0.5" />
+          <span className="text-[13px] leading-relaxed text-muted-foreground">
+            I am a parent or guardian aged 18 or over. Kids watch without an account.
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
+          <Checkbox checked={agree} onCheckedChange={v => setAgree(!!v)} className="mt-0.5" />
+          <span className="text-[13px] leading-relaxed text-muted-foreground">
+            I agree to the <Link to="/policies/terms" className="font-semibold text-brand-red hover:underline">Terms</Link>,{" "}
+            <Link to="/policies/community" className="font-semibold text-brand-red hover:underline">Community Guidelines</Link> and{" "}
+            <Link to="/policies/privacy" className="font-semibold text-brand-red hover:underline">Privacy Policy</Link>.
+          </span>
+        </label>
+        <Button type="submit" disabled={busy || !valid} className="grad-btn h-12 w-full rounded-xl text-white">
+          {busy ? "Creating your account…" : "Create parent account"} <Icons.ArrowRight size={16} className="ml-1" />
+        </Button>
       </form>
-
-      {step === 1 && (
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account? <Link to="/login" className="font-bold text-brand-red hover:underline">Log in</Link>
-        </p>
-      )}
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account? <Link to="/login" className="font-bold text-brand-red hover:underline">Log in</Link>
+        {" "}· Make kids' videos? <Link to="/register" className="font-bold text-brand-blue hover:underline">Become a Creator</Link>
+      </p>
     </AuthShell>
   );
 }

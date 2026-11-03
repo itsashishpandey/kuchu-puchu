@@ -14,6 +14,7 @@ import { useEffect } from "react";
 const MENU = [
   { to: "/dashboard", label: "Overview", icon: Icons.LayoutDashboard, exact: true },
   { to: "/dashboard/channel", label: "My Channel", icon: Icons.AtSign },
+  { to: "/dashboard/followers", label: "Followers", icon: Icons.Users },
   { to: "/dashboard/upload", label: "Upload Video", icon: Icons.UploadCloud },
   { to: "/dashboard/videos", label: "My Videos", icon: Icons.Video },
   { to: "/dashboard/analytics", label: "Video Analytics", icon: Icons.BarChart3 },
@@ -103,7 +104,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <p>{user.rejectionReason}</p>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            You can update your channel details and re-apply. Contact <span className="font-semibold text-ink">support@kuchupuchu.com</span> if you believe this was a mistake.
+            You can update your channel details and re-apply. Contact <span className="font-semibold text-ink">support@mykuchupuchu.com</span> if you believe this was a mistake.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <Button className="grad-btn rounded-full text-white" onClick={() => navigate("/contact")}>Contact support</Button>

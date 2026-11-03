@@ -2,15 +2,27 @@ import { db } from "@/lib/db";
 import { getSessionUser, viewerKeyFromRequest, jsonError } from "@/lib/auth";
 import { getMonetizationSettings } from "@/lib/monetization";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { loadTaxonomy, selectable, taxonomyCounts, resolveFilterParams, languageCodesFromParam } from "@/lib/taxonomy";
+import { VIDEO_CARD_INCLUDE, viewerFlags, toVideoDTO } from "@/lib/video-dto";
+import { forYouFeed, listFeed } from "@/lib/feed";
+import { AUDIENCE_INFO, COMMENTS_ENABLED } from "@/lib/kids";
+import { USERNAME_RE, USERNAME_RULE, DOCUMENT_TYPES, DOCUMENT_MAX_MB, AGREEMENTS, AGREEMENTS_VERSION, STRIKE_LIMIT } from "@/lib/creator-application";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
+const localeOf = (url: URL) => (url.searchParams.get("locale") || "en").slice(0, 10);
+
 export async function GET(req: Request, ctx: Ctx) {
   const { path: segs } = await ctx.params;
   const url = new URL(req.url);
   const [seg, second] = segs;
+
+  // GET /api/public/version — build stamp of the running site (open tabs offer a refresh when it changes)
+  if (seg === "version") {
+    return Response.json({ build: process.env.NEXT_PUBLIC_BUILD_ID || "" }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   // GET /api/public/stats — live platform counters (real DB aggregates)
   if (seg === "stats") {
@@ -43,8 +55,12 @@ export async function GET(req: Request, ctx: Ctx) {
     const branding = await db.platformSetting.findUnique({ where: { key: "branding" } });
     const homepage = await db.platformSetting.findUnique({ where: { key: "homepage" } });
     return Response.json({
+      audience: AUDIENCE_INFO,
       ratePer1000Views: settings.ratePer1000Views,
       rewardPerUpload: settings.rewardPerUpload,
+      rewardPerUploadInr: settings.rewardPerUploadInr,
+      inrPerUsd: settings.inrPerUsd,
+      minMonthlyChannelViews: settings.minMonthlyChannelViews,
       monetizationDurationMonths: settings.monetizationDurationMonths,
       minWithdrawalAmount: settings.minWithdrawalAmount,
       monetizationPaused: settings.monetizationPaused,
@@ -53,111 +69,56 @@ export async function GET(req: Request, ctx: Ctx) {
     });
   }
 
-  // GET /api/public/videos/:id — single video with comments
+  // GET /api/public/videos/:id — single video (comments are off on the kids platform)
   if (seg === "videos" && second) {
     const v = await db.video.findFirst({
       where: { OR: [{ id: second }, { contentId: second }] },
-      include: {
-        creator: { select: { id: true, name: true, avatarUrl: true, channel: true } },
-        comments: { orderBy: { createdAt: "desc" }, take: 50 },
-      },
+      include: { ...VIDEO_CARD_INCLUDE, ...(COMMENTS_ENABLED ? { comments: { orderBy: { createdAt: "desc" as const }, take: 50 } } : {}) },
     });
     if (!v || v.status !== "APPROVED") return jsonError("Video not found", 404);
     const me = await getSessionUser();
     const guestKey = viewerKeyFromRequest(req);
-    const liked = me
-      ? !!(await db.videoLike.findFirst({ where: { videoId: v.id, userId: me.id } }))
-      : !!(await db.videoLike.findFirst({ where: { videoId: v.id, guestKey } }));
-    const following = me ? !!(await db.follow.findFirst({ where: { followerId: me.id, channelId: v.creator.channel.id } })) : false;
+    const [flags, channel, t] = await Promise.all([
+      viewerFlags(me?.id ?? null, guestKey, [v.id]),
+      db.channel.findUnique({ where: { userId: v.creatorId }, select: { followerCount: true, description: true } }),
+      loadTaxonomy(localeOf(url)),
+    ]);
+    const dto = toVideoDTO(v, flags, t);
     return Response.json({
       video: {
-        ...v, hashtags: JSON.parse(v.hashtags || "[]"),
-        creator: {
-          id: v.creator.id, name: v.creator.name, avatarUrl: v.creator.avatarUrl,
-          username: v.creator.channel.username, channelName: v.creator.channel.name,
-          verified: v.creator.channel.verified, followerCount: v.creator.channel.followerCount,
-          description: v.creator.channel.description,
-        },
-        comments: v.comments,
-        liked, following,
+        ...dto,
+        creator: { ...dto.creator, followerCount: channel?.followerCount ?? 0, description: channel?.description ?? "" },
+        comments: COMMENTS_ENABLED ? (v as { comments?: unknown[] }).comments ?? [] : [],
       },
     });
   }
 
-  // GET /api/public/videos?feed=trending|explore|following&category=&q=&limit=
+  // GET /api/public/videos?feed=foryou|trending|explore|following&languages=hi,en&category=<slug>
+  //   &subcategory=<slug>&q=&limit=&offset=     (old apps' `category=<name>` keeps working)
   if (seg === "videos") {
-    const feed = url.searchParams.get("feed") || "explore";
-    const category = url.searchParams.get("category") || "";
-    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
-    const limit = Math.min(48, parseInt(url.searchParams.get("limit") || "24", 10));
-
-    const where: Record<string, unknown> = { status: "APPROVED" };
-    if (category) where.category = category;
-    if (q) {
-      where.OR = [
-        { title: { contains: q } }, { description: { contains: q } },
-        { hashtags: { contains: q.replace(/^#/, "") } },
-      ];
-    }
-    if (feed === "trending") {
-      where.publishedAt = { gte: new Date(Date.now() - 30 * 864e5) };
-    }
-    if (feed === "following") {
-      const user = await getSessionUser();
-      if (!user) return jsonError("Login required", 401);
-      const follows = await db.follow.findMany({ where: { followerId: user.id } });
-      const ids = follows.map(f => f.channelId);
-      if (ids.length === 0) return Response.json({ videos: [] });
-      where.creatorId = { in: ids };
-    }
-
-    let orderBy: Record<string, string> = { createdAt: "desc" };
-    if (feed === "trending") orderBy = { views: "desc" };
-
-    const videos = await db.video.findMany({
-      where, orderBy, take: limit,
-      include: {
-        creator: {
-          select: {
-            id: true, name: true, avatarUrl: true,
-            channel: { select: { username: true, name: true, verified: true, theme: true } },
-          },
-        },
-      },
-    });
-
+    const feedParam = url.searchParams.get("feed") || "explore";
+    const limit = Math.max(1, Math.min(48, parseInt(url.searchParams.get("limit") || "24", 10) || 24));
+    const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase().slice(0, 80);
     const me = await getSessionUser();
     const guestKey = viewerKeyFromRequest(req);
-    let likedIds = new Set<string>();
-    let followedIds = new Set<string>();
-    if (me) {
-      const likes = await db.videoLike.findMany({ where: { userId: me.id }, select: { videoId: true } });
-      likedIds = new Set(likes.map(l => l.videoId));
-      const follows = await db.follow.findMany({ where: { followerId: me.id }, select: { channelId: true } });
-      followedIds = new Set(follows.map(f => f.channelId));
-    } else {
-      const likes = await db.videoLike.findMany({ where: { guestKey }, select: { videoId: true } });
-      likedIds = new Set(likes.map(l => l.videoId));
-    }
+    const t = await loadTaxonomy(localeOf(url));
+    const languages = languageCodesFromParam(t, url.searchParams.get("languages"));
+    const f = resolveFilterParams(t, url.searchParams.get("category"), url.searchParams.get("subcategory"));
+    const filters = { languages, categoryId: f.categoryId, subcategoryId: f.subcategoryId, q: q || undefined };
+    const legacyCategory = f.legacyCategory;
 
-    return Response.json({
-      videos: videos.map(v => ({
-        id: v.id, contentId: v.contentId, title: v.title, description: v.description,
-        category: v.category, hashtags: JSON.parse(v.hashtags || "[]"),
-        videoUrl: v.videoUrl, thumbnailUrl: v.thumbnailUrl, duration: v.duration,
-        views: v.views, qualifiedViews: v.qualifiedViews, likes: v.likes,
-        commentsCount: v.commentsCount, shares: v.shares,
-        publishedAt: v.publishedAt, featured: v.featured,
-        creator: {
-          id: v.creator.id, name: v.creator.name, avatarUrl: v.creator.avatarUrl,
-          username: v.creator.channel?.username ?? "", channelName: v.creator.channel?.name ?? v.creator.name,
-          verified: v.creator.channel?.verified ?? false,
-          theme: v.creator.channel?.theme ?? "BLUE",
-        },
-        liked: likedIds.has(v.id),
-        following: followedIds.has(v.creator.id),
-      })),
-    });
+    if (feedParam === "foryou") {
+      const res = await forYouFeed({
+        userId: me?.id ?? null, guestKey, guestLanguages: languages, filters, limit, offset, taxonomy: t,
+        fresh: url.searchParams.get("fresh") === "1",
+      });
+      return Response.json(res);
+    }
+    const feed = feedParam === "trending" || feedParam === "following" ? feedParam : "explore";
+    const res = await listFeed({ feed, filters, limit, offset, userId: me?.id ?? null, guestKey, taxonomy: t, legacyCategory });
+    if ("error" in res) return jsonError(res.error!, 401);
+    return Response.json({ ...res, meta: { feed, languages } });
   }
 
   // GET /api/public/creator/:username — public channel page
@@ -166,14 +127,7 @@ export async function GET(req: Request, ctx: Ctx) {
       where: { username: second },
       include: {
         user: {
-          select: {
-            id: true, name: true, avatarUrl: true, status: true, createdAt: true,
-            videos: {
-              where: { status: "APPROVED" },
-              orderBy: { publishedAt: "desc" },
-              include: {},
-            },
-          },
+          select: { id: true, name: true, avatarUrl: true, status: true, createdAt: true },
         },
       },
     });
@@ -189,44 +143,73 @@ export async function GET(req: Request, ctx: Ctx) {
     }
     const me = await getSessionUser();
     const following = me ? !!(await db.follow.findFirst({ where: { followerId: me.id, channelId: channel.id } })) : false;
+    const [t, prefs] = await Promise.all([
+      loadTaxonomy(localeOf(url)),
+      db.channel.findUnique({
+        where: { id: channel.id },
+        select: {
+          preferredCategories: { select: { categoryId: true } },
+          publishingLanguages: { select: { language: { select: { code: true, nameEn: true, nameNative: true } } } },
+        },
+      }),
+    ]);
+    const sort = url.searchParams.get("sort");
+    const cards = await db.video.findMany({
+      where: { creatorId: channel.user.id, status: "APPROVED" }, include: VIDEO_CARD_INCLUDE,
+      orderBy: sort === "popular" ? [{ views: "desc" }, { publishedAt: "desc" }] : { publishedAt: sort === "oldest" ? "asc" : "desc" },
+    });
+    const totalViews = cards.reduce((a, v) => a + v.views, 0);
+    const flags = await viewerFlags(me?.id ?? null, viewerKeyFromRequest(req), cards.map(c => c.id));
     return Response.json({
       channel: {
         id: channel.id,
         name: channel.name, username: channel.username, description: channel.description,
+        tagline: channel.tagline ?? "", supportEmail: channel.supportEmail, videoCount: cards.length, totalViews,
         avatarUrl: channel.avatarUrl, bannerUrl: channel.bannerUrl, category: channel.category,
         country: channel.country, socialLinks: channel.socialLinks ? JSON.parse(channel.socialLinks) : null,
-        followerCount: channel.followerCount, verified: channel.verified,
+        followerCount: channel.followerCount, verified: channel.verified, theme: channel.theme,
         joinedAt: channel.user.createdAt, showEarnings: channel.showEarnings,
         verifiedEarnings,
-        videos: channel.user.videos.map(v => ({
-          id: v.id, contentId: v.contentId, title: v.title, thumbnailUrl: v.thumbnailUrl,
-          videoUrl: v.videoUrl, duration: v.duration, views: v.views, likes: v.likes,
-          category: v.category, publishedAt: v.publishedAt,
-        })),
+        preferredCategories: (prefs?.preferredCategories ?? []).map(p => {
+          const c = t.categories.find(x => x.id === p.categoryId);
+          return c ? { id: c.id, slug: c.slug, name: c.name, emoji: c.emoji } : null;
+        }).filter(Boolean),
+        languages: (prefs?.publishingLanguages ?? []).map(l => l.language),
+        videos: cards.map(v => toVideoDTO(v, flags, t)),
         following,
       },
     });
   }
 
-  // GET /api/public/categories
+  // GET /api/public/categories — kept for older app/web builds; new clients use /api/taxonomy/categories
   if (seg === "categories") {
-    const categories = await db.category.findMany({
-      where: { active: true }, orderBy: { name: "asc" },
+    const [t, counts] = await Promise.all([loadTaxonomy(localeOf(url)), taxonomyCounts()]);
+    return Response.json({
+      categories: selectable(t).categories.map(c => ({
+        id: c.id, name: c.name, slug: c.slug, icon: null, emoji: c.emoji, color: c.color, description: c.description,
+        active: true, videoCount: counts.categories.get(c.id) ?? 0,
+      })),
     });
-    const withCounts = await Promise.all(
-      categories.map(async c => ({
-        ...c,
-        videoCount: await db.video.count({ where: { category: c.name, status: "APPROVED" } }),
-      }))
-    );
-    return Response.json({ categories: withCounts });
+  }
+
+  // GET /api/public/creator-application — rules and texts for the web + app application forms
+  if (seg === "creator-application") {
+    const s = await getMonetizationSettings();
+    return Response.json({
+      audience: AUDIENCE_INFO,
+      usernameRule: USERNAME_RULE, usernamePattern: USERNAME_RE.source,
+      documentTypes: DOCUMENT_TYPES, documentMaxMB: DOCUMENT_MAX_MB,
+      agreements: AGREEMENTS, agreementsVersion: AGREEMENTS_VERSION, strikeLimit: STRIKE_LIMIT,
+      minMonthlyChannelViews: s.minMonthlyChannelViews, uploadRewardInr: s.rewardPerUploadInr,
+      uploadRewardUsd: s.rewardPerUpload, inrPerUsd: s.inrPerUsd, ratePer1000Views: s.ratePer1000Views,
+    });
   }
 
   // GET /api/public/check-username?username=
   if (seg === "check-username") {
-    const username = (url.searchParams.get("username") || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
-    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
-      return Response.json({ available: false, reason: "Username must be 3–20 characters (a–z, 0–9, _)" });
+    const username = (url.searchParams.get("username") || "").toLowerCase();
+    if (!USERNAME_RE.test(username)) {
+      return Response.json({ available: false, reason: `Username: ${USERNAME_RULE}` });
     }
     const taken = await db.channel.findUnique({ where: { username } });
     return Response.json({ available: !taken, reason: taken ? "This username is already taken" : null });

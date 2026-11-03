@@ -17,6 +17,7 @@ type AdminOverview = {
     totalViews: number; qualifiedViews: number;
     totalCreatorEarnings: number; totalPaidToCreators: number; pendingWithdrawals: number;
     outstandingLiability: number; openFraudFlags: number; openAppeals: number; openReports: number;
+    appUsers?: number; commentsToday?: number;
   };
   charts: {
     dates: string[]; creatorGrowth: number[]; uploads: number[]; views: number[];
@@ -58,6 +59,8 @@ export function AdminDashboard() {
     { l: "Paid to Creators", v: usd(k.totalPaidToCreators, 0), sub: "Completed payouts", icon: Icons.Banknote, c: "text-emerald-600", bg: "bg-emerald-50", to: "/admin/withdrawals" },
     { l: "Pending Withdrawals", v: usd(k.pendingWithdrawals, 0), sub: "Requested → processing", icon:Icons.Send, c: "text-amber-600", bg: "bg-amber-50", to: "/admin/withdrawals" },
     { l: "Outstanding Liability", v: usd(k.outstandingLiability, 0), sub: "Credits still in holding", icon: Icons.Scale, c: "text-slate-600", bg: "bg-slate-100", to: "/admin/earnings" },
+    { l: "App Users", v: compact(k.appUsers ?? 0), sub: "Viewer accounts from the app", icon: Icons.Smartphone, c: "text-sky-600", bg: "bg-sky-50", to: "/admin/app-users" },
+    { l: "Open Reports", v: String(k.openReports), sub: `${k.commentsToday ?? 0} comments in the last 24h`, icon: Icons.Flag, c: "text-rose-500", bg: "bg-rose-50", to: "/admin/safety" },
   ];
 
   return (
@@ -173,7 +176,7 @@ export function AdminDashboard() {
               { l: "Duplicate review queue", v: k.flaggedVideos, to: "/admin/duplicates", c: "bg-orange-50 text-orange-700" },
               { l: "Open appeals", v: k.openAppeals, to: "/admin/duplicates", c: "bg-violet-50 text-violet-700" },
               { l: "Fraud flags", v: k.openFraudFlags, to: "/admin/fraud", c: "bg-rose-50 text-rose-700" },
-              { l: "Copyright reports", v: k.openReports, to: "/admin/videos", c: "bg-slate-100 text-slate-700" },
+              { l: "User reports on videos", v: k.openReports, to: "/admin/safety", c: "bg-slate-100 text-slate-700" },
             ].map(q => (
               <div key={q.l} className="flex items-center justify-between rounded-xl bg-secondary/60 p-3.5">
                 <span className="text-sm font-semibold">{q.l}</span>

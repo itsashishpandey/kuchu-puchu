@@ -1,9 +1,11 @@
+import { KIDS_AUDIENCE } from "@/lib/kids";
 import { db } from "@/lib/db";
 import { getSessionUser, hashPassword, verifyPassword, jsonError } from "@/lib/auth";
 import {
   getMonetizationSettings, getUploadRules, walletSummary, remainingUploads,
-  creditUploadReward, round2,
+  creditUploadReward, round2, channelMonetization,
 } from "@/lib/monetization";
+import { STRIKE_LIMIT } from "@/lib/creator-application";
 import { notify } from "@/lib/platform";
 import { nextContentId, payoutRef } from "@/lib/platform";
 import {
@@ -11,7 +13,12 @@ import {
   DUP_VISUAL_THRESHOLD, DUP_AUDIO_THRESHOLD,
 } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
-import { writeFile, mkdir } from "fs/promises";
+import { loadTaxonomy, clearTaxonomyCounts } from "@/lib/taxonomy";
+import { parseTagInput, firstError, reviewFor, writeVideoTags, validateVideoTags } from "@/lib/video-tags";
+import { detectLanguages, suggestCategories } from "@/lib/discovery/suggest";
+import { tagLabels } from "@/lib/video-dto";
+import { getChannelPreferences, setChannelPreferences, resolveChannelCategories, resolveChannelLanguages, listParam } from "@/lib/channel-prefs";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -20,6 +27,30 @@ const exec = promisify(execFile);
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ path: string[] }> };
+
+// Content IDs are reserved in-process while an upload is being processed, so two uploads that
+// overlap (file write + ffprobe + fingerprinting take seconds) can't be given the same ID.
+const reservedContentIds = new Set<string>();
+async function reserveContentId(): Promise<string> {
+  let id = await nextContentId();
+  while (reservedContentIds.has(id)) {
+    const [p, y, n] = id.split("-");
+    id = `${p}-${y}-${String(parseInt(n, 10) + 1).padStart(6, "0")}`;
+  }
+  reservedContentIds.add(id);
+  return id;
+}
+
+/** What the upload/edit forms show as suggestions (never applied automatically). */
+function suggestionsFor(text: string, t: Awaited<ReturnType<typeof loadTaxonomy>>) {
+  return {
+    languages: detectLanguages(text, t).slice(0, 3).map(l => {
+      const lang = t.languages.find(x => x.code === l.code);
+      return { ...l, nameEn: lang?.nameEn ?? l.code, nameNative: lang?.nameNative ?? l.code };
+    }),
+    categories: suggestCategories(text, t, 5),
+  };
+}
 
 async function requireCreator() {
   const me = await getSessionUser();
@@ -92,6 +123,12 @@ export async function GET(req: Request, ctx: Ctx) {
         availableBalance: wallet.availableBalance,
         pendingEarnings: wallet.pendingBalance,
         totalVideos: videos.length,
+        monetization: await channelMonetization(me.id, true),
+        standing: await (async () => {
+          const list = await db.channelStrike.findMany({ where: { userId: me.id, revokedAt: null }, orderBy: { createdAt: "desc" }, select: { reason: true, contentId: true, createdAt: true } });
+          return { strikes: list.length, limit: STRIKE_LIMIT, list };
+        })(),
+        followers: (await db.channel.findUnique({ where: { userId: me.id }, select: { followerCount: true } }))?.followerCount ?? 0,
         totalQualifiedViews: qualAgg._sum.qualifiedViews ?? 0,
         earningsThisMonth: round2(monthAgg._sum.amount ?? 0),
         remainingDailyUploads: limits.dailyRemaining,
@@ -165,12 +202,22 @@ export async function GET(req: Request, ctx: Ctx) {
 
   // ── MY VIDEOS ─────────────────────────────────────────────────────────
   if (seg === "videos") {
-    const videos = await db.video.findMany({
-      where: { creatorId: me.id }, orderBy: { createdAt: "desc" },
-    });
+    const [videos, t] = await Promise.all([
+      db.video.findMany({
+        where: { creatorId: me.id }, orderBy: { createdAt: "desc" },
+        include: {
+          languages: { orderBy: { position: "asc" }, include: { language: { select: { code: true, nameEn: true, nameNative: true, direction: true } } } },
+          tags: { orderBy: { priority: "asc" }, select: { priority: true, categoryId: true, subcategoryId: true } },
+        },
+      }),
+      loadTaxonomy((url.searchParams.get("locale") || "en").slice(0, 10)),
+    ]);
     const settings = await getMonetizationSettings();
     return Response.json({
       videos: videos.map(v => ({
+        languages: v.languages.map(l => ({ code: l.language.code, nameEn: l.language.nameEn, nameNative: l.language.nameNative, direction: l.language.direction, isPrimary: l.isPrimary })),
+        tags: tagLabels(t, v.tags),
+        tagStatus: v.tagStatus, tagFlagReason: v.tagFlagReason, tagsUpdatedAt: v.tagsUpdatedAt,
         id: v.id, contentId: v.contentId, title: v.title, description: v.description,
         category: v.category, hashtags: JSON.parse(v.hashtags || "[]"),
         thumbnailUrl: v.thumbnailUrl, videoUrl: v.videoUrl, duration: v.duration,
@@ -206,7 +253,9 @@ export async function GET(req: Request, ctx: Ctx) {
     const viewEvents = await db.viewEvent.findMany({
       where: { videoId: { in: ids } },
     });
+    const breakdowns = await analyticsBreakdowns(ids, viewEvents, (url.searchParams.get("locale") || "en").slice(0, 10));
     return Response.json({
+      breakdowns,
       videos: videos.map(v => {
         const evs = viewEvents.filter(e => e.videoId === v.id);
         return {
@@ -215,6 +264,7 @@ export async function GET(req: Request, ctx: Ctx) {
           qualificationRate: v.views > 0 ? Math.round((v.qualifiedViews / v.views) * 100) : 0,
           likes: v.likes, commentsCount: v.commentsCount, shares: v.shares,
           earned: earnedByVideo.get(v.id) ?? 0,
+          completionRate: breakdowns.completion.byVideo[v.id] ?? null,
           recentQualified: evs.filter(e => e.qualified).length,
           recentExcluded: evs.filter(e => !e.qualified).length,
           exclusions: evs.filter(e => !e.qualified).reduce((acc, e) => {
@@ -271,6 +321,52 @@ export async function GET(req: Request, ctx: Ctx) {
     });
   }
 
+  // ── FOLLOWERS (YouTube-style): count, list (name + self-declared country), country mix, growth ──
+  // Followers who chose "keep my follows private" are counted but shown as "Private follower".
+  if (seg === "followers") {
+    const channel = await db.channel.findUnique({ where: { userId: me.id }, select: { id: true, followerCount: true } });
+    if (!channel) return jsonError("Channel not found", 404);
+    const limit = Math.max(1, Math.min(100, parseInt(url.searchParams.get("limit") || "30", 10) || 30));
+    const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const q = (url.searchParams.get("q") || "").trim().slice(0, 60);
+    const where = { channelId: channel.id, ...(q ? { follower: { name: { contains: q }, followsPrivate: false } } : {}) };
+    const since = new Date(Date.now() - 30 * 864e5);
+    const [total, priv, rows, all, recent] = await Promise.all([
+      db.follow.count({ where: { channelId: channel.id } }),
+      db.follow.count({ where: { channelId: channel.id, follower: { followsPrivate: true } } }),
+      db.follow.findMany({
+        where, orderBy: { createdAt: "desc" }, take: limit + 1, skip: offset,
+        select: { id: true, createdAt: true, follower: { select: { name: true, avatarUrl: true, country: true, followsPrivate: true, channel: { select: { name: true, avatarUrl: true } } } } },
+      }),
+      db.follow.findMany({ where: { channelId: channel.id, follower: { followsPrivate: false } }, select: { follower: { select: { country: true } } } }),
+      db.follow.findMany({ where: { channelId: channel.id, createdAt: { gte: since } }, select: { createdAt: true } }),
+    ]);
+    const byCountry = new Map<string, number>();
+    all.forEach(f => { const c = f.follower.country || "Not shared"; byCountry.set(c, (byCountry.get(c) ?? 0) + 1); });
+    const growth: { date: string; count: number }[] = [];
+    for (let i = 29; i >= 0; i--) growth.push({ date: new Date(Date.now() - i * 864e5).toISOString().slice(0, 10), count: 0 });
+    recent.forEach(f => { const g = growth.find(x => x.date === f.createdAt.toISOString().slice(0, 10)); if (g) g.count++; });
+    const page = rows.slice(0, limit);
+    return Response.json({
+      total, visible: total - priv, private: priv, followerCount: channel.followerCount,
+      followers: page.map(f => f.follower.followsPrivate
+        ? { id: f.id, name: "Private follower", avatarUrl: null, country: null, followedAt: f.createdAt, isPrivate: true }
+        : { id: f.id, name: f.follower.channel?.name ?? f.follower.name, avatarUrl: f.follower.channel?.avatarUrl ?? f.follower.avatarUrl, country: f.follower.country, followedAt: f.createdAt, isPrivate: false }),
+      nextOffset: rows.length > limit ? offset + limit : null,
+      byCountry: [...byCountry].map(([country, count]) => ({ country, count })).sort((a, b) => b.count - a.count),
+      growth,
+    });
+  }
+
+  // ── TAG SUGGESTIONS (upload/edit form; from title, description and hashtags) ──
+  if (seg === "tag-suggestions") {
+    if (!rateLimit(`suggest:${me.id}`, 120)) return jsonError("Too many requests", 429);
+    const text = ["title", "description", "hashtags"].map(k => (url.searchParams.get(k) || "").slice(0, 2000)).join("\n");
+    const t = await loadTaxonomy("en");
+    const defaults = me.channel ? await getChannelPreferences(me.channel.id, t) : { preferredCategories: [], languages: [] };
+    return Response.json({ ...suggestionsFor(text, t), defaults, note: "Suggestions only — please confirm the languages actually spoken and the categories that truly describe your video." });
+  }
+
   // ── CHANNEL (edit form data) ─────────────────────────────────────────
   if (seg === "channel") {
     const user = await db.user.findUnique({
@@ -281,10 +377,15 @@ export async function GET(req: Request, ctx: Ctx) {
       channel: {
         name: user.channel.name, username: user.channel.username,
         description: user.channel.description, avatarUrl: user.channel.avatarUrl,
+        tagline: user.channel.tagline ?? "", supportEmail: user.channel.supportEmail ?? "", bannerUrl: user.channel.bannerUrl,
         category: user.channel.category, country: user.channel.country,
         socialLinks: user.channel.socialLinks ? JSON.parse(user.channel.socialLinks) : {},
         showEarnings: user.channel.showEarnings,
         followerCount: user.channel.followerCount, verified: user.channel.verified,
+        ...(await (async () => {
+          const p = await getChannelPreferences(user.channel!.id, await loadTaxonomy("en"));
+          return { ...p, preferredCategoryIds: p.preferredCategories.map(c => c.id), languageCodes: p.languages.map(l => l.code) };
+        })()),
       },
       profile: {
         name: user.name, email: user.email, phone: user.phone, country: user.country,
@@ -317,16 +418,32 @@ export async function POST(req: Request, ctx: Ctx) {
 
     const title = get("title");
     const description = get("description");
-    const category = get("category");
     const hashtags = get("hashtags");
     const originality = get("originalityDeclaration") === "true";
     const copyright = get("copyrightConfirmation") === "true";
+    const kidsSafe = get("kidsSafeDeclaration") === "true";
     const durationClient = parseFloat(get("duration")) || 0;
 
     if (!title || title.length < 3) return jsonError("Video title is required (min 3 characters)");
-    if (!category) return jsonError("Category is required");
     if (!originality) return jsonError("You must declare that this video is your original work");
     if (!copyright) return jsonError("You must confirm you hold all rights to the content");
+    if (!kidsSafe) {
+      return jsonError(`Please confirm this video is made for children aged ${KIDS_AUDIENCE.minAge}–${KIDS_AUDIENCE.maxAge}. If you're using the app, update it to the latest version.`);
+    }
+
+    // ── language + categories (spec §2/§4) — checked before limits and any file work ──
+    if (!form.get("tags") || !form.get("languages")) {
+      // app builds ≤ 1.1.0 send a single old-style category; never guess tags for them
+      return jsonError("Please choose the video's language and up to 3 categories. If you're using the app, update it to the latest version.", 400);
+    }
+    const taxonomy = await loadTaxonomy("en");
+    const tagCheck = validateVideoTags(parseTagInput({ languages: form.get("languages"), tags: form.get("tags") }), taxonomy);
+    if (!tagCheck.ok) return Response.json({ error: firstError(tagCheck.errors), errors: tagCheck.errors }, { status: 400 });
+    const tagValue = tagCheck.value;
+    const tagText = `${title}\n${description}\n${hashtags}`;
+    const tagReview = reviewFor(tagText, tagValue, taxonomy);
+    const primaryTag = tagValue.tags[0];
+    const category = taxonomy.categories.find(c => c.id === primaryTag.categoryId)?.subcategories.find(x => x.id === primaryTag.subcategoryId)?.nameEn ?? "Uncategorized";
 
     const file = form.get("video");
     if (!file || !(file instanceof File) || file.size === 0) return jsonError("Video file is required");
@@ -347,33 +464,38 @@ export async function POST(req: Request, ctx: Ctx) {
     // save to disk
     const dir = path.join(process.cwd(), "public", "uploads", "videos");
     await mkdir(dir, { recursive: true });
-    const contentId = await nextContentId();
+    const contentId = await reserveContentId();
+    try {
     const fname = `${contentId}.${ext}`;
     const fpath = path.join(dir, fname);
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(fpath, buffer);
 
-    // server-side validation: probe duration & resolution
-    let duration = durationClient, width = 0, height = 0;
+    // server-side validation: the length is measured here (never trusted from the browser);
+    // a rejected file is deleted straight away
+    const reject = async (msg: string) => { await unlink(fpath).catch(() => {}); return jsonError(msg); };
+    let duration = 0, width = 0, height = 0;
     try {
       const probe = await ffprobeJson(fpath);
-      duration = parseFloat(probe.format?.duration || "0") || durationClient;
       const vStream = (probe.streams || []).find((s: { codec_type?: string }) => s.codec_type === "video");
+      duration = parseFloat(probe.format?.duration || vStream?.duration || "0") || 0;
       if (vStream) { width = vStream.width ?? 0; height = vStream.height ?? 0; }
     } catch {
-      return jsonError("Could not read the video file. Please verify it plays correctly and retry.");
+      return reject("Could not read the video file. Please verify it plays correctly and retry.");
     }
+    if (!duration) return reject("Could not read the video's length. Please export it again as MP4 or MOV and retry.");
+    void durationClient;
     if (duration < rules.minDurationSec) {
-      return jsonError(`Video is too short (${Math.round(duration)}s). Minimum duration is ${rules.minDurationSec} seconds.`);
+      return reject(`Video is too short (${Math.round(duration)}s). Videos must be ${rules.minDurationSec}–${rules.maxDurationSec} seconds long.`);
     }
     if (duration > rules.maxDurationSec) {
-      return jsonError(`Video is too long (${Math.round(duration)}s). Maximum duration is ${rules.maxDurationSec} seconds.`);
+      return reject(`Video is too long (${Math.round(duration)}s). Videos must be ${rules.minDurationSec}–${rules.maxDurationSec} seconds long.`);
     }
     const maxH = parseInt((rules.maxResolution || "1080p").replace(/\D/g, ""), 10) || 1080;
     // resolution cap applies to the short side (portrait 9:16 videos: 1080p = 1080x1920)
     const shortSide = Math.min(width, height);
     if (shortSide > maxH) {
-      return jsonError(`Resolution ${width}x${height} exceeds the maximum (${rules.maxResolution}).`);
+      return reject(`Resolution ${width}x${height} exceeds the maximum (${rules.maxResolution}).`);
     }
 
     // fingerprinting (SHA-256 + perceptual visual hash + audio fingerprint)
@@ -443,9 +565,13 @@ export async function POST(req: Request, ctx: Ctx) {
       ? new Date(publishedAt.getTime() + settings.monetizationDurationMonths * 30 * 864e5)
       : null;
 
-    const video = await db.video.create({
+    // one row, one content ID — however many categories it's tagged with (spec §15)
+    const video = await db.$transaction(async tx => {
+      const v = await tx.video.create({
       data: {
         contentId, creatorId: me.id, title, description, category,
+        tagStatus: tagReview.status, tagFlagReason: tagReview.reason,
+        tagSuggestions: JSON.stringify(suggestionsFor(tagText, taxonomy)),
         hashtags: JSON.stringify(
           hashtags.split(/[\s,]+/).map(h => h.replace(/^#/, "")).filter(Boolean).slice(0, 10)
         ),
@@ -459,12 +585,20 @@ export async function POST(req: Request, ctx: Ctx) {
         monetizationEnabled: status !== "FLAGGED_DUPLICATE",
         publishedAt, earningExpiresAt,
       },
+      });
+      await writeVideoTags(tx, {
+        videoId: v.id, contentId, value: tagValue, source: "CREATOR", actor: { id: me.id, email: me.email },
+        taxonomy, reviewStatus: tagReview, auditAction: "VIDEO_TAGS_SET",
+      });
+      return v;
     });
 
     // auto-approval path → credit upload reward immediately if allowed
     if (status === "APPROVED" && !rules.rewardRequiresApproval) {
-      await creditUploadReward({ userId: me.id, videoId: video.id, contentId });
-      await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
+      // credited only while the channel meets the monthly view threshold
+      if (await creditUploadReward({ userId: me.id, videoId: video.id, contentId })) {
+        await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
+      }
     }
 
     // notifications
@@ -511,8 +645,40 @@ export async function POST(req: Request, ctx: Ctx) {
       video: {
         id: video.id, contentId: video.contentId, title: video.title,
         status: video.status, duplicateOfId, similarityScore, thumbnailUrl,
+        tagStatus: tagReview.status, tagFlagReason: tagReview.reason,
       },
     }, { status: 201 });
+    } finally {
+      reservedContentIds.delete(contentId);
+    }
+  }
+
+  // ── CHANNEL LOGO / BANNER (multipart "logo" | "banner") ───────────────
+  if (seg === "channel" && (segs[1] === "logo" || segs[1] === "banner")) {
+    if (!rateLimit(`chimg:${me.id}`, 20, 3600_000)) return jsonError("Too many uploads — try again later", 429);
+    const kind = segs[1];
+    const form = await req.formData().catch(() => null);
+    const file = form?.get(kind);
+    if (!file || !(file instanceof File) || file.size === 0) return jsonError(`Choose a ${kind} image`);
+    const max = kind === "banner" ? 6 : 5;
+    if (file.size > max * 1024 * 1024) return jsonError(`The ${kind} must be under ${max}MB`);
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) return jsonError(`The ${kind} must be PNG, JPG or WebP`);
+    const channel = await db.channel.findUnique({ where: { userId: me.id } });
+    if (!channel) return jsonError("Channel not found", 404);
+    const ext = file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
+    const dir = path.join(process.cwd(), "public", "uploads", kind === "banner" ? "banners" : "avatars");
+    await mkdir(dir, { recursive: true });
+    const fname = `${channel.username}-${kind}-${Date.now().toString(36)}.${ext}`;
+    await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()));
+    const url = `/uploads/${kind === "banner" ? "banners" : "avatars"}/${fname}`;
+    if (kind === "banner") {
+      await db.channel.update({ where: { id: channel.id }, data: { bannerUrl: url } });
+      return Response.json({ ok: true, bannerUrl: url, message: "Banner updated" });
+    }
+    // the logo is the channel picture everywhere (channel page, comments, feed)
+    await db.channel.update({ where: { id: channel.id }, data: { avatarUrl: url } });
+    await db.user.update({ where: { id: me.id }, data: { avatarUrl: url } });
+    return Response.json({ ok: true, avatarUrl: url, message: "Logo updated" });
   }
 
   // ── WITHDRAWAL REQUEST ────────────────────────────────────────────────
@@ -612,12 +778,22 @@ export async function PATCH(req: Request, ctx: Ctx) {
       if (taken) return jsonError("This channel name is already taken");
     }
     const social = body?.socialLinks ?? {};
+    const tagline = body?.tagline !== undefined ? String(body.tagline).trim().slice(0, 100) : undefined;
+    let supportEmail: string | null | undefined = undefined;
+    if (body?.supportEmail !== undefined) {
+      const e = String(body.supportEmail || "").trim().toLowerCase();
+      if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return jsonError("Support email doesn't look right");
+      supportEmail = e || null;
+    }
     await db.channel.update({
       where: { id: channel.id },
       data: {
         name: name || channel.name,
         description: String(body?.description ?? channel.description).slice(0, 500),
         category: body?.category ? String(body.category) : channel.category,
+        ...(tagline !== undefined ? { tagline: tagline || null } : {}),
+        ...(supportEmail !== undefined ? { supportEmail } : {}),
+        ...(body?.country !== undefined ? { country: String(body.country || "").slice(0, 60) || null } : {}),
         socialLinks: JSON.stringify({
           instagram: String(social.instagram || "").replace(/^@/, "").slice(0, 40) || null,
           youtube: String(social.youtube || "").slice(0, 60) || null,
@@ -627,7 +803,46 @@ export async function PATCH(req: Request, ctx: Ctx) {
         showEarnings: !!body?.showEarnings,
       },
     });
+    // preferred categories + publishing languages (optional fields; omitted = unchanged)
+    if (body?.preferredCategoryIds !== undefined || body?.languageCodes !== undefined) {
+      const t = await loadTaxonomy("en");
+      await setChannelPreferences(
+        channel.id,
+        body?.preferredCategoryIds !== undefined ? resolveChannelCategories(t, listParam(body.preferredCategoryIds)) : null,
+        body?.languageCodes !== undefined ? resolveChannelLanguages(t, listParam(body.languageCodes)) : null,
+      );
+    }
     return Response.json({ ok: true, message: "Channel updated" });
+  }
+
+  // ── EDIT A VIDEO'S LANGUAGES / CATEGORIES ─────────────────────────────
+  // PATCH /api/creator/videos/:contentId/tags { languages: {primary, additional[]}, tags: [{categoryId, subcategoryId}] }
+  // Same content ID, view history, earnings and upload reward — only the tags change (spec §4).
+  if (seg === "videos" && segs[2] === "tags") {
+    if (!rateLimit(`retag:${me.id}`, 30, 3600_000)) return jsonError("Too many edits — please try again later", 429);
+    const video = await db.video.findFirst({
+      where: { contentId: segs[1], creatorId: me.id },
+      include: { tags: true, languages: true },
+    });
+    if (!video) return jsonError("Video not found", 404);
+    if (video.status === "REMOVED") return jsonError("This video was removed and can't be edited", 403);
+    const t = await loadTaxonomy("en");
+    // tags already on the video may be kept even if they were retired since
+    const keepIds = new Set<string>([...video.tags.flatMap(x => [x.categoryId, x.subcategoryId]), ...video.languages.map(l => l.languageId)]);
+    const check = validateVideoTags(parseTagInput({ languages: body?.languages, tags: body?.tags }), t, { keepIds });
+    if (!check.ok) return Response.json({ error: firstError(check.errors), errors: check.errors }, { status: 400 });
+    const review = reviewFor(`${video.title}\n${video.description}\n${video.hashtags}`, check.value, t);
+    // a moderator-flagged video goes back to the queue after the creator changes it
+    const status = video.tagStatus === "FLAGGED" ? { status: "NEEDS_REVIEW", reason: "Creator edited tags after a moderator flagged them" } : review;
+    await db.$transaction(tx => writeVideoTags(tx, {
+      videoId: video.id, contentId: video.contentId, value: check.value, source: "CREATOR",
+      actor: { id: me.id, email: me.email }, taxonomy: t, reviewStatus: status, auditAction: "VIDEO_TAGS_EDITED",
+    }));
+    clearTaxonomyCounts();
+    return Response.json({
+      ok: true, contentId: video.contentId, tagStatus: status.status, tagFlagReason: status.reason,
+      message: status.status === "OK" ? "Languages and categories updated" : "Saved — our team will double-check these tags",
+    });
   }
 
   // ── UPDATE PROFILE ────────────────────────────────────────────────────
@@ -683,5 +898,95 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return Response.json({ ok: true, message: "Payment details saved (account numbers are stored masked)" });
   }
 
+  return jsonError("Not found", 404);
+}
+
+/**
+ * Creator analytics by language / category / subcategory / country + completion.
+ * No double counting: a video's views are attributed once, to its PRIMARY language/category/
+ * subcategory; `taggedVideos` separately shows how many videos carry each tag in any position.
+ */
+async function analyticsBreakdowns(
+  videoIds: string[],
+  viewEvents: { videoId: string; qualified: boolean; country: string | null }[],
+  locale: string,
+) {
+  const t = await loadTaxonomy(locale);
+  const [vids, interactions] = await Promise.all([
+    db.video.findMany({
+      where: { id: { in: videoIds } },
+      select: {
+        id: true, views: true, qualifiedViews: true, likes: true,
+        languages: { select: { isPrimary: true, language: { select: { code: true, nameEn: true, nameNative: true } } } },
+        tags: { select: { priority: true, categoryId: true, subcategoryId: true } },
+      },
+    }),
+    db.videoInteractionEvent.groupBy({
+      by: ["videoId", "type"], where: { videoId: { in: videoIds }, type: { in: ["VIEW", "COMPLETE"] }, suspicious: false }, _count: { _all: true },
+    }),
+  ]);
+  type Row = { key: string; label: string; emoji?: string | null; videos: number; taggedVideos: number; views: number; qualifiedViews: number; likes: number };
+  const bucket = (m: Map<string, Row>, key: string, label: string, emoji?: string | null) => {
+    if (!m.has(key)) m.set(key, { key, label, emoji, videos: 0, taggedVideos: 0, views: 0, qualifiedViews: 0, likes: 0 });
+    return m.get(key)!;
+  };
+  const byLang = new Map<string, Row>(), byCat = new Map<string, Row>(), bySub = new Map<string, Row>();
+  const cat = (id: string) => t.categories.find(c => c.id === id);
+  for (const v of vids) {
+    for (const l of v.languages) {
+      const row = bucket(byLang, l.language.code, `${l.language.nameEn}${l.language.nameNative !== l.language.nameEn ? " · " + l.language.nameNative : ""}`);
+      row.taggedVideos++;
+      if (l.isPrimary) { row.videos++; row.views += v.views; row.qualifiedViews += v.qualifiedViews; row.likes += v.likes; }
+    }
+    for (const tg of v.tags) {
+      const c = cat(tg.categoryId);
+      const sub = c?.subcategories.find(x => x.id === tg.subcategoryId);
+      const cr = bucket(byCat, tg.categoryId, c?.name ?? "Retired category", c?.emoji);
+      const sr = bucket(bySub, tg.subcategoryId, `${sub?.name ?? "Retired subcategory"}${c ? " · " + c.name : ""}`, sub?.emoji ?? c?.emoji);
+      cr.taggedVideos++; sr.taggedVideos++;
+      if (tg.priority === 1) {
+        for (const r of [cr, sr]) { r.videos++; r.views += v.views; r.qualifiedViews += v.qualifiedViews; r.likes += v.likes; }
+      }
+    }
+  }
+  const byCountry = new Map<string, { country: string; views: number; qualifiedViews: number }>();
+  for (const e of viewEvents) {
+    const k = e.country || "Unknown";
+    const r = byCountry.get(k) ?? { country: k, views: 0, qualifiedViews: 0 };
+    r.views++; if (e.qualified) r.qualifiedViews++;
+    byCountry.set(k, r);
+  }
+  const per = new Map<string, { views: number; completes: number }>();
+  for (const g of interactions) {
+    const r = per.get(g.videoId) ?? { views: 0, completes: 0 };
+    if (g.type === "VIEW") r.views += g._count._all; else r.completes += g._count._all;
+    per.set(g.videoId, r);
+  }
+  const totViews = [...per.values()].reduce((a, r) => a + r.views, 0);
+  const totComp = [...per.values()].reduce((a, r) => a + r.completes, 0);
+  const sort = (m: Map<string, Row>) => [...m.values()].sort((a, b) => b.views - a.views || b.taggedVideos - a.taggedVideos);
+  return {
+    primaryAttribution: true,
+    byLanguage: sort(byLang),
+    byCategory: sort(byCat),
+    bySubcategory: sort(bySub),
+    byCountry: [...byCountry.values()].sort((a, b) => b.views - a.views),
+    completion: {
+      overallRate: totViews ? Math.round((Math.min(totComp, totViews) / totViews) * 100) : null,
+      trackedViews: totViews, completedViews: totComp,
+      byVideo: Object.fromEntries([...per.entries()].map(([id, r]) => [id, r.views ? Math.round((Math.min(r.completes, r.views) / r.views) * 100) : null])),
+    },
+  };
+}
+
+// DELETE /api/creator/channel/banner — back to the default gradient banner
+export async function DELETE(_req: Request, ctx: Ctx) {
+  const { path: segs } = await ctx.params;
+  const r = await requireCreator();
+  if ("error" in r) return r.error;
+  if (segs[0] === "channel" && segs[1] === "banner") {
+    await db.channel.update({ where: { userId: r.me.id }, data: { bannerUrl: null } });
+    return Response.json({ ok: true, message: "Banner removed" });
+  }
   return jsonError("Not found", 404);
 }

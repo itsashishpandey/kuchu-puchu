@@ -12,6 +12,7 @@ import { navigate } from "@/components/app/router";
 import { get, post } from "@/lib/client";
 import { usd, compact, timeAgo, fmtDate } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
+import { VideoReviewDialog } from "./video-review-dialog";
 
 async function action(path: string, body: unknown): Promise<{ message?: string }> {
   const res = await fetch(`/api${path}`, {
@@ -31,7 +32,108 @@ type AdminCreator = {
   createdAt: string; updatedAt: string;
   channel: { name: string; username: string; avatarUrl: string | null; category: string | null; followerCount: number; verified: boolean; description: string } | null;
   videoCount: number; lifetimeEarnings: number;
+  application?: {
+    legalName: string | null; phone: string | null; city: string | null; postalCode: string | null;
+    emailVerified: boolean; emailVerifiedAt: string | null;
+    agreements: { version: string; accepted: string[]; at: string } | null;
+    socialLinks: Record<string, string | null> | null;
+  };
+  verification?: {
+    status: string; documentType: string; documentLabel: string; documentLast4: string; mimeType: string;
+    submittedAt: string; reviewedAt: string | null; reviewedByEmail: string | null; reviewNote: string | null;
+  } | null;
+  strikes?: { active: number; limit: number; list: { id: string; reason: string; contentId: string | null; createdAt: string; createdByEmail: string; revokedAt: string | null; revokeNote: string | null }[] };
+  monetization?: { eligible: boolean; unlocked?: boolean; unlockedAt?: string | null; last30DaysViews: number; threshold: number } | null;
 };
+
+function ApplicationDetails({ c, onAct, busy }: { c: AdminCreator; onAct: (a: string, body?: Record<string, unknown>) => void; busy: boolean }) {
+  const [open, setOpen] = useState(c.status === "PENDING");
+  const a = c.application, v = c.verification, st = c.strikes;
+  const links = Object.entries(a?.socialLinks ?? {}).filter(([k, val]) => val && (k === "instagram" || k === "youtube")) as [string, string][];
+  return (
+    <div className="mt-3 rounded-xl bg-secondary/50 p-3">
+      <button className="flex w-full items-center justify-between text-left text-xs font-bold" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="flex flex-wrap items-center gap-2">
+          Application &amp; trust
+          {v ? <span className={`rounded-full px-2 py-0.5 text-[10px] ${v.status === "VERIFIED" ? "bg-emerald-100 text-emerald-700" : v.status === "REJECTED" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>ID {v.status.toLowerCase()}</span>
+            : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">no ID on file (older account)</span>}
+          {st && st.active > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-700">{st.active}/{st.limit} strikes</span>}
+          {c.monetization && <span className={`rounded-full px-2 py-0.5 text-[10px] ${c.monetization.unlocked ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{c.monetization.unlocked ? `earning unlocked${c.monetization.unlockedAt ? ` ${fmtDate(c.monetization.unlockedAt)}` : ""}` : `${c.monetization.last30DaysViews.toLocaleString()}/${c.monetization.threshold.toLocaleString()} views to unlock earning`}</span>}
+        </span>
+        <Icons.ChevronDown size={14} className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">
+          <dl className="grid grid-cols-[110px_1fr] gap-x-2 gap-y-1">
+            <dt className="text-muted-foreground">Legal name</dt><dd className="font-semibold">{a?.legalName ?? "—"}</dd>
+            <dt className="text-muted-foreground">Email</dt><dd>{c.email} {a?.emailVerified ? <span className="text-emerald-600">✓ verified{a.emailVerifiedAt ? ` ${fmtDate(a.emailVerifiedAt)}` : ""}</span> : <span className="text-amber-600">not verified</span>}</dd>
+            <dt className="text-muted-foreground">Phone</dt><dd>{a?.phone ?? "—"}</dd>
+            <dt className="text-muted-foreground">Location</dt><dd>{[a?.city, a?.postalCode, c.country].filter(Boolean).join(", ") || "—"}</dd>
+            <dt className="text-muted-foreground">Socials</dt>
+            <dd>{links.length ? links.map(([k, url]) => <a key={k} href={url} target="_blank" rel="noopener noreferrer nofollow" className="mr-2 font-semibold text-brand-blue hover:underline">{k === "instagram" ? "Instagram" : "YouTube"} ↗</a>) : "Not an existing creator"}</dd>
+            <dt className="text-muted-foreground">Rules accepted</dt><dd>{a?.agreements ? `${a.agreements.accepted.length} rules · v${a.agreements.version} · ${fmtDate(a.agreements.at)}` : "—"}</dd>
+          </dl>
+          <div className="space-y-2">
+            {v ? (
+              <div className="rounded-lg bg-white p-3 ring-1 ring-black/5">
+                <p className="font-semibold">{v.documentLabel} · ends in <span className="font-mono">{v.documentLast4}</span></p>
+                <p className="text-muted-foreground">Submitted {fmtDate(v.submittedAt)}{v.reviewedAt ? ` · reviewed by ${v.reviewedByEmail} ${fmtDate(v.reviewedAt)}` : ""}</p>
+                {v.reviewNote && <p className="mt-1 text-rose-600">Note: {v.reviewNote}</p>}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Button size="sm" variant="outline" className="h-7 rounded-full text-xs" onClick={() => window.open(`/api/admin/creators/${c.id}/document`, "_blank", "noopener")}>
+                    <Icons.FileSearch size={13} className="mr-1" /> View ID (logged)
+                  </Button>
+                  {v.status !== "VERIFIED" && <Button size="sm" className="h-7 rounded-full bg-emerald-600 text-xs text-white hover:bg-emerald-700" disabled={busy} onClick={() => onAct("verify-id")}>Verify</Button>}
+                  {v.status !== "REJECTED" && (
+                    <Button size="sm" variant="outline" className="h-7 rounded-full border-rose-200 text-xs text-rose-600" disabled={busy}
+                      onClick={() => { const r = window.prompt("What's wrong with the document? (shown to the creator)", "The photo is blurry — please send a clearer picture"); if (r) onAct("reject-id", { reason: r }); }}>
+                      Not valid
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : <p className="text-muted-foreground">This channel was approved before ID checks were introduced.</p>}
+            {c.monetization && (
+              <div className="flex items-center justify-between rounded-lg bg-white p-3 ring-1 ring-black/5">
+                <p className="font-semibold">{c.monetization.unlocked ? "Earning unlocked" : `Earning locked · ${c.monetization.last30DaysViews.toLocaleString()} of ${c.monetization.threshold.toLocaleString()} views`}</p>
+                <Button size="sm" variant="outline" className="h-7 rounded-full text-xs" disabled={busy}
+                  onClick={() => { if (window.confirm(c.monetization!.unlocked ? "Lock earning until this channel reaches the views target again?" : "Unlock earning for this channel now (skip the views target)?")) onAct(c.monetization!.unlocked ? "lock-monetization" : "unlock-monetization"); }}>
+                  {c.monetization.unlocked ? "Lock" : "Unlock now"}
+                </Button>
+              </div>
+            )}
+            {st && (
+              <div className="rounded-lg bg-white p-3 ring-1 ring-black/5">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">Strikes: {st.active} of {st.limit}</p>
+                  <Button size="sm" variant="outline" className="h-7 rounded-full border-rose-200 text-xs text-rose-600" disabled={busy}
+                    onClick={() => { const r = window.prompt(`Add a strike (upheld complaint). ${st.limit} active strikes suspend the channel. Reason shown to the creator:`); if (r) onAct("add-strike", { reason: r }); }}>
+                    + Strike
+                  </Button>
+                </div>
+                {st.list.length === 0 ? <p className="mt-1 text-muted-foreground">No strikes.</p> : (
+                  <ul className="mt-2 space-y-1.5">
+                    {st.list.map(s => (
+                      <li key={s.id} className={`flex items-start justify-between gap-2 ${s.revokedAt ? "text-muted-foreground line-through" : ""}`}>
+                        <span>{fmtDate(s.createdAt)}{s.contentId ? ` · ${s.contentId}` : ""} — {s.reason}</span>
+                        {!s.revokedAt && (
+                          <button className="shrink-0 font-semibold text-brand-blue no-underline hover:underline" disabled={busy}
+                            onClick={() => { const n = window.prompt("Remove this strike? Optional note to the creator:", "Appeal accepted"); if (n !== null) onAct("revoke-strike", { strikeId: s.id, reason: n }); }}>
+                            Remove
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AdminCreatorsPage() {
   const [creators, setCreators] = useState<AdminCreator[] | null>(null);
@@ -53,10 +155,10 @@ export function AdminCreatorsPage() {
     return () => clearTimeout(t);
   }, [q]);  
 
-  const act = async (creator: AdminCreator, a: string, reason?: string) => {
+  const act = async (creator: AdminCreator, a: string, reason?: string, extra?: Record<string, unknown>) => {
     setBusy(true);
     try {
-      const res = await action(`/admin/creators/${creator.id}/action`, { action: a, reason });
+      const res = await action(`/admin/creators/${creator.id}/action`, { action: a, reason, ...(extra ?? {}) });
       toast({ title: res.message ?? "Done" });
       setReasonFor(null); setReason("");
       load();
@@ -112,6 +214,7 @@ export function AdminCreatorsPage() {
                     @{c.channel?.username} · {c.email} · {c.channel?.category} · {c.country} · joined {fmtDate(c.createdAt)}
                   </p>
                   {c.channel?.description && <p className="mt-1.5 line-clamp-1 text-[13px] text-muted-foreground">{c.channel.description}</p>}
+                  <ApplicationDetails c={c} busy={busy} onAct={(a, body) => act(c, a, body?.reason as string | undefined, body)} />
                   {(c.status === "REJECTED" || c.status === "SUSPENDED") && (
                     <p className={`mt-2 rounded-lg px-3 py-2 text-xs ${c.status === "REJECTED" ? "bg-rose-50 text-rose-700" : "bg-rose-50 text-rose-700"}`}>
                       <Icons.MessageSquareWarning size={12} className="mr-1 inline" />
@@ -219,6 +322,7 @@ type AdminVideo = {
 
 export function AdminVideosPage() {
   const [videos, setVideos] = useState<AdminVideo[] | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
 
@@ -256,6 +360,7 @@ export function AdminVideosPage() {
   return (
     <div>
       <AdminPageHeader title="Video Management" description="Approve, reject, remove or restrict videos — every action is audit-logged." />
+      {viewing && <VideoReviewDialog contentId={viewing} onClose={() => setViewing(null)} onChanged={load} />}
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex flex-wrap gap-1.5">
           {tabs.map(t => (
@@ -345,7 +450,7 @@ export function AdminVideosPage() {
                             onClick={() => askReason(v, "remove", `Reason for removing ${v.contentId}:`)}>Remove</Button>
                         </>
                       )}
-                      <Button size="sm" variant="ghost" className="h-8 rounded-full" onClick={() => navigate(`/feed?v=${v.id}`)}>View</Button>
+                      <Button size="sm" variant="ghost" className="h-8 rounded-full" onClick={() => setViewing(v.contentId)}>View</Button>
                     </div>
                   </td>
                 </tr>

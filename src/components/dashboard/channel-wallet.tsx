@@ -18,154 +18,9 @@ import { get, post, patch } from "@/lib/client";
 import { usd, compact, timeAgo, fmtDate, WITHDRAWAL_FLOW, STATUS_LABELS } from "@/lib/format";
 import { useAuth } from "@/components/app/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { DeleteAccountCard } from "@/components/shared/delete-account";
 
-// ── My Channel page ────────────────────────────────────────────────────────
-
-export function ChannelPage() {
-  const { user, refresh } = useAuth();
-  const [form, setForm] = useState({
-    name: "", username: "", description: "", category: "",
-    showEarnings: false,
-    socialLinks: { instagram: "", youtube: "", x: "", website: "" } as Record<string, string>,
-  });
-  const [categories, setCategories] = useState<{ name: string }[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    get<{ channel: typeof form } & Record<string, unknown>>("/creator/channel").then(d => {
-      setForm(f => ({
-        ...f,
-        name: d.channel.name, username: d.channel.username,
-        description: d.channel.description ?? "",
-        category: d.channel.category ?? "",
-        showEarnings: d.channel.showEarnings,
-        socialLinks: { ...f.socialLinks, ...(d.channel.socialLinks ?? {}) },
-      }));
-    }).catch(() => {});
-    get<{ categories: { name: string }[] }>("/public/categories").then(d => setCategories(d.categories)).catch(() => {});
-  }, []);
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      await patch("/creator/channel", { ...form, avatar: avatarFile ? "pending" : undefined });
-      if (avatarFile) {
-        // upload avatar via multipart (update through channel PATCH accepts JSON only; use profile avatar endpoint through register-like flow)
-        const fd = new FormData();
-        fd.append("avatar", avatarFile);
-        await fetch("/api/creator/avatar", { method: "POST", body: fd }).catch(() => {});
-      }
-      await refresh();
-      toast({ title: "Channel updated ✅", description: "Your public channel reflects the changes." });
-    } catch (e) {
-      toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div>
-      <DashboardPageHeader
-        title="My Channel"
-        description="Your public identity on Kuchu Puchu. Changes appear on your channel page immediately."
-        actions={user?.channel && (
-          <Button variant="outline" className="rounded-full" onClick={() => navigate(`/c/${user.channel!.username}`)}>
-            <Icons.ExternalLink size={15} className="mr-1.5" /> View public channel
-          </Button>
-        )}
-      />
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="bento p-6">
-          <div className="grid gap-5">
-            <div className="flex items-center gap-4">
-              <label className="relative cursor-pointer">
-                <Avatar src={avatarPreview ?? user?.channel?.avatarUrl ?? user?.avatarUrl} name={user?.name ?? ""} size={72} />
-                <span className="absolute -bottom-1 -right-1 rounded-full bg-brand-red p-1.5 shadow">
-                  <Icons.Camera size={13} className="text-white" />
-                </span>
-                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }} />
-              </label>
-              <div>
-                <p className="font-display text-lg font-bold">{form.name || "Your channel"}</p>
-                <p className="text-sm text-muted-foreground">@{form.username} · username can't be changed</p>
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor="ch-name">Channel name</Label>
-              <Input id="ch-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="h-11 rounded-xl" maxLength={60} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="ch-bio">Biography</Label>
-              <Textarea id="ch-bio" rows={4} value={form.description} maxLength={500}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Tell viewers what your channel is about…" className="rounded-xl" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Category</Label>
-              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {categories.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(["instagram", "youtube", "x", "website"] as const).map(k => (
-                <div key={k} className="grid gap-1.5">
-                  <Label htmlFor={`soc-${k}`} className="capitalize">{k === "x" ? "X (Twitter)" : k}</Label>
-                  <Input id={`soc-${k}`} value={form.socialLinks[k] ?? ""} className="h-11 rounded-xl"
-                    onChange={e => setForm(f => ({ ...f, socialLinks: { ...f.socialLinks, [k]: e.target.value } }))}
-                    placeholder={k === "website" ? "https://…" : k === "youtube" ? "channel name or URL" : "handle"} />
-                </div>
-              ))}
-            </div>
-            <Button className="grad-btn h-12 w-full rounded-xl text-white sm:w-auto sm:px-10" disabled={busy} onClick={save}>
-              {busy ? "Saving…" : "Save channel"}
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bento p-5">
-            <p className="text-sm font-bold">Earnings visibility</p>
-            <div className="mt-3 flex items-start gap-3">
-              <Switch checked={form.showEarnings} onCheckedChange={v => setForm(f => ({ ...f, showEarnings: v }))} />
-              <div>
-                <p className="text-[13px] font-semibold">Show verified earnings publicly</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Display your verified lifetime earnings on your public channel page. Only ledger-verified amounts are ever shown, and only with your consent.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bento p-5">
-            <p className="text-sm font-bold">Channel health</p>
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Status</span>
-                <StatusBadge status="APPROVED" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Monetization</span>
-                <span className="font-bold text-emerald-600">Eligible</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Followers</span>
-                <span className="font-bold">{compact(user?.channel?.followerCount ?? 0)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// (My Channel / Customize channel now lives in channel-studio.tsx)
 
 // ── Withdraw Money page ────────────────────────────────────────────────────
 
@@ -717,16 +572,7 @@ export function SettingsPage() {
               </div>
             ))}
           </div>
-          <div className="bento max-w-xl border-rose-200 bg-rose-50/50 p-6">
-            <p className="flex items-center gap-2 text-sm font-bold text-rose-700"><Icons.TriangleAlert size={16} /> Danger zone</p>
-            <p className="mt-2 text-[13px] text-rose-600/80">
-              Deleting your account removes your personal data and unpublished drafts. Published videos, earnings records and payout history are retained for accounting compliance (7 years) in anonymized form. Contact support to request deletion.
-            </p>
-            <Button variant="outline" className="mt-4 rounded-full border-rose-300 text-rose-600 hover:bg-rose-100"
-              onClick={() => navigate("/contact")}>
-              Request account deletion
-            </Button>
-          </div>
+          <DeleteAccountCard className="max-w-xl" />
         </TabsContent>
       </Tabs>
     </div>

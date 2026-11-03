@@ -4,7 +4,7 @@ import { useState } from "react";
 import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Logo } from "@/components/shared/ui-bits";
+import { Logo, ANDROID_APK_URL, ANDROID_APK_NOTE } from "@/components/shared/ui-bits";
 import { Link, navigate } from "@/components/app/router";
 import { post } from "@/lib/client";
 import { toast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ const COLUMNS: { title: string; links: { to: string; label: string }[] }[] = [
       { to: "/policies/payment", label: "Payment & withdrawals" },
       { to: "/policies/privacy", label: "Privacy policy" },
       { to: "/policies/terms", label: "Terms & conditions" },
+      { to: "/delete-account", label: "Delete my account" },
     ],
   },
   {
@@ -65,7 +66,7 @@ export function Footer() {
           <div>
             <h3 className="font-display text-2xl font-bold">Creator tips, straight to your inbox</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              One useful email a week: growth tactics, monetization updates and platform news. No spam, ever.
+              For creators and parents aged 18+: one useful email a week with tips and platform news. No spam, ever.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -108,8 +109,21 @@ export function Footer() {
                 </button>
               ))}
             </div>
+            <a
+              href={ANDROID_APK_URL}
+              download
+              className="mt-5 inline-flex items-center gap-3 rounded-2xl bg-ink px-4 py-2.5 text-white shadow-lg transition hover:-translate-y-0.5"
+            >
+              <img src="/brand/icon-96.png" alt="" width={34} height={34} className="h-[34px] w-[34px] rounded-lg" />
+              <span className="leading-tight">
+                <span className="block text-[11px] text-white/70">Get the Android app</span>
+                <span className="block font-display text-[15px] font-bold">Download APK</span>
+              </span>
+              <Icons.Download size={16} className="ml-1 text-white/80" />
+            </a>
+            <p className="mt-2 max-w-[16rem] text-[11px] leading-snug text-muted-foreground">{ANDROID_APK_NOTE}</p>
             <div className="mt-5 space-y-1 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@kuchupuchu.com</p>
+              <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@mykuchupuchu.com</p>
               <p className="flex items-center gap-2"><Icons.MapPin size={14} /> Made with 💙 & 💗 for kids creators worldwide</p>
             </div>
           </div>
@@ -131,10 +145,6 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t pt-6 text-xs text-muted-foreground md:flex-row">
           <p>© {new Date().getFullYear()} Kuchu Puchu. All rights reserved.</p>
-          <p className="flex items-center gap-1.5">
-            <Icons.FlaskConical size={13} className="text-brand-blue" />
-            Demo environment — creators, videos and earnings shown are sample data for demonstration.
-          </p>
           <div className="flex gap-4">
             <Link to="/policies/privacy" className="hover:text-ink">Privacy</Link>
             <Link to="/policies/terms" className="hover:text-ink">Terms</Link>

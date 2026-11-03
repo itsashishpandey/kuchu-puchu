@@ -12,11 +12,11 @@ import { Link } from "@/components/app/router";
 const FAQS = [
   {
     q: "How exactly do I earn money on Kuchu Puchu?",
-    a: "Two ways: (1) view revenue — $1.00 per 1,000 qualified views, calculated proportionally (no rounding down), for up to 4 months per video; and (2) upload rewards — $0.50 one-time for each approved original upload. Both credit to your pending balance, then clear to available after a 7-day holding period.",
+    a: "Two ways: (1) view revenue — $1.00 per 1,000 qualified views, calculated proportionally (no rounding down), for up to 4 months per video; and (2) upload rewards — ₹30 one-time for each approved original upload. Earning unlocks once — the first time your channel gets 2,500 genuine views within 30 days. Both credit to your pending balance, then clear to available after a 7-day holding period.",
   },
   {
     q: "What counts as a qualified view?",
-    a: "A view from a real person who actually watches. We exclude bot traffic, automated refreshes, creator self-views, and views beyond a per-viewer daily cap on the same video. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.",
+    a: "A view in the Kuchu Puchu mobile app from a real person who actually watches. The same viewer counts once per video every 4 hours (repeat plays in between don't count). We also exclude website plays, bot traffic and creator self-views. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.",
   },
   {
     q: "Why does my account need approval before I can upload?",
@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: "What video rules apply to uploads?",
-    a: "Defaults: 40–60 seconds duration, MP4 or MOV, up to 200MB, max 2 uploads per day and 4 per week. Videos then pass an originality check (file checksum + visual and audio fingerprinting) and, in most cases, a quick manual review before going live.",
+    a: "Defaults: 20–90 seconds duration (set by the platform), MP4 or MOV, up to 200MB, max 2 uploads per day and 4 per week. Videos then pass an originality check (file checksum + visual and audio fingerprinting) and, in most cases, a quick manual review before going live.",
   },
   {
     q: "What happens if someone re-uploads my video?",

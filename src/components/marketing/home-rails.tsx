@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
-import { Link } from "@/components/app/router";
+import { Link, navigate } from "@/components/app/router";
 import { get } from "@/lib/client";
 import { compact } from "@/lib/format";
 
@@ -15,7 +15,7 @@ export type PubVideo = {
 };
 
 function openFeed(id: string) {
-  window.location.hash = `/feed?v=${id}`;
+  navigate(`/feed?v=${id}`);
 }
 
 // ── Section 4: Trending now — dual auto-scrolling video rails ─────────────
@@ -97,11 +97,12 @@ function MarqueePosterCard({ v }: { v: PubVideo }) {
 export function TrendingMarquee() {
   const [trending, setTrending] = useState<PubVideo[]>([]);
   const [fresh, setFresh] = useState<PubVideo[]>([]);
+  const [loaded, setLoaded] = useState(0);
   const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    get<{ videos: PubVideo[] }>("/public/videos?feed=trending&limit=10").then(d => setTrending(d.videos)).catch(() => {});
-    get<{ videos: PubVideo[] }>("/public/videos?feed=explore&limit=10").then(d => setFresh(d.videos)).catch(() => {});
+    get<{ videos: PubVideo[] }>("/public/videos?feed=trending&limit=10").then(d => setTrending(d.videos)).catch(() => {}).finally(() => setLoaded(n => n + 1));
+    get<{ videos: PubVideo[] }>("/public/videos?feed=explore&limit=10").then(d => setFresh(d.videos)).catch(() => {}).finally(() => setLoaded(n => n + 1));
   }, []);
 
   // play marquee videos only while the rail is on screen
@@ -121,6 +122,7 @@ export function TrendingMarquee() {
   }, [trending.length]);
 
   if (trending.length === 0 && fresh.length === 0) {
+    if (loaded >= 2) return null;
     return (
       <section className="py-10" aria-label="Trending videos">
         <div className="mx-auto max-w-7xl space-y-4 px-4 md:px-6">
@@ -190,10 +192,13 @@ export function TrendingMarquee() {
 export function FreshDrops() {
   const [videos, setVideos] = useState<PubVideo[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    get<{ videos: PubVideo[] }>("/public/videos?feed=explore&limit=8").then(d => setVideos(d.videos)).catch(() => {});
+    get<{ videos: PubVideo[] }>("/public/videos?feed=explore&limit=8").then(d => setVideos(d.videos)).catch(() => {}).finally(() => setLoaded(true));
   }, []);
+
+  if (loaded && videos.length === 0) return null;
 
   return (
     <section className="py-16 md:py-24" aria-label="New videos from creators">

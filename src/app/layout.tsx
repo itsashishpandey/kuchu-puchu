@@ -17,7 +17,7 @@ const body = Nunito({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://kuchupuchu.com"),
+  metadataBase: new URL("https://mykuchupuchu.com"),
   title: {
     default: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
     template: "%s | Kuchu Puchu",
@@ -32,14 +32,17 @@ export const metadata: Metadata = {
   authors: [{ name: "Kuchu Puchu" }],
   alternates: { canonical: "/" },
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/favicon.svg" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/brand/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   openGraph: {
     title: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
     description:
       "The creator-first kids short video platform. $1.00 per 1,000 qualified views + $0.50 per approved original upload.",
-    url: "https://kuchupuchu.com",
+    url: "https://mykuchupuchu.com",
     siteName: "Kuchu Puchu",
     type: "website",
     images: [{ url: "/images/hero-wide.webp", width: 1344, height: 672, alt: "Kuchu Puchu creators" }],
@@ -62,11 +65,11 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "Kuchu Puchu",
-  url: "https://kuchupuchu.com",
+  url: "https://mykuchupuchu.com",
   description: "Creator-first kids short video monetization platform.",
   potentialAction: {
     "@type": "SearchAction",
-    target: "https://kuchupuchu.com/#/explore?q={search_term_string}",
+    target: "https://mykuchupuchu.com/#/explore?q={search_term_string}",
     "query-input": "required name=search_term_string",
   },
 };

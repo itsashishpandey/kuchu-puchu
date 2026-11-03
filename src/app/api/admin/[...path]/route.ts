@@ -1,8 +1,14 @@
 import { db } from "@/lib/db";
+import { VIDEO_CARD_INCLUDE, toVideoDTO, safeJsonArray } from "@/lib/video-dto";
+import { loadTaxonomy as loadTaxonomyForVideo } from "@/lib/taxonomy";
 import { getSessionUser, hashPassword, jsonError } from "@/lib/auth";
-import { getMonetizationSettings, getUploadRules, walletSummary, creditUploadReward, round2 } from "@/lib/monetization";
+import { getViewCounting, forgetViewCounting } from "@/lib/monetization";
+import { getMonetizationSettings, getUploadRules, walletSummary, creditUploadReward, round2, channelMonetization, inr, forgetUnlock } from "@/lib/monetization";
 import { notify, audit, setSetting, getSetting, payoutRef } from "@/lib/platform";
 import { rateLimit } from "@/lib/rate-limit";
+import { readPrivate } from "@/lib/private-files";
+import { addStrike, revokeStrike } from "@/lib/strikes";
+import { DOCUMENT_TYPES, STRIKE_LIMIT } from "@/lib/creator-application";
 
 export const runtime = "nodejs";
 
@@ -11,7 +17,11 @@ type Ctx = { params: Promise<{ path: string[] }> };
 const PERMISSIONS: Record<string, string[]> = {
   SUPER_ADMIN: ["*"],
   FINANCE: ["overview", "withdrawals", "earnings", "reports", "creators", "videos", "duplicates", "fraud", "notifications", "mail"],
-  MODERATOR: ["overview", "creators", "videos", "duplicates", "fraud", "categories", "notifications", "mail", "reports"],
+  MODERATOR: [
+    "overview", "creators", "videos", "duplicates", "fraud", "categories", "notifications", "mail", "reports",
+    // kid-safety moderation of what app users post and report
+    "safety", "content-reports", "comments", "app-users",
+  ],
 };
 
 async function requireAdmin(section: string) {
@@ -58,11 +68,20 @@ export async function GET(req: Request, ctx: Ctx) {
         db.fraudFlag.count({ where: { status: "OPEN" } }),
         db.appeal.count({ where: { status: "OPEN" } }),
         db.contentReport.count({ where: { status: "OPEN" } }),
+        // "still in holding" = credits whose holding period hasn't ended yet
+        // (status stays PENDING forever on these rows, so filter on availableAt)
         db.ledgerEntry.aggregate({
           _sum: { amount: true },
-          where: { type: { in: ["VIEW_EARNING", "UPLOAD_REWARD"] }, status: "PENDING" },
+          where: {
+            type: { in: ["VIEW_EARNING", "UPLOAD_REWARD", "ADJUSTMENT"] },
+            status: { not: "REVERSED" }, availableAt: { gt: new Date() },
+          },
         }),
       ]);
+    const [appUsers, commentsToday] = await Promise.all([
+      db.user.count({ where: { role: "VIEWER" } }),
+      db.comment.count({ where: { createdAt: { gte: new Date(Date.now() - 864e5) } } }),
+    ]);
 
     // charts: last 90 days of creator growth, uploads, views, earnings, payouts
     const days: string[] = [];
@@ -105,6 +124,7 @@ export async function GET(req: Request, ctx: Ctx) {
         pendingWithdrawalCount: pendingWCount,
         outstandingLiability: round2(outstandingLiability._sum.amount ?? 0),
         openFraudFlags: openFraud, openAppeals, openReports,
+        appUsers, commentsToday,
       },
       charts: {
         dates: days.slice(-30),
@@ -120,6 +140,21 @@ export async function GET(req: Request, ctx: Ctx) {
   }
 
   // ── CREATORS ──────────────────────────────────────────────────────────
+  // GET /api/admin/creators/:id/document — the private government ID (never web-served); every view is audit-logged
+  if (seg === "creators" && second && third === "document") {
+    const v = await db.creatorVerification.findUnique({ where: { userId: second }, include: { user: { select: { email: true } } } });
+    if (!v) return jsonError("No ID document on file", 404);
+    let buf: Buffer;
+    try { buf = await readPrivate(v.fileName); } catch { return jsonError("The document file is missing", 404); }
+    await audit({ actorId: me.id, actorEmail: me.email, action: "KYC_DOCUMENT_VIEWED", targetType: "CREATOR", targetId: v.user.email });
+    return new Response(new Uint8Array(buf), {
+      headers: {
+        "Content-Type": v.mimeType, "Content-Disposition": `inline; filename="id-document.${v.mimeType.split("/")[1]}"`,
+        "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+      },
+    });
+  }
+
   if (seg === "creators") {
     const status = url.searchParams.get("status") || "";
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
@@ -132,7 +167,8 @@ export async function GET(req: Request, ctx: Ctx) {
       ];
     }
     const users = await db.user.findMany({
-      where, include: { channel: true }, orderBy: { createdAt: "desc" }, take: 100,
+      where, orderBy: { createdAt: "desc" }, take: 100,
+      include: { channel: true, verification: true, strikes: { orderBy: { createdAt: "desc" } } },
     });
     const list = await Promise.all(users.map(async u => {
       const [videoCount, earningsAgg] = await Promise.all([
@@ -153,12 +189,83 @@ export async function GET(req: Request, ctx: Ctx) {
           verified: u.channel.verified, description: u.channel.description,
         } : null,
         videoCount, lifetimeEarnings: round2(earningsAgg._sum.amount ?? 0),
+        application: {
+          legalName: u.legalName, phone: u.phone, city: u.city, postalCode: u.postalCode,
+          emailVerified: u.emailVerified, emailVerifiedAt: u.emailVerifiedAt,
+          agreements: (() => { try { return u.agreements ? JSON.parse(u.agreements) : null; } catch { return null; } })(),
+          socialLinks: (() => { try { return u.channel?.socialLinks ? JSON.parse(u.channel.socialLinks) : null; } catch { return null; } })(),
+        },
+        verification: u.verification ? {
+          status: u.verification.status, documentType: u.verification.documentType,
+          documentLabel: DOCUMENT_TYPES.find(d => d.id === u.verification!.documentType)?.label ?? u.verification.documentType,
+          documentLast4: u.verification.documentLast4, mimeType: u.verification.mimeType, submittedAt: u.verification.createdAt,
+          reviewedAt: u.verification.reviewedAt, reviewedByEmail: u.verification.reviewedByEmail, reviewNote: u.verification.reviewNote,
+        } : null,
+        strikes: {
+          active: u.strikes.filter(x => !x.revokedAt).length, limit: STRIKE_LIMIT,
+          list: u.strikes.map(x => ({ id: x.id, reason: x.reason, contentId: x.contentId, createdAt: x.createdAt, createdByEmail: x.createdByEmail, revokedAt: x.revokedAt, revokeNote: x.revokeNote })),
+        },
+        monetization: u.status === "APPROVED" ? await channelMonetization(u.id) : null,
       };
     }));
     return Response.json({ creators: list });
   }
 
   // ── VIDEOS ────────────────────────────────────────────────────────────
+  if (seg === "videos" && second) {
+    const v = await db.video.findFirst({
+      where: { OR: [{ id: second }, { contentId: second }] },
+      include: { ...VIDEO_CARD_INCLUDE, creator: { include: { channel: true, verification: { select: { status: true, documentType: true } } } } },
+    });
+    if (!v) return jsonError("Video not found", 404);
+    const t = await loadTaxonomyForVideo("en");
+    const dto = toVideoDTO(v as never, { liked: new Set(), followedChannels: new Set(), saved: new Set() }, t);
+    const [original, sameFile, reports, fraud, audits, tagAudits, strikes, creatorVideos] = await Promise.all([
+      v.duplicateOfId ? db.video.findUnique({ where: { contentId: v.duplicateOfId }, include: { creator: { include: { channel: true } } } }) : null,
+      v.sha256 ? db.video.findMany({ where: { sha256: v.sha256, NOT: { id: v.id } }, include: { creator: { include: { channel: true } } }, take: 10 }) : [],
+      db.contentReport.findMany({ where: { videoId: v.id }, orderBy: { createdAt: "desc" }, take: 20 }),
+      db.fraudFlag.findMany({ where: { videoId: v.contentId }, orderBy: { createdAt: "desc" }, take: 20 }),
+      db.auditLog.findMany({ where: { targetId: v.contentId }, orderBy: { createdAt: "desc" }, take: 30 }),
+      db.taxonomyAuditLog.findMany({ where: { entityId: v.contentId }, orderBy: { createdAt: "desc" }, take: 30 }),
+      db.channelStrike.count({ where: { userId: v.creatorId, revokedAt: null } }).catch(() => 0),
+      db.video.count({ where: { creatorId: v.creatorId } }),
+    ]);
+    let suggestions: unknown = null;
+    try { suggestions = v.tagSuggestions ? JSON.parse(v.tagSuggestions) : null; } catch { suggestions = null; }
+    const brief = (x: { contentId: string; title: string; status: string; thumbnailUrl: string | null; createdAt: Date; creator: { name: string; channel: { username: string } | null } }) =>
+      ({ contentId: x.contentId, title: x.title, status: x.status, thumbnailUrl: x.thumbnailUrl, createdAt: x.createdAt, creator: x.creator.channel?.username ?? x.creator.name });
+    return Response.json({
+      video: {
+        id: v.id, contentId: v.contentId, title: v.title, description: v.description, hashtags: safeJsonArray(v.hashtags),
+        status: v.status, rejectionReason: v.rejectionReason, videoUrl: v.videoUrl, thumbnailUrl: v.thumbnailUrl,
+        duration: v.duration, fileSizeMB: v.fileSizeMB, resolution: v.resolution, format: v.format,
+        sha256: v.sha256, visualHash: v.visualHash, audioHash: v.audioHash,
+        duplicateOfId: v.duplicateOfId, similarityScore: v.similarityScore, duplicateStatus: v.duplicateStatus,
+        uploadRewardCredited: v.uploadRewardCredited, monetizationEnabled: v.monetizationEnabled, featured: v.featured,
+        earningExpiresAt: v.earningExpiresAt, publishedAt: v.publishedAt, createdAt: v.createdAt, updatedAt: v.updatedAt,
+        views: v.views, qualifiedViews: v.qualifiedViews, likes: v.likes, shares: v.shares,
+        tagStatus: v.tagStatus, tagFlagReason: v.tagFlagReason, tagsUpdatedAt: v.tagsUpdatedAt,
+        languages: dto.languages, tags: dto.tags, suggestions,
+      },
+      creator: {
+        id: v.creatorId, name: v.creator.name, email: v.creator.email, status: v.creator.status, avatarUrl: v.creator.avatarUrl,
+        username: v.creator.channel?.username ?? "", channelName: v.creator.channel?.name ?? v.creator.name,
+        idCheck: v.creator.verification?.status ?? null, strikes, videoCount: creatorVideos,
+        monetizationUnlocked: !!v.creator.monetizationUnlockedAt,
+      },
+      uniqueness: {
+        original: original ? brief(original) : null,
+        sameFile: sameFile.map(brief),
+      },
+      reports: reports.map(r => ({ id: r.id, reason: r.reason, details: r.details, status: r.status, createdAt: r.createdAt })),
+      fraud: fraud.map(f => ({ id: f.id, type: f.type, severity: f.severity, details: f.details, status: f.status, createdAt: f.createdAt })),
+      history: [
+        ...audits.map(a => ({ at: a.createdAt, actor: a.actorEmail, action: a.action, details: a.details })),
+        ...tagAudits.map(a => ({ at: a.createdAt, actor: a.actorEmail, action: a.action, details: null })),
+      ].sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 40),
+    });
+  }
+
   if (seg === "videos") {
     const status = url.searchParams.get("status") || "";
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
@@ -356,6 +463,7 @@ export async function GET(req: Request, ctx: Ctx) {
       const row = await db.platformSetting.findUnique({ where: { key: k } });
       settings[k] = row ? JSON.parse(row.value) : null;
     }
+    settings.viewCounting = await getViewCounting(true);
     const [auditLog, mailLog, contacts, subscribers] = await Promise.all([
       db.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
       db.mailLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
@@ -363,6 +471,68 @@ export async function GET(req: Request, ctx: Ctx) {
       db.newsletterSubscriber.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
     ]);
     return Response.json({ settings, auditLog, mailLog, contacts, subscribers });
+  }
+
+  // ── SAFETY: user reports on videos + recent comments ───────────────────
+  if (seg === "safety") {
+    const [reports, comments] = await Promise.all([
+      db.contentReport.findMany({
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }], take: 150,
+        include: { video: { include: { creator: { include: { channel: true } } } } },
+      }),
+      db.comment.findMany({
+        orderBy: { createdAt: "desc" }, take: 150,
+        include: { video: { select: { contentId: true, title: true, thumbnailUrl: true } } },
+      }),
+    ]);
+    const authorIds = [...new Set(comments.map(c => c.userId).filter((x): x is string => !!x))];
+    const authors = await db.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, email: true, role: true, status: true } });
+    const byId = new Map(authors.map(a => [a.id, a]));
+    return Response.json({
+      reports: reports.map(r => ({
+        id: r.id, reason: r.reason, details: r.details, status: r.status, createdAt: r.createdAt,
+        reporter: r.reporterKey.slice(0, 8),
+        video: {
+          id: r.video.id, contentId: r.video.contentId, title: r.video.title, status: r.video.status,
+          thumbnailUrl: r.video.thumbnailUrl, videoUrl: r.video.videoUrl,
+          creator: { name: r.video.creator.name, username: r.video.creator.channel?.username ?? "" },
+        },
+      })),
+      comments: comments.map(c => {
+        const a = c.userId ? byId.get(c.userId) : undefined;
+        return {
+          id: c.id, body: c.body, authorName: c.authorName, authorAvatar: c.authorAvatar, createdAt: c.createdAt,
+          author: a ? { id: a.id, email: a.email, role: a.role, status: a.status } : null,
+          video: c.video,
+        };
+      }),
+    });
+  }
+
+  // ── APP USERS (viewer accounts from the mobile app) ────────────────────
+  if (seg === "app-users") {
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+    const where: Record<string, unknown> = { role: "VIEWER" };
+    if (q) where.OR = [{ name: { contains: q } }, { email: { contains: q } }];
+    const users = await db.user.findMany({ where, orderBy: { createdAt: "desc" }, take: 200 });
+    const ids = users.map(u => u.id);
+    const [likes, comments, follows, sessions] = await Promise.all([
+      db.videoLike.groupBy({ by: ["userId"], where: { userId: { in: ids } }, _count: true }),
+      db.comment.groupBy({ by: ["userId"], where: { userId: { in: ids } }, _count: true }),
+      db.follow.groupBy({ by: ["followerId"], where: { followerId: { in: ids } }, _count: true }),
+      db.session.groupBy({ by: ["userId"], where: { userId: { in: ids } }, _max: { createdAt: true } }),
+    ]);
+    const count = (rows: { _count: number }[], key: string, id: string) =>
+      (rows as unknown as Record<string, unknown>[]).find(r => r[key] === id)?._count as number ?? 0;
+    return Response.json({
+      users: users.map(u => ({
+        id: u.id, name: u.name, email: u.email, status: u.status, country: u.country,
+        suspensionReason: u.suspensionReason, avatarUrl: u.avatarUrl, createdAt: u.createdAt,
+        likes: count(likes, "userId", u.id), comments: count(comments, "userId", u.id),
+        follows: count(follows, "followerId", u.id),
+        lastLogin: sessions.find(s => s.userId === u.id)?._max.createdAt ?? null,
+      })),
+    });
   }
 
   return jsonError("Not found", 404);
@@ -385,7 +555,41 @@ export async function POST(req: Request, ctx: Ctx) {
       const action = String(body?.action || "");
       const reason = String(body?.reason || "").trim();
 
+      if (action === "verify-id" || action === "reject-id") {
+        const v = await db.creatorVerification.findUnique({ where: { userId: user.id } });
+        if (!v) return jsonError("No ID document on file");
+        if (action === "reject-id" && reason.length < 5) return jsonError("Tell the creator what's wrong with the document");
+        await db.creatorVerification.update({ where: { id: v.id }, data: { status: action === "verify-id" ? "VERIFIED" : "REJECTED", reviewNote: reason || null, reviewedById: me.id, reviewedByEmail: me.email, reviewedAt: new Date() } });
+        if (action === "reject-id") {
+          await notify({ userId: user.id, type: "ACCOUNT_STATUS", title: "Please re-check your ID document", body: `We couldn't verify your government ID: ${reason} Reply to support@mykuchupuchu.com with a clear photo or PDF.`, link: "#/dashboard", email: { to: user.email, subject: "Kuchu Puchu: ID verification", body: reason } });
+        }
+        await audit({ actorId: me.id, actorEmail: me.email, action: action === "verify-id" ? "KYC_VERIFIED" : "KYC_REJECTED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason || undefined });
+        return Response.json({ ok: true, message: action === "verify-id" ? "ID verified" : "ID marked as not verified — creator notified" });
+      }
+      if (action === "unlock-monetization" || action === "lock-monetization") {
+        const unlock = action === "unlock-monetization";
+        await db.user.update({ where: { id: user.id }, data: { monetizationUnlockedAt: unlock ? new Date() : null } });
+        forgetUnlock(user.id);
+        if (unlock) await notify({ userId: user.id, type: "MONETIZATION", title: "🎉 Monetization unlocked!", body: "Our team unlocked earning on your channel — approved uploads and qualified views now earn.", link: "#/dashboard" });
+        await audit({ actorId: me.id, actorEmail: me.email, action: unlock ? "MONETIZATION_UNLOCKED_BY_ADMIN" : "MONETIZATION_LOCKED_BY_ADMIN", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason || undefined });
+        return Response.json({ ok: true, message: unlock ? "Monetization unlocked" : "Monetization locked until the channel reaches the views target again" });
+      }
+      if (action === "add-strike") {
+        if (reason.length < 5) return jsonError("Describe the upheld complaint (at least 5 characters)");
+        const r2 = await addStrike({ userId: user.id, reason, contentId: body?.contentId ? String(body.contentId) : null, actor: { id: me.id, email: me.email } });
+        return Response.json({ ok: true, active: r2.active, suspended: r2.suspended, message: r2.suspended ? `Strike added — ${r2.active} strikes, channel suspended` : `Strike added (${r2.active} of ${STRIKE_LIMIT})` });
+      }
+      if (action === "revoke-strike") {
+        const s2 = await revokeStrike(String(body?.strikeId || ""), reason, { id: me.id, email: me.email });
+        if (!s2) return jsonError("Strike not found or already removed");
+        return Response.json({ ok: true, message: "Strike removed" });
+      }
       if (action === "approve") {
+        const pendingId = await db.creatorVerification.findUnique({ where: { userId: user.id } });
+        if (pendingId?.status === "REJECTED") return jsonError("The ID document was marked as not verified — verify a new document before approving");
+        if (pendingId?.status === "PENDING") {
+          await db.creatorVerification.update({ where: { id: pendingId.id }, data: { status: "VERIFIED", reviewedById: me.id, reviewedByEmail: me.email, reviewedAt: new Date() } });
+        }
         await db.user.update({ where: { id: user.id }, data: { status: "APPROVED", rejectionReason: null, suspensionReason: null } });
         await notify({
           userId: user.id, type: "ACCOUNT_STATUS",
@@ -416,7 +620,7 @@ export async function POST(req: Request, ctx: Ctx) {
         await notify({
           userId: user.id, type: "WARNING",
           title: "Account suspended",
-          body: `Your account has been suspended. Reason: ${reason} Contact support@kuchupuchu.com to appeal.`,
+          body: `Your account has been suspended. Reason: ${reason} Contact support@mykuchupuchu.com to appeal.`,
           email: { to: user.email, subject: "Kuchu Puchu account suspended", body: `Reason: ${reason}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_SUSPENDED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason });
@@ -461,15 +665,19 @@ export async function POST(req: Request, ctx: Ctx) {
           where: { id: video.id },
           data: { status: "APPROVED", rejectionReason: null, duplicateStatus: video.duplicateStatus === "PENDING_REVIEW" ? "FALSE_POSITIVE" : video.duplicateStatus, publishedAt, earningExpiresAt, monetizationEnabled: true },
         });
-        // credit one-time upload reward on first approval
+        // one-time upload reward on first approval — only while the channel meets the monthly view threshold
+        let rewarded = false;
         if (!video.uploadRewardCredited) {
-          await creditUploadReward({ userId: video.creatorId, videoId: video.id, contentId: video.contentId });
-          await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
+          rewarded = !!(await creditUploadReward({ userId: video.creatorId, videoId: video.id, contentId: video.contentId }));
+          if (rewarded) await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
         }
+        const m = await channelMonetization(video.creatorId);
         await notify({
           userId: video.creatorId, type: "VIDEO_STATUS",
           title: "Video approved 🎉",
-          body: `"${video.title}" (${video.contentId}) is live and monetized. $${settings.rewardPerUpload.toFixed(2)} upload reward credited and qualified views now earn $${settings.ratePer1000Views.toFixed(2)} per 1,000.`,
+          body: rewarded
+            ? `"${video.title}" (${video.contentId}) is live. ${inr(settings.rewardPerUploadInr)} upload reward credited (≈ $${settings.rewardPerUpload.toFixed(2)}), and qualified views earn $${settings.ratePer1000Views.toFixed(2)} per 1,000.`
+            : `"${video.title}" (${video.contentId}) is live. Earning unlocks once your channel gets ${m.threshold.toLocaleString()} views within 30 days (you're at ${m.last30DaysViews.toLocaleString()}) — after that, every approved upload and qualified view earns.`,
           link: "#/dashboard/videos",
           email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Approved: ${video.title}`, body: "Your video passed review and is now earning." },
         });
@@ -497,7 +705,34 @@ export async function POST(req: Request, ctx: Ctx) {
           body: `"${video.title}" (${video.contentId}) was removed for policy violations. Reason: ${reason || "Community guidelines"}`,
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "VIDEO_REMOVED", targetType: "VIDEO", targetId: video.contentId, details: reason });
+        if (body?.strike) {
+          const st = await addStrike({ userId: video.creatorId, reason: reason || "Community guidelines violation", contentId: video.contentId, actor: { id: me.id, email: me.email } });
+          return Response.json({ ok: true, message: `${video.contentId} removed — strike ${st.active} of ${STRIKE_LIMIT}${st.suspended ? ", channel suspended" : ""}` });
+        }
         return Response.json({ ok: true, message: `${video.contentId} removed` });
+      }
+      if (action === "update-details") {
+        const title = String(body?.title ?? "").trim().replace(/\s+/g, " ");
+        const description = String(body?.description ?? "").trim();
+        const tagsIn = Array.isArray(body?.hashtags) ? body.hashtags.join(" ") : String(body?.hashtags ?? "");
+        const hashtags = [...new Set<string>(String(tagsIn).split(/[\s,]+/).map((h: string) => h.replace(/^#+/, "").trim()).filter(Boolean))].slice(0, 10)
+          .map((h: string) => h.slice(0, 40));
+        if (title.length < 3) return jsonError("Title must be at least 3 characters");
+        if (title.length > 100) return jsonError("Title can be at most 100 characters");
+        if (description.length > 1000) return jsonError("Description can be at most 1,000 characters");
+        const before = { title: video.title, description: video.description, hashtags: safeJsonArray(video.hashtags) };
+        const after = { title, description, hashtags };
+        if (JSON.stringify(before) === JSON.stringify(after)) return Response.json({ ok: true, message: "No changes" });
+        await db.video.update({ where: { id: video.id }, data: { title, description, hashtags: JSON.stringify(hashtags) } });
+        const changed = (["title", "description", "hashtags"] as const).filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+        await notify({
+          userId: video.creatorId, type: "VIDEO_STATUS",
+          title: "Video details updated",
+          body: `Our team updated the ${changed.join(", ")} of "${title}" (${video.contentId}). Your views and earnings are not affected.`,
+          link: "#/dashboard/videos",
+        });
+        await audit({ actorId: me.id, actorEmail: me.email, action: "VIDEO_DETAILS_EDITED", targetType: "VIDEO", targetId: video.contentId, details: JSON.stringify({ changed, before, after }).slice(0, 2000) });
+        return Response.json({ ok: true, message: "Video details saved" });
       }
       if (action === "toggle-monetization") {
         const next = !video.monetizationEnabled;
@@ -593,6 +828,78 @@ export async function POST(req: Request, ctx: Ctx) {
       }
     }
 
+    // ── USER REPORTS ON VIDEOS ──────────────────────────────────────────
+    if (seg === "content-reports") {
+      const report = await db.contentReport.findUnique({ where: { id: second }, include: { video: true } });
+      if (!report) return jsonError("Report not found", 404);
+      const action = String(body?.action || "");
+      if (action === "dismiss" || action === "resolve") {
+        await db.contentReport.update({ where: { id: report.id }, data: { status: "RESOLVED" } });
+        await audit({ actorId: me.id, actorEmail: me.email, action: action === "dismiss" ? "REPORT_DISMISSED" : "REPORT_RESOLVED", targetType: "VIDEO", targetId: report.video.contentId, details: report.reason });
+        return Response.json({ ok: true, message: action === "dismiss" ? "Report dismissed" : "Report resolved" });
+      }
+      if (action === "remove-video" || action === "remove-video-strike") {
+        const reason = String(body?.reason || "").trim() || `Removed after a user report (${report.reason.toLowerCase()})`;
+        await db.video.update({ where: { id: report.videoId }, data: { status: "REMOVED", rejectionReason: reason, monetizationEnabled: false } });
+        // one decision closes every open report on that video
+        await db.contentReport.updateMany({ where: { videoId: report.videoId, status: "OPEN" }, data: { status: "RESOLVED" } });
+        await notify({
+          userId: report.video.creatorId, type: "VIDEO_STATUS",
+          title: "Video removed",
+          body: `"${report.video.title}" (${report.video.contentId}) was removed after review. Reason: ${reason}`,
+          link: "#/dashboard/videos",
+        });
+        await audit({ actorId: me.id, actorEmail: me.email, action: "VIDEO_REMOVED", targetType: "VIDEO", targetId: report.video.contentId, details: reason });
+        if (action === "remove-video-strike") {
+          const st = await addStrike({ userId: report.video.creatorId, reason, contentId: report.video.contentId, reportId: report.id, actor: { id: me.id, email: me.email } });
+          return Response.json({ ok: true, message: `${report.video.contentId} removed — strike ${st.active} of ${STRIKE_LIMIT}${st.suspended ? ", channel suspended" : ""}` });
+        }
+        return Response.json({ ok: true, message: `${report.video.contentId} removed and reports closed` });
+      }
+      return jsonError("Unknown action");
+    }
+
+    // ── COMMENT MODERATION ──────────────────────────────────────────────
+    if (seg === "comments") {
+      const comment = await db.comment.findUnique({ where: { id: second }, include: { video: true } });
+      if (!comment) return jsonError("Comment not found", 404);
+      if (String(body?.action || "") !== "delete") return jsonError("Unknown action");
+      await db.comment.delete({ where: { id: comment.id } });
+      await db.video.update({ where: { id: comment.videoId }, data: { commentsCount: { decrement: 1 } } });
+      await audit({ actorId: me.id, actorEmail: me.email, action: "COMMENT_DELETED", targetType: "COMMENT", targetId: comment.video.contentId, details: `${comment.authorName}: ${comment.body.slice(0, 120)}` });
+      return Response.json({ ok: true, message: "Comment deleted" });
+    }
+
+    // ── APP USER ACCOUNTS ───────────────────────────────────────────────
+    if (seg === "app-users") {
+      const user = await db.user.findUnique({ where: { id: second } });
+      if (!user || user.role !== "VIEWER") return jsonError("User not found", 404);
+      const action = String(body?.action || "");
+      const reason = String(body?.reason || "").trim();
+      if (action === "suspend") {
+        if (!reason) return jsonError("A suspension reason is required");
+        await db.user.update({ where: { id: user.id }, data: { status: "SUSPENDED", suspensionReason: reason } });
+        await db.session.deleteMany({ where: { userId: user.id } }); // signs them out of the app
+        await audit({ actorId: me.id, actorEmail: me.email, action: "APP_USER_SUSPENDED", targetType: "USER", targetId: user.email, details: reason });
+        return Response.json({ ok: true, message: `${user.name} suspended and signed out` });
+      }
+      if (action === "reactivate") {
+        await db.user.update({ where: { id: user.id }, data: { status: "APPROVED", suspensionReason: null } });
+        await audit({ actorId: me.id, actorEmail: me.email, action: "APP_USER_REACTIVATED", targetType: "USER", targetId: user.email });
+        return Response.json({ ok: true, message: `${user.name} reactivated` });
+      }
+      if (action === "delete-comments") {
+        const mine = await db.comment.findMany({ where: { userId: user.id }, select: { id: true, videoId: true } });
+        for (const c of mine) {
+          await db.comment.delete({ where: { id: c.id } });
+          await db.video.update({ where: { id: c.videoId }, data: { commentsCount: { decrement: 1 } } });
+        }
+        await audit({ actorId: me.id, actorEmail: me.email, action: "APP_USER_COMMENTS_DELETED", targetType: "USER", targetId: user.email, details: `${mine.length} comments` });
+        return Response.json({ ok: true, message: `${mine.length} comment(s) deleted` });
+      }
+      return jsonError("Unknown action");
+    }
+
     // ── DUPLICATE RESOLUTION ────────────────────────────────────────────
     if (seg === "duplicates") {
       const video = await db.video.findFirst({ where: { OR: [{ id: second }, { contentId: second }] } });
@@ -631,14 +938,15 @@ export async function POST(req: Request, ctx: Ctx) {
         await db.fraudFlag.updateMany({
           where: { videoId: video.contentId, status: "OPEN" }, data: { status: "DISMISSED" },
         });
+        let rewarded = false;
         if (!video.uploadRewardCredited) {
-          await creditUploadReward({ userId: video.creatorId, videoId: video.id, contentId: video.contentId });
-          await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
+          rewarded = !!(await creditUploadReward({ userId: video.creatorId, videoId: video.id, contentId: video.contentId }));
+          if (rewarded) await db.video.update({ where: { id: video.id }, data: { uploadRewardCredited: true } });
         }
         await notify({
           userId: video.creatorId, type: "DUPLICATE",
           title: "False positive — video approved 🎉",
-          body: `Our review confirmed ${video.contentId} is original. It's now live and monetized, and your upload reward has been credited. Sorry for the wait!`,
+          body: `Our review confirmed ${video.contentId} is original. It's now live${rewarded ? " and your upload reward has been credited" : ""}. Sorry for the wait!`,
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "DUPLICATE_FALSE_POSITIVE", targetType: "VIDEO", targetId: video.contentId });
         return Response.json({ ok: true, message: "Cleared as false positive — video approved" });
@@ -688,8 +996,10 @@ export async function POST(req: Request, ctx: Ctx) {
   // ── CONFIG ENDPOINTS (body-based) ─────────────────────────────────────
   if (seg === "monetization" || seg === "upload-rules" || seg === "homepage" ||
       seg === "broadcast" || seg === "categories" || seg === "users" || seg === "platform" || seg === "adjust") {
+    // "users" and "platform" are SUPER_ADMIN-only sections (they were wrongly gated on "overview",
+    // which let FINANCE/MODERATOR admins create super-admin accounts)
     const r = await requireAdmin(
-      seg === "adjust" ? "earnings" : seg === "broadcast" ? "notifications" : seg === "users" || seg === "platform" ? "overview" : seg
+      seg === "adjust" ? "earnings" : seg === "broadcast" ? "notifications" : seg
     );
     if ("error" in r) return r.error;
     const me = r.me;
@@ -703,23 +1013,28 @@ export async function POST(req: Request, ctx: Ctx) {
       const current = await getMonetizationSettings();
       const next = {
         ratePer1000Views: Math.max(0.01, num(body?.ratePer1000Views, current.ratePer1000Views)),
-        rewardPerUpload: Math.max(0, num(body?.rewardPerUpload, current.rewardPerUpload)),
+        // the upload reward is set in INR and converted to the USD amount the ledger pays
+        rewardPerUploadInr: Math.max(0, num(body?.rewardPerUploadInr, current.rewardPerUploadInr)),
+        inrPerUsd: Math.max(1, num(body?.inrPerUsd, current.inrPerUsd)),
+        minMonthlyChannelViews: Math.max(0, Math.min(1_000_000, Math.round(num(body?.minMonthlyChannelViews, current.minMonthlyChannelViews)))),
+        rewardPerUpload: 0,
         monetizationDurationMonths: Math.max(1, Math.min(24, Math.round(num(body?.monetizationDurationMonths, current.monetizationDurationMonths)))),
         minWithdrawalAmount: Math.max(1, num(body?.minWithdrawalAmount, current.minWithdrawalAmount)),
         holdingPeriodDays: Math.max(0, Math.min(90, Math.round(num(body?.holdingPeriodDays, current.holdingPeriodDays)))),
         monetizationPaused: !!body?.monetizationPaused,
         effectiveDate: body?.effectiveDate ? new Date(body.effectiveDate) : new Date(),
       };
+      next.rewardPerUpload = round2(next.rewardPerUploadInr / next.inrPerUsd);
       await db.monetizationSetting.update({ where: { id: current.id }, data: { active: false } });
       const created = await db.monetizationSetting.create({ data: { ...next, createdBy: me.email } });
       // notify creators about rate changes
-      if (next.ratePer1000Views !== current.ratePer1000Views || next.rewardPerUpload !== current.rewardPerUpload) {
+      if (next.ratePer1000Views !== current.ratePer1000Views || next.rewardPerUploadInr !== current.rewardPerUploadInr || next.minMonthlyChannelViews !== current.minMonthlyChannelViews) {
         const creators = await db.user.findMany({ where: { role: "CREATOR", status: "APPROVED" }, select: { id: true } });
         for (const c of creators) {
           await notify({
             userId: c.id, type: "MONETIZATION",
             title: "Monetization rates updated",
-            body: `New rates effective ${next.effectiveDate.toLocaleDateString()}: $${next.ratePer1000Views.toFixed(2)} per 1,000 qualified views and $${next.rewardPerUpload.toFixed(2)} per approved upload. Earnings already credited are not affected.`,
+            body: `New rates effective ${next.effectiveDate.toLocaleDateString()}: $${next.ratePer1000Views.toFixed(2)} per 1,000 qualified views and ${inr(next.rewardPerUploadInr)} (≈ $${next.rewardPerUpload.toFixed(2)}) per approved upload. New channels unlock earning once they get ${next.minMonthlyChannelViews.toLocaleString()} views within 30 days. Earnings already credited are not affected.`,
           });
         }
       }
@@ -733,13 +1048,16 @@ export async function POST(req: Request, ctx: Ctx) {
         const n = Math.round(parseFloat(String(v)));
         return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : d;
       };
+      const minDur = int(body?.minDurationSec, rules.minDurationSec, 5, 600);
+      const maxDur = int(body?.maxDurationSec, rules.maxDurationSec, 10, 3600);
+      if (minDur >= maxDur) return jsonError("The minimum video length must be shorter than the maximum.");
       const formats = String(body?.formats || rules.formats).toLowerCase()
         .split(",").map(f => f.trim().replace(/^\./, "")).filter(Boolean).join(",");
       const updated = await db.uploadRule.update({
         where: { id: rules.id },
         data: {
-          minDurationSec: int(body?.minDurationSec, rules.minDurationSec, 5, 600),
-          maxDurationSec: int(body?.maxDurationSec, rules.maxDurationSec, 10, 3600),
+          minDurationSec: minDur,
+          maxDurationSec: maxDur,
           maxFileSizeMB: int(body?.maxFileSizeMB, rules.maxFileSizeMB, 10, 2048),
           maxResolution: String(body?.maxResolution || rules.maxResolution),
           formats: formats || "mp4,mov",
@@ -815,8 +1133,8 @@ export async function POST(req: Request, ctx: Ctx) {
         await setSetting("branding", {
           name: String(branding.name || "Kuchu Puchu").slice(0, 30),
           tagline: String(branding.tagline || "").slice(0, 80),
-          supportEmail: String(branding.supportEmail || "support@kuchupuchu.com"),
-          domain: String(branding.domain || "kuchupuchu.com"),
+          supportEmail: String(branding.supportEmail || "support@mykuchupuchu.com"),
+          domain: String(branding.domain || "mykuchupuchu.com"),
         });
       }
       const payouts = body?.payouts;
@@ -825,6 +1143,18 @@ export async function POST(req: Request, ctx: Ctx) {
           methods: Array.isArray(payouts.methods) ? payouts.methods.slice(0, 5) : [],
           processingDays: String(payouts.processingDays || "3–5 business days"),
         });
+      }
+      const vc = body?.viewCounting;
+      if (vc) {
+        const hours = Number(vc.repeatWindowHours);
+        if (!Number.isFinite(hours) || hours < 1 || hours > 72 || Math.round(hours) !== hours) {
+          return jsonError("The repeat-view window must be a whole number of hours from 1 to 72.");
+        }
+        const next = { appOnly: vc.appOnly !== false, repeatWindowHours: hours };
+        await setSetting("viewCounting", next);
+        forgetViewCounting();
+        await audit({ actorId: me.id, actorEmail: me.email, action: "VIEW_COUNTING_UPDATED", targetType: "SETTING", details: JSON.stringify(next) });
+        return Response.json({ ok: true, message: `View counting saved: ${next.appOnly ? "app views only" : "app and website views"}, one view per viewer every ${hours} h` });
       }
       await audit({ actorId: me.id, actorEmail: me.email, action: "PLATFORM_SETTINGS_UPDATED", targetType: "SETTING" });
       return Response.json({ ok: true, message: "Platform settings saved" });

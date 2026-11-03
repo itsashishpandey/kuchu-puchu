@@ -12,6 +12,7 @@ import { useAuth } from "@/components/app/auth-provider";
 import { get } from "@/lib/client";
 
 const NAV = [
+  { to: "/feed", label: "Watch" },
   { to: "/explore", label: "Explore" },
   { to: "/trending", label: "Trending" },
   { to: "/about", label: "About" },
@@ -67,6 +68,9 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2.5 lg:flex">
+          <Button variant="ghost" size="sm" className="rounded-full" onClick={() => navigate("/search")} aria-label="Search">
+            <Icons.Search size={19} />
+          </Button>
           {user ? (
             <>
               {user.role === "CREATOR" && (
@@ -102,10 +106,24 @@ export function Navbar() {
                         <Icons.AtSign size={15} /> My public channel
                       </DropdownMenuItem>
                     </>
-                  ) : (
+                  ) : user.role === "ADMIN" ? (
                     <DropdownMenuItem onClick={() => navigate("/admin")} className="gap-2">
                       <Icons.ShieldCheck size={15} /> Admin dashboard
                     </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => navigate("/feed")} className="gap-2">
+                      <Icons.Play size={15} /> Watch videos
+                    </DropdownMenuItem>
+                  )}
+                  {user.role !== "ADMIN" && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate("/saved")} className="gap-2">
+                        <Icons.Bookmark size={15} /> Saved videos
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate("/settings/interests")} className="gap-2">
+                        <Icons.SlidersHorizontal size={15} /> My Interests &amp; Languages
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => logout().then(() => navigate("/"))} className="gap-2 text-brand-red">
@@ -118,6 +136,9 @@ export function Navbar() {
             <>
               <Button variant="ghost" className="rounded-full font-semibold" onClick={() => navigate("/login")}>
                 Log in
+              </Button>
+              <Button variant="outline" className="rounded-full font-semibold" onClick={() => navigate("/join")}>
+                Sign up free
               </Button>
               <Button
                 className="grad-btn rounded-full px-5 text-white shadow-[0_6px_20px_-6px_rgba(255,23,68,0.5)]"
@@ -153,11 +174,23 @@ export function Navbar() {
             <Link to="/policies/monetization" className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white" onClick={() => setMobileOpen(false)}>
               Monetization
             </Link>
+            <Link to="/search" className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white" onClick={() => setMobileOpen(false)}>
+              Search
+            </Link>
+            {user && user.role !== "ADMIN" && (
+              <>
+                <Link to="/saved" className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white" onClick={() => setMobileOpen(false)}>Saved videos</Link>
+                <Link to="/settings/interests" className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white" onClick={() => setMobileOpen(false)}>My Interests &amp; Languages</Link>
+              </>
+            )}
+            {!user && (
+              <Link to="/join" className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white" onClick={() => setMobileOpen(false)}>Sign up free (viewer)</Link>
+            )}
             <div className="mt-3 flex gap-2">
               {user ? (
                 <>
-                  <Button className="flex-1 rounded-full" onClick={() => { setMobileOpen(false); navigate(user.role === "CREATOR" ? "/dashboard" : "/admin"); }}>
-                    Dashboard
+                  <Button className="flex-1 rounded-full" onClick={() => { setMobileOpen(false); navigate(user.role === "CREATOR" ? "/dashboard" : user.role === "ADMIN" ? "/admin" : "/feed"); }}>
+                    {user.role === "VIEWER" ? "Watch" : "Dashboard"}
                   </Button>
                   <Button variant="outline" className="flex-1 rounded-full" onClick={() => { logout(); setMobileOpen(false); navigate("/"); }}>
                     Log out

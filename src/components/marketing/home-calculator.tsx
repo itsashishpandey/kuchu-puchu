@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
-import { SectionHeading, DemoBadge, PrimaryCTA, CategoryIcon } from "@/components/shared/ui-bits";
+import { SectionHeading, PrimaryCTA, CategoryIcon } from "@/components/shared/ui-bits";
 import { Link } from "@/components/app/router";
 import { get } from "@/lib/client";
 import { usd, compact } from "@/lib/format";
@@ -13,15 +13,15 @@ import { Slider } from "@/components/ui/slider";
 export function EarningsCalculator() {
   const [views, setViews] = useState(100000);
   const [uploads, setUploads] = useState(10);
-  const [rates, setRates] = useState<{ ratePer1000Views: number; rewardPerUpload: number } | null>(null);
+  const [rates, setRates] = useState<{ ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr?: number; minMonthlyChannelViews?: number } | null>(null);
 
   useEffect(() => {
-    get<{ ratePer1000Views: number; rewardPerUpload: number }>("/public/settings")
-      .then(setRates).catch(() => setRates({ ratePer1000Views: 1, rewardPerUpload: 0.5 }));
+    get<{ ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr: number; minMonthlyChannelViews: number }>("/public/settings")
+      .then(setRates).catch(() => setRates({ ratePer1000Views: 1, rewardPerUpload: 0.32, rewardPerUploadInr: 30, minMonthlyChannelViews: 2500 }));
   }, []);
 
   const rate = rates?.ratePer1000Views ?? 1;
-  const reward = rates?.rewardPerUpload ?? 0.5;
+  const reward = rates?.rewardPerUpload ?? 0.32;
   const viewEarnings = (views / 1000) * rate;
   const uploadEarnings = uploads * reward;
   const total = viewEarnings + uploadEarnings;
@@ -117,7 +117,7 @@ export function EarningsCalculator() {
                     <span className="font-display text-2xl font-bold text-brand-red">{usd(105)}</span>
                   </div>
                 </div>
-                <DemoBadge />
+                <p className="text-[11px] text-muted-foreground">Worked example at the current rates.</p>
               </div>
             </div>
 
@@ -155,9 +155,10 @@ export function TopCreators() {
     category: string | null; verified: boolean; followerCount: number;
     videoCount: number; verifiedEarnings: number; theme?: string;
   }[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    get<{ creators: typeof creators }>("/public/top-creators").then(d => setCreators(d.creators)).catch(() => {});
+    get<{ creators: typeof creators }>("/public/top-creators").then(d => setCreators(d.creators)).catch(() => {}).finally(() => setLoaded(true));
   }, []);
 
   const themeOf = (t?: string) => (t === "PINK" ? "pink" : "blue");
@@ -179,6 +180,8 @@ export function TopCreators() {
       rank: "bg-brand-pink text-white",
     },
   } as const;
+
+  if (loaded && creators.length === 0) return null;
 
   return (
     <section className="py-16 md:py-24" aria-label="Top earning creators">

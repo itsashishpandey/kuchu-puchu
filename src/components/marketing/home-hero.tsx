@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
 import {
-  PrimaryCTA, SecondaryCTA, StatCounter, DemoBadge, SectionHeading,
+  PrimaryCTA, SecondaryCTA, StatCounter, SectionHeading, ANDROID_APK_URL, ANDROID_APK_NOTE,
 } from "@/components/shared/ui-bits";
 import { get } from "@/lib/client";
 import { compact } from "@/lib/format";
@@ -13,18 +13,15 @@ import { compact } from "@/lib/format";
 const HERO_CARDS = [
   {
     file: "/videos/v10.mp4", poster: "/images/thumbs/th10.webp",
-    title: "Dino's Rainy Day Puddle Jump", handle: "@monkeymischief", avatar: "/images/avatars/av11.webp",
-    views: 132400, likes: 18600,
+    title: "Dino's Rainy Day Puddle Jump",
   },
   {
     file: "/videos/v14.mp4", poster: "/images/thumbs/th14.webp",
-    title: "Rocket Trip to Candy Planet", handle: "@meeraplaytime", avatar: "/images/avatars/av02.webp",
-    views: 1241500, likes: 198600, featured: true,
+    title: "Rocket Trip to Candy Planet",
   },
   {
     file: "/videos/v03.mp4", poster: "/images/thumbs/th03.webp",
-    title: "The Kuchu Puchu Dance Party!", handle: "@uniwhispers", avatar: "/images/avatars/av08.webp",
-    views: 892400, likes: 112300,
+    title: "The Kuchu Puchu Dance Party!",
   },
 ];
 
@@ -47,46 +44,8 @@ function HeroVideoCard({
         className="absolute inset-0 h-full w-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-transparent to-ink/25" />
-      {v.featured && (
-        <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full grad-btn px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute h-full w-full animate-ping rounded-full bg-white opacity-80" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-white" />
-          </span>
-          Earning
-        </span>
-      )}
-      {/* tiktok-style action rail */}
-      <div className="absolute bottom-14 right-2.5 flex flex-col items-center gap-3 text-white">
-        <span className="flex flex-col items-center">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-red shadow-lg transition group-hover:scale-110">
-            <Icons.Heart size={16} fill="currentColor" />
-          </span>
-          <span className="mt-0.5 text-[10px] font-semibold drop-shadow">{compact(v.likes)}</span>
-        </span>
-        <span className="flex flex-col items-center">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/25 backdrop-blur shadow">
-            <Icons.MessageCircle size={15} />
-          </span>
-          <span className="mt-0.5 text-[10px] font-semibold drop-shadow">2.1K</span>
-        </span>
-        <span className="flex flex-col items-center">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/25 backdrop-blur shadow">
-            <Icons.Share2 size={14} />
-          </span>
-          <span className="mt-0.5 text-[10px] font-semibold drop-shadow">{compact(Math.round(v.views / 90))}</span>
-        </span>
-      </div>
       <div className="absolute inset-x-0 bottom-0 p-3">
-        <div className="flex items-center gap-1.5">
-          <img src={v.avatar} alt="" className="h-6 w-6 rounded-full object-cover ring-2 ring-white/70" />
-          <p className="truncate text-[11px] font-bold text-white">{v.handle}</p>
-        </div>
-        <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-white/90">{v.title}</p>
-        <p className="mt-1 flex items-center gap-1 text-[10px] text-white/70">
-          <Icons.Play size={10} fill="currentColor" /> {compact(v.views)} views
-          <Icons.BadgeCheck size={11} className="ml-0.5 text-brand-blue" />
-        </p>
+        <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-white/90">{v.title}</p>
       </div>
     </div>
   );
@@ -126,7 +85,9 @@ export function Hero({ announcement }: { announcement?: string }) {
               </span>
               Creators are earning right now
             </span>
-            <DemoBadge className="!bg-white/80 !text-brand-blue" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-200">
+              <Icons.ShieldCheck size={13} /> Made for kids aged 3–8
+            </span>
           </div>
 
           <h1 className="font-display text-[2.6rem] font-extrabold leading-[1.05] md:text-6xl">
@@ -136,9 +97,10 @@ export function Hero({ announcement }: { announcement?: string }) {
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink/70 md:text-lg">
-            Kuchu Puchu is the kids&rsquo; video platform that pays from day one — no follower
-            minimums, no invite codes. Upload your original 40–60 second cartoons, rhymes and
-            stories, and earn on every qualified view plus a reward for every approved upload.
+            Kuchu Puchu is the safe video platform made only for kids aged 3–8 — and it pays the
+            creators who make it. Upload original short cartoons, rhymes and stories (20–90 seconds). Once your
+            channel gets 2,500 views within 30 days, earn on every qualified view plus a reward for every
+            approved upload.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -148,34 +110,20 @@ export function Hero({ announcement }: { announcement?: string }) {
             <SecondaryCTA to="/feed">
               <Icons.Play size={16} className="mr-1" fill="currentColor" /> Watch Videos
             </SecondaryCTA>
+            <a
+              href={ANDROID_APK_URL}
+              download
+              className="inline-flex h-12 items-center gap-2 rounded-full border border-ink/10 bg-white/80 px-5 text-sm font-semibold text-ink shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+            >
+              <Icons.Smartphone size={16} /> Get the Android app
+            </a>
           </div>
-
-          {/* social proof */}
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <div className="flex -space-x-2.5">
-              {["av02", "av01", "av04", "av07", "av12"].map(a => (
-                <img
-                  key={a} src={`/images/avatars/${a}.webp`} alt="Kuchu Puchu creator"
-                  className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow"
-                />
-              ))}
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-blue to-brand-pink text-[10px] font-bold text-white ring-2 ring-white">
-                12K+
-              </span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1 text-brand-yellow">
-                {Array.from({ length: 5 }).map((_, i) => <Icons.Star key={i} size={15} fill="currentColor" />)}
-                <span className="ml-1.5 text-xs font-bold text-ink">4.9/5</span>
-              </div>
-              <p className="text-xs text-muted-foreground">from 2,300+ creator reviews</p>
-            </div>
-          </div>
+          <p className="mt-2.5 text-xs text-ink/55">{ANDROID_APK_NOTE}</p>
 
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-2 sm:gap-3">
             {[
               { label: "Per 1,000 qualified views", value: "$1.00" },
-              { label: "Per approved upload", value: "$0.50" },
+              { label: "Per approved upload", value: "₹30" },
               { label: "Payout methods", value: "Bank + PayPal" },
             ].map(s => (
               <div key={s.label} className="glass min-w-0 rounded-xl px-2 py-2.5 sm:px-3.5 sm:py-3">
@@ -200,28 +148,6 @@ export function Hero({ announcement }: { announcement?: string }) {
               <HeroVideoCard v={HERO_CARDS[1]} size="lg" />
             </div>
 
-            {/* floating earnings chips */}
-            <div className="glass animate-floaty absolute -left-2 top-16 z-20 flex items-center gap-2.5 rounded-2xl p-3 shadow-lg" style={{ "--r": "-3deg" } as React.CSSProperties}>
-              <span className="rounded-lg bg-brand-blue-soft p-2"><Icons.UploadCloud size={15} className="text-brand-blue" /></span>
-              <div>
-                <p className="text-[10px] text-ink/60">Upload reward credited</p>
-                <p className="text-sm font-bold text-ink">+$0.50</p>
-              </div>
-            </div>
-            <div className="glass animate-floaty absolute -right-3 bottom-24 z-20 flex items-center gap-2.5 rounded-2xl p-3 shadow-lg" style={{ animationDelay: "1.4s", "--r": "2deg" } as React.CSSProperties}>
-              <span className="rounded-lg bg-brand-pink-soft p-2"><Icons.Wallet size={15} className="text-brand-pink" /></span>
-              <div>
-                <p className="text-[10px] text-ink/60">@bunnybloom withdrew</p>
-                <p className="text-sm font-bold text-ink">$120.00 <span className="font-normal text-[10px] text-emerald-600">✓ Paid</span></p>
-              </div>
-            </div>
-            <div className="glass animate-floaty absolute bottom-3 left-8 z-20 flex items-center gap-2.5 rounded-2xl p-3 shadow-lg" style={{ animationDelay: "0.8s", "--r": "1deg" } as React.CSSProperties}>
-              <span className="rounded-lg bg-emerald-50 p-2"><Icons.TrendingUp size={15} className="text-emerald-600" /></span>
-              <div>
-                <p className="text-[10px] text-ink/60">Rocket Trip &middot; this month</p>
-                <p className="text-sm font-bold text-ink">$1,204 <span className="font-semibold text-emerald-600">↑ views revenue</span></p>
-              </div>
-            </div>
           </div>
 
           {/* mobile / tablet: snap-scroll strip */}
@@ -286,6 +212,8 @@ export function StatsBand() {
     },
   ];
 
+  if (!stats || (stats.totalVideos === 0 && stats.approvedCreators === 0 && stats.totalPaidOut === 0)) return null;
+
   return (
     <section className="py-10 md:py-14" aria-label="Live platform stats">
       <div className="mx-auto max-w-7xl px-4 md:px-6">
@@ -302,7 +230,7 @@ export function StatsBand() {
         </div>
         <p className="reveal mt-4 text-center text-[11px] text-muted-foreground">
           <Icons.Info size={12} className="mr-1 inline" />
-          Live counters from the platform database — demo environment with clearly-labeled sample data. Payout totals only include completed withdrawals.
+          Live counters from the platform database. Payout totals only include completed withdrawals.
         </p>
       </div>
     </section>
@@ -314,8 +242,8 @@ export function StatsBand() {
 const STEPS = [
   { icon: Icons.UserPlus, title: "Sign Up", desc: "Create your kids-content channel in under 3 minutes. Pick your category and tell us about your videos." },
   { icon: Icons.ShieldCheck, title: "Get Approved", desc: "Our team reviews every application — usually within 2 business days — to keep content original and safe for little viewers." },
-  { icon: Icons.UploadCloud, title: "Upload Videos", desc: "Post original 40–60 second cartoons, rhymes and stories. Every upload is fingerprinted to protect originality." },
-  { icon: Icons.DollarSign, title: "Earn Money", desc: "Get $1.00 per 1,000 qualified views plus $0.50 for every approved upload. Watch earnings credit in real time." },
+  { icon: Icons.UploadCloud, title: "Upload Videos", desc: "Post original 20–90 second cartoons, rhymes and stories. Every upload is fingerprinted to protect originality." },
+  { icon: Icons.DollarSign, title: "Earn Money", desc: "Once your channel unlocks earning (2,500 views within 30 days), get $1.00 per 1,000 qualified views plus ₹30 for every approved upload. Watch earnings credit in real time." },
   { icon: Icons.Banknote, title: "Withdraw", desc: "Request payouts to your bank or PayPal once your available balance passes $25. No lock-in, ever." },
 ];
 
@@ -326,7 +254,7 @@ export function HowItWorks() {
         <SectionHeading
           eyebrow="How it works"
           title={<>From sign-up to <span className="grad-text-blue">first payout</span></>}
-          subtitle="Five steps. No follower minimums, no invitation codes — every original creator starts earning on day one."
+          subtitle="Five steps. No follower minimums, no invitation codes — reach 2,500 views within 30 days once and earning stays unlocked."
         />
         <div className="relative grid gap-4 md:grid-cols-3 lg:grid-cols-5">
           <div className="absolute left-0 right-0 top-10 hidden border-t-2 border-dashed border-brand-blue/25 lg:block" aria-hidden />

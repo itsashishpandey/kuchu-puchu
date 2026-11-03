@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "crypto";
 import { visualHash, audioHash, sha256Buffer } from "../src/lib/fingerprint";
 import fs from "fs";
+import { seedDiscovery, applyKidsTaxonomy, backfillVideoTags } from "./seed-discovery.mjs";
 
 const db = new PrismaClient();
 
@@ -27,6 +28,15 @@ async function main() {
 
   // ── wipe ──
   await db.$transaction([
+    // discovery tables first (they reference videos, users, categories)
+    db.videoInteractionEvent.deleteMany(), db.videoFeedback.deleteMany(), db.savedVideo.deleteMany(),
+    db.blockedCreator.deleteMany(), db.videoCategoryAssignment.deleteMany(), db.videoLanguage.deleteMany(),
+    db.userLanguagePreference.deleteMany(), db.userCategoryPreference.deleteMany(),
+    db.userSubcategoryPreference.deleteMany(), db.userRecommendationPreference.deleteMany(),
+    db.channelCategoryPreference.deleteMany(), db.channelLanguage.deleteMany(),
+    db.categoryTranslation.deleteMany(), db.subcategory.deleteMany(),
+    db.recommendationConfig.deleteMany(), db.taxonomyAuditLog.deleteMany(), db.searchLog.deleteMany(),
+    db.emailOtp.deleteMany(), db.creatorVerification.deleteMany(), db.channelStrike.deleteMany(),
     db.appeal.deleteMany(), db.contentReport.deleteMany(), db.comment.deleteMany(),
     db.videoLike.deleteMany(), db.viewEvent.deleteMany(), db.ledgerEntry.deleteMany(),
     db.withdrawal.deleteMany(), db.fraudFlag.deleteMany(), db.auditLog.deleteMany(),
@@ -34,7 +44,7 @@ async function main() {
     db.video.deleteMany(), db.channel.deleteMany(), db.session.deleteMany(),
     db.user.deleteMany(), db.category.deleteMany(), db.platformSetting.deleteMany(),
     db.monetizationSetting.deleteMany(), db.uploadRule.deleteMany(),
-    db.newsletterSubscriber.deleteMany(), db.contactMessage.deleteMany(),
+    db.newsletterSubscriber.deleteMany(), db.contactMessage.deleteMany(), db.language.deleteMany(),
   ]);
 
   // ── settings ──
@@ -46,7 +56,7 @@ async function main() {
         key: "branding",
         value: JSON.stringify({
           name: "Kuchu Puchu", tagline: "Create. Play. Earn.",
-          supportEmail: "support@kuchupuchu.com", domain: "kuchupuchu.com",
+          supportEmail: "support@mykuchupuchu.com", domain: "mykuchupuchu.com",
         }),
       },
       {
@@ -101,21 +111,29 @@ async function main() {
   // ── admins ──
   const admin = await db.user.create({
     data: {
-      email: "admin@kuchupuchu.com", name: "Ava Sterling", passwordHash: hashPassword("Admin@123"),
+      email: "admin@mykuchupuchu.com", name: "Ava Sterling", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "SUPER_ADMIN", status: "APPROVED", emailVerified: true,
       country: "United States", createdAt: daysAgo(300),
     },
   });
   await db.user.create({
     data: {
-      email: "finance@kuchupuchu.com", name: "Felix Grant", passwordHash: hashPassword("Admin@123"),
+      email: "finance@mykuchupuchu.com", name: "Felix Grant", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "FINANCE", status: "APPROVED", emailVerified: true, country: "United Kingdom",
     },
   });
   await db.user.create({
     data: {
-      email: "moderator@kuchupuchu.com", name: "Mia Lopez", passwordHash: hashPassword("Admin@123"),
+      email: "moderator@mykuchupuchu.com", name: "Mia Lopez", passwordHash: hashPassword("Admin@123"),
       role: "ADMIN", adminRole: "MODERATOR", status: "APPROVED", emailVerified: true, country: "Spain",
+    },
+  });
+
+  // ── demo User (viewer) account for the mobile app ──
+  await db.user.create({
+    data: {
+      email: "user@mykuchupuchu.com", name: "Kiara Demo", passwordHash: hashPassword("User@1234"),
+      role: "VIEWER", status: "APPROVED", emailVerified: true, monetizationEligible: false,
     },
   });
 
@@ -128,18 +146,18 @@ async function main() {
     social?: Record<string, string>;
   };
   const creatorSpecs: CreatorSpec[] = [
-    { email: "meera@kuchupuchu.com", name: "Meera Iyer", username: "meeraplaytime", channel: "Meera's Playtime", category: "Nursery Rhymes", country: "India", avatar: "/images/avatars/av02.webp", desc: "Sing-along nursery rhymes and playful songs for tiny humans 🎵 New rhyme every week!", status: "APPROVED", followers: 210900, verified: true, showEarnings: true, approvedDaysAgo: 150, theme: "PINK", social: { instagram: "meeraplaytime", youtube: "MeerasPlaytime", x: "meeraplaytime" } },
-    { email: "aarav@kuchupuchu.com", name: "Aarav Mehta", username: "aaravtoons", channel: "Aarav Toons", category: "Cartoons & Animation", country: "India", avatar: "/images/avatars/av01.webp", desc: "Hand-drawn cartoon adventures with big hearts. Meet Kuchu and friends! ✏️", status: "APPROVED", followers: 148300, verified: true, showEarnings: true, approvedDaysAgo: 132, theme: "BLUE", social: { instagram: "aaravtoons", youtube: "AaravToons" } },
-    { email: "riya@kuchupuchu.com", name: "Riya Sharma", username: "bunnybloom", channel: "Bunny Bloom Tales", category: "Story Time", country: "India", avatar: "/images/avatars/av04.webp", desc: "Gentle bedtime stories and tiny tales that end with a smile 🌙", status: "APPROVED", followers: 187500, verified: true, showEarnings: true, approvedDaysAgo: 141, theme: "PINK", social: { instagram: "bunnybloomtales" } },
-    { email: "vikram@kuchupuchu.com", name: "Vikram Singh", username: "lioncubsongs", channel: "Lion Cub Songs", category: "Kids Songs", country: "United Kingdom", avatar: "/images/avatars/av07.webp", desc: "Roar-some songs and sing-along classics with Leo the lion cub 🦁", status: "APPROVED", followers: 96700, verified: true, showEarnings: true, approvedDaysAgo: 118, theme: "BLUE", social: { youtube: "LionCubSongs" } },
-    { email: "sara@kuchupuchu.com", name: "Sara Khan", username: "kittycraftclub", channel: "Kitty Craft Club", category: "Arts & Crafts", country: "UAE", avatar: "/images/avatars/av06.webp", desc: "Easy crafts, rainbow paintings and glitter galore with Mimi the kitten 🎨", status: "APPROVED", followers: 132200, verified: true, showEarnings: true, approvedDaysAgo: 110, theme: "PINK", social: { x: "kittycraftclub" } },
-    { email: "rohan@kuchupuchu.com", name: "Rohan Kapoor", username: "pandapals", channel: "Panda Pals", category: "Kids Comedy", country: "Singapore", avatar: "/images/avatars/av05.webp", desc: "Silly panda giggles, pranks and funny faces for little laughers 😹", status: "APPROVED", followers: 78400, approvedDaysAgo: 96, theme: "BLUE" },
-    { email: "karan@kuchupuchu.com", name: "Karan Patel", username: "dinodayout", channel: "Dino Day Out", category: "Learning & Fun", country: "India", avatar: "/images/avatars/av09.webp", desc: "Counting, colors and dino-sized fun facts for curious kids 🦕", status: "APPROVED", followers: 64800, showEarnings: true, approvedDaysAgo: 88, theme: "BLUE" },
-    { email: "ananya@kuchupuchu.com", name: "Ananya Reddy", username: "teddyhugs", channel: "Teddy Hugs Club", category: "Toys & Play", country: "India", avatar: "/images/avatars/av08.webp", desc: "Toy stories, block towers and tea parties with Tedy the teddy bear 🧸", status: "APPROVED", followers: 118600, verified: true, showEarnings: true, approvedDaysAgo: 80, theme: "PINK" },
-    { email: "pari@kuchupuchu.com", name: "Pari Gupta", username: "parispenguin", channel: "Pari's Penguin Parade", category: "Nursery Rhymes", country: "Canada", avatar: "/images/avatars/av10.webp", desc: "Skating penguins, winter rhymes and sparkling sing-alongs ⛸️", status: "APPROVED", followers: 156800, verified: true, showEarnings: true, approvedDaysAgo: 74, theme: "PINK" },
-    { email: "arjun@kuchupuchu.com", name: "Arjun Nair", username: "monkeymischief", channel: "Monkey Mischief", category: "Family Adventures", country: "India", avatar: "/images/avatars/av11.webp", desc: "Family day-outs, playground adventures and cheeky monkey business 🐒", status: "APPROVED", followers: 52300, approvedDaysAgo: 66, theme: "BLUE" },
-    { email: "ishita@kuchupuchu.com", name: "Ishita Verma", username: "uniwhispers", channel: "Uni-Whispers", category: "Dance & Fun", country: "Australia", avatar: "/images/avatars/av12.webp", desc: "Dance-alongs, wiggle songs and magical unicorn moments 🦄", status: "APPROVED", followers: 243100, verified: true, showEarnings: true, approvedDaysAgo: 58, theme: "PINK" },
-    { email: "kabir@kuchupuchu.com", name: "Kabir Anand", username: "bububuddy", channel: "Bubu & Buddy", category: "Animals & Friends", country: "India", avatar: "/images/avatars/av03.webp", desc: "Ellie the baby elephant and her tiny best friend Mouse 🐘💞", status: "APPROVED", followers: 94700, verified: true, showEarnings: true, approvedDaysAgo: 50, theme: "BLUE", social: { youtube: "BubuAndBuddy" } },
+    { email: "meera@mykuchupuchu.com", name: "Meera Iyer", username: "meeraplaytime", channel: "Meera's Playtime", category: "Nursery Rhymes", country: "India", avatar: "/images/avatars/av02.webp", desc: "Sing-along nursery rhymes and playful songs for tiny humans 🎵 New rhyme every week!", status: "APPROVED", followers: 210900, verified: true, showEarnings: true, approvedDaysAgo: 150, theme: "PINK", social: { instagram: "meeraplaytime", youtube: "MeerasPlaytime", x: "meeraplaytime" } },
+    { email: "aarav@mykuchupuchu.com", name: "Aarav Mehta", username: "aaravtoons", channel: "Aarav Toons", category: "Cartoons & Animation", country: "India", avatar: "/images/avatars/av01.webp", desc: "Hand-drawn cartoon adventures with big hearts. Meet Kuchu and friends! ✏️", status: "APPROVED", followers: 148300, verified: true, showEarnings: true, approvedDaysAgo: 132, theme: "BLUE", social: { instagram: "aaravtoons", youtube: "AaravToons" } },
+    { email: "riya@mykuchupuchu.com", name: "Riya Sharma", username: "bunnybloom", channel: "Bunny Bloom Tales", category: "Story Time", country: "India", avatar: "/images/avatars/av04.webp", desc: "Gentle bedtime stories and tiny tales that end with a smile 🌙", status: "APPROVED", followers: 187500, verified: true, showEarnings: true, approvedDaysAgo: 141, theme: "PINK", social: { instagram: "bunnybloomtales" } },
+    { email: "vikram@mykuchupuchu.com", name: "Vikram Singh", username: "lioncubsongs", channel: "Lion Cub Songs", category: "Kids Songs", country: "United Kingdom", avatar: "/images/avatars/av07.webp", desc: "Roar-some songs and sing-along classics with Leo the lion cub 🦁", status: "APPROVED", followers: 96700, verified: true, showEarnings: true, approvedDaysAgo: 118, theme: "BLUE", social: { youtube: "LionCubSongs" } },
+    { email: "sara@mykuchupuchu.com", name: "Sara Khan", username: "kittycraftclub", channel: "Kitty Craft Club", category: "Arts & Crafts", country: "UAE", avatar: "/images/avatars/av06.webp", desc: "Easy crafts, rainbow paintings and glitter galore with Mimi the kitten 🎨", status: "APPROVED", followers: 132200, verified: true, showEarnings: true, approvedDaysAgo: 110, theme: "PINK", social: { x: "kittycraftclub" } },
+    { email: "rohan@mykuchupuchu.com", name: "Rohan Kapoor", username: "pandapals", channel: "Panda Pals", category: "Kids Comedy", country: "Singapore", avatar: "/images/avatars/av05.webp", desc: "Silly panda giggles, pranks and funny faces for little laughers 😹", status: "APPROVED", followers: 78400, approvedDaysAgo: 96, theme: "BLUE" },
+    { email: "karan@mykuchupuchu.com", name: "Karan Patel", username: "dinodayout", channel: "Dino Day Out", category: "Learning & Fun", country: "India", avatar: "/images/avatars/av09.webp", desc: "Counting, colors and dino-sized fun facts for curious kids 🦕", status: "APPROVED", followers: 64800, showEarnings: true, approvedDaysAgo: 88, theme: "BLUE" },
+    { email: "ananya@mykuchupuchu.com", name: "Ananya Reddy", username: "teddyhugs", channel: "Teddy Hugs Club", category: "Toys & Play", country: "India", avatar: "/images/avatars/av08.webp", desc: "Toy stories, block towers and tea parties with Tedy the teddy bear 🧸", status: "APPROVED", followers: 118600, verified: true, showEarnings: true, approvedDaysAgo: 80, theme: "PINK" },
+    { email: "pari@mykuchupuchu.com", name: "Pari Gupta", username: "parispenguin", channel: "Pari's Penguin Parade", category: "Nursery Rhymes", country: "Canada", avatar: "/images/avatars/av10.webp", desc: "Skating penguins, winter rhymes and sparkling sing-alongs ⛸️", status: "APPROVED", followers: 156800, verified: true, showEarnings: true, approvedDaysAgo: 74, theme: "PINK" },
+    { email: "arjun@mykuchupuchu.com", name: "Arjun Nair", username: "monkeymischief", channel: "Monkey Mischief", category: "Family Adventures", country: "India", avatar: "/images/avatars/av11.webp", desc: "Family day-outs, playground adventures and cheeky monkey business 🐒", status: "APPROVED", followers: 52300, approvedDaysAgo: 66, theme: "BLUE" },
+    { email: "ishita@mykuchupuchu.com", name: "Ishita Verma", username: "uniwhispers", channel: "Uni-Whispers", category: "Dance & Fun", country: "Australia", avatar: "/images/avatars/av12.webp", desc: "Dance-alongs, wiggle songs and magical unicorn moments 🦄", status: "APPROVED", followers: 243100, verified: true, showEarnings: true, approvedDaysAgo: 58, theme: "PINK" },
+    { email: "kabir@mykuchupuchu.com", name: "Kabir Anand", username: "bububuddy", channel: "Bubu & Buddy", category: "Animals & Friends", country: "India", avatar: "/images/avatars/av03.webp", desc: "Ellie the baby elephant and her tiny best friend Mouse 🐘💞", status: "APPROVED", followers: 94700, verified: true, showEarnings: true, approvedDaysAgo: 50, theme: "BLUE", social: { youtube: "BubuAndBuddy" } },
   ];
   const creators: Record<string, { id: string; username: string }> = {};
   for (const c of creatorSpecs) {
@@ -166,7 +184,7 @@ async function main() {
   // pending + rejected + suspended examples
   await db.user.create({
     data: {
-      email: "samir@kuchupuchu.com", name: "Samir Rao", passwordHash: hashPassword("Creator@123"),
+      email: "samir@mykuchupuchu.com", name: "Samir Rao", passwordHash: hashPassword("Creator@123"),
       role: "CREATOR", status: "PENDING", emailVerified: true, country: "India",
       createdAt: daysAgo(2),
       channel: {
@@ -179,7 +197,7 @@ async function main() {
   });
   await db.user.create({
     data: {
-      email: "kim@kuchupuchu.com", name: "Kim Park", passwordHash: hashPassword("Creator@123"),
+      email: "kim@mykuchupuchu.com", name: "Kim Park", passwordHash: hashPassword("Creator@123"),
       role: "CREATOR", status: "REJECTED", rejectionReason:
         "Channel name is too similar to the Kuchu Puchu brand. Please choose a different channel name and re-apply.",
       emailVerified: true, country: "South Korea", createdAt: daysAgo(9),
@@ -188,7 +206,7 @@ async function main() {
   });
   const suspended = await db.user.create({
     data: {
-      email: "tara@kuchupuchu.com", name: "Tara Bakshi", passwordHash: hashPassword("Creator@123"),
+      email: "tara@mykuchupuchu.com", name: "Tara Bakshi", passwordHash: hashPassword("Creator@123"),
       role: "CREATOR", status: "SUSPENDED",
       suspensionReason: "Repeated community-guideline violations: spam comments on other creators' videos.",
       emailVerified: true, country: "India", createdAt: daysAgo(60),
@@ -415,7 +433,7 @@ async function main() {
   await db.withdrawal.create({
     data: {
       userId: meera, amount: 250, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "Meera Iyer", maskedAccount: "meera•••@kuchupuchu.com" }),
+      details: JSON.stringify({ accountName: "Meera Iyer", maskedAccount: "meera•••@mykuchupuchu.com" }),
       status: "PROCESSING", paymentRef: "PAY-3J7MDP24", adminNote: "PayPal payout submitted",
       createdAt: daysAgo(4), updatedAt: daysAgo(1),
     },
@@ -430,7 +448,7 @@ async function main() {
   await db.withdrawal.create({
     data: {
       userId: creators["aaravtoons"].id, amount: 120, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "Aarav Mehta", maskedAccount: "aarav•••@kuchupuchu.com" }),
+      details: JSON.stringify({ accountName: "Aarav Mehta", maskedAccount: "aarav•••@mykuchupuchu.com" }),
       status: "PAID", paymentRef: "PAY-9Z4TQR58", createdAt: daysAgo(20), updatedAt: daysAgo(17),
     },
   });
@@ -444,7 +462,7 @@ async function main() {
   await db.withdrawal.create({
     data: {
       userId: creators["lioncubsongs"].id, amount: 30, method: "PAYPAL",
-      details: JSON.stringify({ accountName: "V. Singh", maskedAccount: "vs•••@kuchupuchu.com" }),
+      details: JSON.stringify({ accountName: "V. Singh", maskedAccount: "vs•••@mykuchupuchu.com" }),
       status: "REJECTED", adminNote: "PayPal account name does not match your verified channel name. Please update payment details and re-request.",
       createdAt: daysAgo(12), updatedAt: daysAgo(11),
     },
@@ -512,10 +530,10 @@ async function main() {
   // ── mail log (simulated outbound emails) ──
   await db.mailLog.createMany({
     data: [
-      { toEmail: "meera@kuchupuchu.com", subject: "Your Kuchu Puchu creator account is approved", body: "Hi Meera, your channel Meera's Playtime has been approved. Start uploading to earn.", createdAt: daysAgo(150) },
-      { toEmail: "meera@kuchupuchu.com", subject: "Withdrawal paid: $600.00", body: "Your withdrawal PAY-8K2NQX91 was paid to your bank account.", createdAt: daysAgo(32) },
-      { toEmail: "kim@kuchupuchu.com", subject: "Your Kuchu Puchu application was not approved", body: "Channel name is too similar to the Kuchu Puchu brand. You may re-apply with a new channel name.", createdAt: daysAgo(8) },
-      { toEmail: "samir@kuchupuchu.com", subject: "We received your application", body: "Thanks for applying to Kuchu Puchu. Our team is reviewing your channel — usually within 2 business days.", createdAt: daysAgo(2) },
+      { toEmail: "meera@mykuchupuchu.com", subject: "Your Kuchu Puchu creator account is approved", body: "Hi Meera, your channel Meera's Playtime has been approved. Start uploading to earn.", createdAt: daysAgo(150) },
+      { toEmail: "meera@mykuchupuchu.com", subject: "Withdrawal paid: $600.00", body: "Your withdrawal PAY-8K2NQX91 was paid to your bank account.", createdAt: daysAgo(32) },
+      { toEmail: "kim@mykuchupuchu.com", subject: "Your Kuchu Puchu application was not approved", body: "Channel name is too similar to the Kuchu Puchu brand. You may re-apply with a new channel name.", createdAt: daysAgo(8) },
+      { toEmail: "samir@mykuchupuchu.com", subject: "We received your application", body: "Thanks for applying to Kuchu Puchu. Our team is reviewing your channel — usually within 2 business days.", createdAt: daysAgo(2) },
     ],
   });
 
@@ -552,6 +570,11 @@ async function main() {
       { email: "creator.news@example.com" }, { email: "samir@example.com" }, { email: "hello@example.com" },
     ],
   });
+
+  // ── languages, 31 categories + subcategories, recommendation config; tag the demo videos ──
+  await seedDiscovery(db);
+  await applyKidsTaxonomy(db);
+  await backfillVideoTags(db);
 
   // ── summary ──
   const walletMeera = await db.ledgerEntry.aggregate({ _sum: { amount: true }, where: { userId: meera } });

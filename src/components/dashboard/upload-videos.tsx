@@ -17,7 +17,9 @@ import {
 import { DashboardPageHeader } from "./shell";
 import { StatusBadge, EmptyState } from "@/components/shared/ui-bits";
 import { navigate } from "@/components/app/router";
-import { get, post, api } from "@/lib/client";
+import { get, post, patch, api, type TagFormValue, type TagSuggestions, type VideoTag, type VideoLanguage } from "@/lib/client";
+import { VideoTagEditor, EMPTY_TAGS, validateTagForm, tagFormFields, tagFormBody, tagFormFromVideo } from "@/components/shared/video-tag-editor";
+import { useCategories } from "@/lib/use-taxonomy";
 import { usd, compact, timeAgo, fmtDuration } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 
@@ -39,18 +41,21 @@ export function UploadPage() {
   const [thumbPreview, setThumbPreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [tagValue, setTagValue] = useState<TagFormValue>(EMPTY_TAGS);
+  const [suggestions, setSuggestions] = useState<TagSuggestions | null>(null);
+  const { data: taxCategories = [] } = useCategories("en");
   const [hashtags, setHashtags] = useState("");
   const [originality, setOriginality] = useState(false);
   const [copyright, setCopyright] = useState(false);
+  const [kidsSafe, setKidsSafe] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<{
     contentId: string; title: string; status: string;
     duplicateOfId: string | null; similarityScore: number | null;
+    tagStatus?: string; tagFlagReason?: string | null;
   } | null>(null);
-  const [categories, setCategories] = useState<{ name: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const thumbInput = useRef<HTMLInputElement>(null);
 
@@ -60,8 +65,25 @@ export function UploadPage() {
         setRules(d.uploadRules);
         setLimits({ dailyRemaining: d.kpis.remainingDailyUploads, weeklyRemaining: d.kpis.remainingWeeklyUploads });
       }).catch(() => {});
-    get<{ categories: { name: string }[] }>("/public/categories").then(d => setCategories(d.categories)).catch(() => {});
+    // channel defaults pre-fill the language + first category (the creator can change everything)
+    get<TagSuggestions & { defaults: { preferredCategories: { id: string }[]; languages: { code: string }[] } }>("/creator/tag-suggestions")
+      .then(d => setTagValue(v => (v.primary || v.tags.some(t => t.categoryId)) ? v : {
+        primary: d.defaults.languages[0]?.code ?? "",
+        additional: d.defaults.languages.slice(1, 3).map(l => l.code),
+        tags: [{ categoryId: d.defaults.preferredCategories[0]?.id ?? "", subcategoryId: "" }],
+      })).catch(() => {});
   }, []);
+
+  // suggestions from the title, description and hashtags (never applied automatically)
+  useEffect(() => {
+    if (!title.trim() && !description.trim() && !hashtags.trim()) { setSuggestions(null); return; }
+    const t = setTimeout(() => {
+      const p = new URLSearchParams({ title, description, hashtags });
+      get<TagSuggestions>(`/creator/tag-suggestions?${p}`).then(setSuggestions).catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, [title, description, hashtags]);
+  const tagProblem = validateTagForm(tagValue, taxCategories);
 
   const validateFile = (f: File): string | null => {
     if (!rules) return null;
@@ -97,7 +119,7 @@ export function UploadPage() {
         : null)
     : null;
 
-  const canSubmit = file && videoMeta && !metaError && title.trim().length >= 3 && category && originality && copyright &&
+  const canSubmit = file && videoMeta && !metaError && title.trim().length >= 3 && !tagProblem && originality && copyright && kidsSafe &&
     (limits?.dailyRemaining ?? 1) > 0 && (limits?.weeklyRemaining ?? 1) > 0;
 
   const submit = async () => {
@@ -107,11 +129,14 @@ export function UploadPage() {
     fd.append("video", file);
     fd.append("title", title.trim());
     fd.append("description", description.trim());
-    fd.append("category", category);
+    const tf = tagFormFields(tagValue);
+    fd.append("languages", tf.languages);
+    fd.append("tags", tf.tags);
     fd.append("hashtags", hashtags);
     fd.append("duration", String(videoMeta?.duration ?? 0));
     fd.append("originalityDeclaration", "true");
     fd.append("copyrightConfirmation", "true");
+    fd.append("kidsSafeDeclaration", "true");
     if (thumbFile) fd.append("thumbnail", thumbFile);
 
     // simulated progress + real fetch
@@ -134,7 +159,7 @@ export function UploadPage() {
 
   const reset = () => {
     setFile(null); setFileUrl(null); setVideoMeta(null); setThumbFile(null); setThumbPreview(null);
-    setTitle(""); setDescription(""); setCategory(""); setHashtags("");
+    setTitle(""); setDescription(""); setTagValue(EMPTY_TAGS); setSuggestions(null); setHashtags("");
     setOriginality(false); setCopyright(false); setProgress(0); setResult(null);
     if (fileInput.current) fileInput.current.value = "";
     if (thumbInput.current) thumbInput.current.value = "";
@@ -186,52 +211,11 @@ export function UploadPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-          <div className="bento p-5 md:p-6">
-            {/* dropzone */}
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) pickFile(f); }}
-              className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${dragOver ? "border-brand-red bg-brand-red-soft/40" : "border-border bg-secondary/40"} ${uploading ? "pointer-events-none opacity-60" : ""}`}
-            >
-              {fileUrl ? (
-                <div className="w-full">
-                  <div className="mx-auto w-fit">
-                    <video src={fileUrl} className="max-h-64 rounded-xl bg-ink" controls muted playsInline />
-                  </div>
-                  <p className="mt-3 truncate text-sm font-semibold">{file?.name}</p>
-                  {videoMeta && !metaError && (
-                    <p className="mt-1 text-xs text-emerald-600">
-                      ✓ {fmtDuration(videoMeta.duration)} · {videoMeta.width}×{videoMeta.height}
-                      {file ? ` · ${(file.size / 1024 / 1024).toFixed(1)}MB` : ""}
-                    </p>
-                  )}
-                  {metaError && <p className="mt-1 text-xs font-semibold text-rose-500">✗ {metaError}</p>}
-                  <button className="mt-3 text-xs font-bold text-brand-red hover:underline" onClick={() => { setFile(null); setFileUrl(null); setVideoMeta(null); }}>
-                    Choose a different file
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <span className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-                    <Icons.UploadCloud size={28} className="text-brand-red" />
-                  </span>
-                  <p className="mt-4 font-display text-base font-bold">Drag & drop your video</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {rules ? `${rules.formats.toUpperCase()} · ${rules.minDurationSec}–${rules.maxDurationSec} seconds · up to ${rules.maxFileSizeMB}MB` : "MP4 or MOV"}
-                  </p>
-                  <input ref={fileInput} type="file" accept="video/mp4,video/quicktime" className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
-                  <Button variant="outline" className="mt-4 rounded-full" onClick={() => fileInput.current?.click()}>
-                    Browse file
-                  </Button>
-                </>
-              )}
-            </div>
-
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+          <div className="bento min-w-0 p-5 md:p-6">
             {/* form */}
-            <div className="mt-5 grid gap-4">
+            <div className="grid gap-4">
+              <h3 className="font-display text-base font-bold">A. Basic information</h3>
               <div className="grid gap-1.5">
                 <Label htmlFor="up-title">Video title <span className="text-brand-red">*</span></Label>
                 <Input id="up-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={100}
@@ -242,21 +226,20 @@ export function UploadPage() {
                 <Textarea id="up-desc" value={description} onChange={e => setDescription(e.target.value)} rows={3}
                   placeholder="What's in the video? Add context for reviewers and viewers…" className="rounded-xl" />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label>Category <span className="text-brand-red">*</span></Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {categories.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="up-tags">Hashtags</Label>
-                  <Input id="up-tags" value={hashtags} onChange={e => setHashtags(e.target.value)}
-                    placeholder="#morningroutine #slowliving" className="h-11 rounded-xl" />
-                </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="up-tags">Hashtags</Label>
+                <Input id="up-tags" value={hashtags} onChange={e => setHashtags(e.target.value)}
+                  placeholder="#nurseryrhymes #kidssongs" className="h-11 rounded-xl" />
+              </div>
+
+              {/* B. Language + C. Categories */}
+              <div className="rounded-2xl border bg-surface/60 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">B. Language &amp; C. Categories</p>
+                <VideoTagEditor value={tagValue} onChange={setTagValue} suggestions={suggestions} disabled={uploading} />
+                {tagProblem && (tagValue.primary || tagValue.tags.some(t => t.categoryId)) && (
+                  <p className="mt-3 text-xs font-semibold text-brand-red">{tagProblem}</p>
+                )}
+                <p className="mt-3 text-[11px] text-muted-foreground">One video = one content ID, one upload reward and one payment per qualified view — however many categories it appears in.</p>
               </div>
 
               {/* custom thumbnail */}
@@ -290,6 +273,12 @@ export function UploadPage() {
               {/* declarations */}
               <div className="space-y-2.5 rounded-2xl bg-secondary/60 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Required declarations</p>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Checkbox checked={kidsSafe} onCheckedChange={v => setKidsSafe(!!v)} className="mt-0.5" />
+                  <span className="text-[13px] leading-relaxed text-muted-foreground">
+                    <strong className="text-ink">Made for kids aged 3–8:</strong> This video is made for young children — no violence, scary or adult content, bad language, ads, product promotion or links to outside sites.
+                  </span>
+                </label>
                 <label className="flex cursor-pointer items-start gap-3">
                   <Checkbox checked={originality} onCheckedChange={v => setOriginality(!!v)} className="mt-0.5" />
                   <span className="text-[13px] leading-relaxed text-muted-foreground">
@@ -333,8 +322,52 @@ export function UploadPage() {
             </div>
           </div>
 
-          {/* side info */}
-          <div className="space-y-4">
+          {/* video (right on desktop, first on phones) + side info */}
+          <div className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-24 lg:self-start">
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) pickFile(f); }}
+              className={`bento p-4 transition ${dragOver ? "ring-2 ring-brand-red" : ""} ${uploading ? "pointer-events-none opacity-60" : ""}`}
+            >
+              {fileUrl ? (
+                <div>
+                  <div className="mx-auto aspect-[9/16] w-full max-w-[300px] overflow-hidden rounded-2xl bg-black">
+                    <video src={fileUrl} className="h-full w-full object-contain" controls playsInline preload="metadata" />
+                  </div>
+                  <p className="mt-3 truncate text-center text-sm font-semibold" title={file?.name}>{file?.name}</p>
+                  {videoMeta && !metaError && (
+                    <p className="mt-1 text-center text-xs text-emerald-600">
+                      ✓ {fmtDuration(videoMeta.duration)} · {videoMeta.width}×{videoMeta.height}
+                      {file ? ` · ${(file.size / 1024 / 1024).toFixed(1)}MB` : ""}
+                    </p>
+                  )}
+                  {metaError && <p className="mt-1 text-center text-xs font-semibold text-rose-500">✗ {metaError}</p>}
+                  <p className="mt-1 text-center text-[11px] text-muted-foreground">Press ▶ to check the picture and sound.</p>
+                  <div className="mt-2 text-center">
+                    <button className="text-xs font-bold text-brand-red hover:underline" onClick={() => { setFile(null); setFileUrl(null); setVideoMeta(null); }}>
+                      Choose a different file
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={`mx-auto flex aspect-[9/16] w-full max-w-[300px] flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center ${dragOver ? "border-brand-red bg-brand-red-soft/40" : "border-border bg-secondary/40"}`}>
+                  <span className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+                    <Icons.UploadCloud size={28} className="text-brand-red" />
+                  </span>
+                  <p className="mt-4 font-display text-base font-bold">Drag & drop your video</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {rules ? `${rules.formats.toUpperCase()} · ${rules.minDurationSec}–${rules.maxDurationSec} seconds · up to ${rules.maxFileSizeMB}MB` : "MP4 or MOV"}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Vertical 9:16 works best</p>
+                  <input ref={fileInput} type="file" accept="video/mp4,video/quicktime" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
+                  <Button variant="outline" className="mt-4 rounded-full" onClick={() => fileInput.current?.click()}>
+                    Browse file
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="bento p-5">
               <p className="flex items-center gap-1.5 text-sm font-bold"><Icons.ShieldCheck size={16} className="text-brand-blue" /> What happens after upload</p>
               <ol className="mt-3 space-y-2.5 text-[13px] text-muted-foreground">
@@ -352,12 +385,12 @@ export function UploadPage() {
                 ))}
               </ol>
             </div>
-            <div className="bento bg-ink p-5 text-white">
+            <div className="bento !bg-ink p-5 text-white">
               <p className="flex items-center gap-1.5 text-sm font-bold"><Icons.BadgeDollarSign size={16} className="text-brand-yellow" /> Earning potential</p>
               <p className="mt-2 text-xs leading-relaxed text-white/65">
                 Once approved, this video earns{" "}
                 <strong className="text-brand-yellow">$1.00 per 1,000 qualified views</strong> for 4 months,
-                plus a <strong className="text-brand-yellow">$0.50</strong> one-time upload reward.
+                plus a <strong className="text-brand-yellow">₹30</strong> one-time upload reward, once your channel has unlocked earning (2,500 views within 30 days — a one-time target).
               </p>
             </div>
           </div>
@@ -377,6 +410,7 @@ type MyVideo = {
   views: number; qualifiedViews: number; likes: number; commentsCount: number; shares: number;
   monetizationEnabled: boolean; earningExpiresAt: string | null; publishedAt: string | null;
   createdAt: string;
+  languages?: VideoLanguage[]; tags?: VideoTag[]; tagStatus?: string; tagFlagReason?: string | null;
 };
 
 export function MyVideosPage() {
@@ -384,8 +418,25 @@ export function MyVideosPage() {
   const [appealFor, setAppealFor] = useState<MyVideo | null>(null);
   const [appealReason, setAppealReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editFor, setEditFor] = useState<MyVideo | null>(null);
+  const [editValue, setEditValue] = useState<TagFormValue>(EMPTY_TAGS);
+  const { data: taxCategories = [] } = useCategories("en");
 
   const load = () => get<{ videos: MyVideo[] }>("/creator/videos").then(d => setVideos(d.videos)).catch(() => {});
+  const openEdit = (v: MyVideo) => { setEditFor(v); setEditValue(tagFormFromVideo(v.languages, v.tags)); };
+  const saveTags = async () => {
+    if (!editFor) return;
+    const problem = validateTagForm(editValue, taxCategories, editFor.tags);
+    if (problem) { toast({ title: "Check the tags", description: problem, variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const res = await patch<{ message: string }>(`/creator/videos/${editFor.contentId}/tags`, tagFormBody(editValue));
+      toast({ title: "Saved", description: res.message });
+      setEditFor(null); load();
+    } catch (e) {
+      toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
   useEffect(() => { load(); }, []);
 
   const submitAppeal = async () => {
@@ -428,7 +479,21 @@ export function MyVideosPage() {
                 </div>
                 <div className="p-4">
                   <p className="line-clamp-1 font-display text-sm font-bold">{v.title}</p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{v.contentId} · {v.category} · {timeAgo(v.createdAt)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{v.contentId} · {timeAgo(v.createdAt)}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {(v.languages ?? []).map(l => (
+                      <span key={l.code} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${l.isPrimary ? "bg-brand-yellow/90 text-ink" : "bg-secondary"}`}>{l.nameNative}</span>
+                    ))}
+                    {(v.tags ?? []).map(t => (
+                      <span key={t.subcategory.id} className="rounded-md bg-brand-blue-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand-blue">{t.category.emoji} {t.subcategory.name}</span>
+                    ))}
+                  </div>
+                  {(v.tagStatus === "NEEDS_REVIEW" || v.tagStatus === "FLAGGED") && (
+                    <div className={`mt-2 rounded-lg p-2 text-[11px] leading-relaxed ${v.tagStatus === "FLAGGED" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
+                      <Icons.Tags size={12} className="mr-1 inline" />
+                      {v.tagStatus === "FLAGGED" ? "Please fix the language/categories: " : "Tags in review: "}{v.tagFlagReason ?? "our team will double-check them."}
+                    </div>
+                  )}
 
                   {(v.status === "REJECTED" || v.status === "REMOVED") && v.rejectionReason && (
                     <div className="mt-2.5 rounded-lg bg-rose-50 p-2.5 text-[11px] leading-relaxed text-rose-700">
@@ -471,9 +536,14 @@ export function MyVideosPage() {
                         {(expiresIn ?? 0) > 0 ? `Earns for ${expiresIn}d more` : "Earning window closed"}
                       </span>
                     )}
-                    <button onClick={() => navigate(`/feed?v=${v.id}`)} className="font-bold text-brand-red hover:underline">
-                      {v.status === "APPROVED" ? "View in feed →" : "Preview →"}
-                    </button>
+                    <span className="flex items-center gap-3">
+                      {v.status !== "REMOVED" && (
+                        <button onClick={() => openEdit(v)} className="font-bold text-brand-blue hover:underline">Edit tags</button>
+                      )}
+                      <button onClick={() => navigate(`/feed?v=${v.id}`)} className="font-bold text-brand-red hover:underline">
+                        {v.status === "APPROVED" ? "View →" : "Preview →"}
+                      </button>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -481,6 +551,23 @@ export function MyVideosPage() {
           })}
         </div>
       )}
+
+      {/* edit languages & categories */}
+      <Dialog open={!!editFor} onOpenChange={v => !v && setEditFor(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Languages &amp; categories</DialogTitle>
+            <DialogDescription>
+              {editFor?.contentId} keeps the same content ID, views, earnings and upload reward — only the tags change.
+            </DialogDescription>
+          </DialogHeader>
+          <VideoTagEditor value={editValue} onChange={setEditValue} keep={editFor?.tags ?? []} disabled={busy} />
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setEditFor(null)}>Cancel</Button>
+            <Button className="grad-btn rounded-full text-white" disabled={busy} onClick={saveTags}>{busy ? "Saving…" : "Save tags"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* appeal dialog */}
       <Dialog open={!!appealFor} onOpenChange={v => !v && setAppealFor(null)}>

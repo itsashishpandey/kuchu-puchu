@@ -25,7 +25,7 @@ async function action(path: string, body: unknown): Promise<{ message?: string }
 // ── Monetization Settings ──────────────────────────────────────────────────
 
 type Monetization = {
-  id: string; ratePer1000Views: number; rewardPerUpload: number;
+  id: string; ratePer1000Views: number; rewardPerUpload: number; rewardPerUploadInr: number; inrPerUsd: number; minMonthlyChannelViews: number;
   monetizationDurationMonths: number; minWithdrawalAmount: number;
   holdingPeriodDays: number; monetizationPaused: boolean;
   effectiveDate: string;
@@ -35,7 +35,7 @@ export function AdminMonetizationPage() {
   const [current, setCurrent] = useState<Monetization | null>(null);
   const [history, setHistory] = useState<Monetization[]>([]);
   const [form, setForm] = useState({
-    ratePer1000Views: "", rewardPerUpload: "", monetizationDurationMonths: "",
+    ratePer1000Views: "", rewardPerUploadInr: "", inrPerUsd: "", minMonthlyChannelViews: "", monetizationDurationMonths: "",
     minWithdrawalAmount: "", holdingPeriodDays: "", monetizationPaused: false, effectiveDate: "",
   });
   const [busy, setBusy] = useState(false);
@@ -45,7 +45,9 @@ export function AdminMonetizationPage() {
     setHistory(d.history);
     setForm({
       ratePer1000Views: String(d.current.ratePer1000Views),
-      rewardPerUpload: String(d.current.rewardPerUpload),
+      rewardPerUploadInr: String(d.current.rewardPerUploadInr),
+      inrPerUsd: String(d.current.inrPerUsd),
+      minMonthlyChannelViews: String(d.current.minMonthlyChannelViews),
       monetizationDurationMonths: String(d.current.monetizationDurationMonths),
       minWithdrawalAmount: String(d.current.minWithdrawalAmount),
       holdingPeriodDays: String(d.current.holdingPeriodDays),
@@ -60,7 +62,9 @@ export function AdminMonetizationPage() {
     try {
       const res = await action("/admin/monetization", {
         ratePer1000Views: parseFloat(form.ratePer1000Views),
-        rewardPerUpload: parseFloat(form.rewardPerUpload),
+        rewardPerUploadInr: parseFloat(form.rewardPerUploadInr),
+        inrPerUsd: parseFloat(form.inrPerUsd),
+        minMonthlyChannelViews: parseInt(form.minMonthlyChannelViews),
         monetizationDurationMonths: parseInt(form.monetizationDurationMonths),
         minWithdrawalAmount: parseFloat(form.minWithdrawalAmount),
         holdingPeriodDays: parseInt(form.holdingPeriodDays),
@@ -76,7 +80,9 @@ export function AdminMonetizationPage() {
 
   const fields = [
     { k: "ratePer1000Views" as const, l: "Revenue per 1,000 qualified views (USD)", step: "0.01", hint: "Credited proportionally per view event" },
-    { k: "rewardPerUpload" as const, l: "Reward per approved upload (USD)", step: "0.01", hint: "One-time credit per video after approval" },
+    { k: "rewardPerUploadInr" as const, l: "Reward per approved upload (₹ INR)", step: "1", hint: "One-time credit per video after approval — paid in USD at the rate below" },
+    { k: "inrPerUsd" as const, l: "Exchange rate (₹ per $1)", step: "0.01", hint: "Used to convert the INR reward into the USD amount credited" },
+    { k: "minMonthlyChannelViews" as const, l: "Views to unlock earning (within 30 days)", step: "100", hint: "One-time target: a channel starts earning the first time it reaches this many genuine views in 30 days, and stays unlocked" },
     { k: "monetizationDurationMonths" as const, l: "Monetization duration (months)", step: "1", hint: "How long each video earns from views" },
     { k: "minWithdrawalAmount" as const, l: "Minimum withdrawal amount (USD)", step: "1", hint: "Creators must have at least this available" },
     { k: "holdingPeriodDays" as const, l: "Payment holding period (days)", step: "1", hint: "Fraud-review window before earnings clear" },
@@ -98,7 +104,7 @@ export function AdminMonetizationPage() {
                   <Label htmlFor={`m-${f.k}`}>{f.l}</Label>
                   {current && (
                     <span className="text-xs text-muted-foreground">
-                      current: <strong className="text-ink">{f.k.includes("Views") || f.k.includes("Amount") || f.k.includes("Upload") ? usd(Number(current[f.k])) : current[f.k]}</strong>
+                      current: <strong className="text-ink">{f.k === "rewardPerUploadInr" ? `₹${current.rewardPerUploadInr} (≈ ${usd(current.rewardPerUpload)})` : f.k === "inrPerUsd" ? `₹${current.inrPerUsd}` : f.k === "minMonthlyChannelViews" ? current.minMonthlyChannelViews.toLocaleString() : f.k.includes("Views") || f.k.includes("Amount") ? usd(Number(current[f.k])) : current[f.k]}</strong>
                     </span>
                   )}
                 </div>
@@ -107,6 +113,11 @@ export function AdminMonetizationPage() {
                 <p className="text-[11px] text-muted-foreground">{f.hint}</p>
               </div>
             ))}
+            {parseFloat(form.rewardPerUploadInr) >= 0 && parseFloat(form.inrPerUsd) > 0 && (
+              <p className="rounded-xl bg-brand-yellow-soft px-4 py-2.5 text-xs">
+                Creators will be credited <strong>{usd(Math.round((parseFloat(form.rewardPerUploadInr) / parseFloat(form.inrPerUsd)) * 100) / 100)}</strong> per approved upload (₹{form.rewardPerUploadInr} at ₹{form.inrPerUsd}/$1).
+              </p>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="m-eff">Effective date (optional — default now)</Label>
               <Input id="m-eff" type="date" value={form.effectiveDate}
@@ -141,7 +152,8 @@ export function AdminMonetizationPage() {
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <span>Rate/1K views: <strong className="text-ink">{usd(h.ratePer1000Views)}</strong></span>
-                  <span>Upload reward: <strong className="text-ink">{usd(h.rewardPerUpload)}</strong></span>
+                  <span>Upload reward: <strong className="text-ink">₹{h.rewardPerUploadInr} ({usd(h.rewardPerUpload)})</strong></span>
+                  <span>Views to earn: <strong className="text-ink">{h.minMonthlyChannelViews.toLocaleString()}/30d to unlock</strong></span>
                   <span>Duration: <strong className="text-ink">{h.monetizationDurationMonths}mo</strong></span>
                   <span>Hold: <strong className="text-ink">{h.holdingPeriodDays}d</strong></span>
                   <span>Min payout: <strong className="text-ink">{usd(h.minWithdrawalAmount)}</strong></span>
@@ -248,7 +260,7 @@ export function AdminUploadRulesPage() {
               </div>
             ))}
           </div>
-          <div className="bento bg-ink p-6 text-white">
+          <div className="bento !bg-ink p-6 text-white">
             <p className="flex items-center gap-1.5 text-sm font-bold"><Icons.Fingerprint size={16} className="text-brand-yellow" /> Always-on protections</p>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-white/65">
               <li>• SHA-256 exact-match detection cannot be disabled</li>
@@ -725,6 +737,7 @@ export function AdminPlatformPage() {
     settings: {
       branding: { name: string; tagline: string; supportEmail: string; domain: string } | null;
       payouts: { methods: { id: string; name: string; regions: string }[]; processingDays: string } | null;
+      viewCounting?: { appOnly: boolean; repeatWindowHours: number };
     };
     auditLog: { id: string; actorEmail: string; action: string; targetType: string; targetId: string | null; details: string | null; createdAt: string }[];
     mailLog: { id: string; toEmail: string; subject: string; createdAt: string }[];
@@ -733,10 +746,48 @@ export function AdminPlatformPage() {
   } | null>(null);
   const [branding, setBranding] = useState({ name: "", tagline: "", supportEmail: "", domain: "" });
   const [busy, setBusy] = useState(false);
+  const [len, setLen] = useState<{ min: string; max: string } | null>(null);
+  const [vc, setVc] = useState<{ appOnly: boolean; hours: string } | null>(null);
+  const [vcBusy, setVcBusy] = useState(false);
+  const [lenBusy, setLenBusy] = useState(false);
+  useEffect(() => {
+    get<{ rules: { minDurationSec: number; maxDurationSec: number } }>("/admin/upload-rules")
+      .then(d => setLen({ min: String(d.rules.minDurationSec), max: String(d.rules.maxDurationSec) })).catch(() => {});
+  }, []);
+  const lenMin = Number(len?.min), lenMax = Number(len?.max);
+  const lenProblem = !len ? null
+    : !Number.isInteger(lenMin) || lenMin < 5 || lenMin > 600 ? "Minimum must be a whole number of seconds (5–600)."
+    : !Number.isInteger(lenMax) || lenMax < 10 || lenMax > 3600 ? "Maximum must be a whole number of seconds (10–3600)."
+    : lenMin >= lenMax ? "Minimum must be shorter than the maximum."
+    : null;
+  const vcHours = Number(vc?.hours);
+  const vcProblem = vc && (!Number.isInteger(vcHours) || vcHours < 1 || vcHours > 72) ? "Use a whole number of hours from 1 to 72." : null;
+  const saveViewCounting = async () => {
+    if (!vc || vcProblem) return;
+    setVcBusy(true);
+    try {
+      const res = await action("/admin/platform", { viewCounting: { appOnly: vc.appOnly, repeatWindowHours: vcHours } });
+      toast({ title: "View counting saved", description: res.message });
+    } catch (e) {
+      toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" });
+    } finally { setVcBusy(false); }
+  };
+  const saveLength = async () => {
+    if (!len || lenProblem) return;
+    setLenBusy(true);
+    try {
+      await action("/admin/upload-rules", { minDurationSec: lenMin, maxDurationSec: lenMax });
+      toast({ title: "Video length saved", description: `Creators can now upload videos of ${lenMin}–${lenMax} seconds.` });
+    } catch (e) {
+      toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" });
+    } finally { setLenBusy(false); }
+  };
 
   const load = () => get<typeof data>("/admin/platform").then(d => {
     setData(d);
-    if (d.settings.branding) setBranding(d.settings.branding);
+    if (d?.settings.branding) setBranding(d.settings.branding);
+    const v = d?.settings.viewCounting;
+    setVc({ appOnly: v?.appOnly ?? true, hours: String(v?.repeatWindowHours ?? 4) });
   }).catch(() => {});
   useEffect(() => { load(); }, []);
 
@@ -791,6 +842,65 @@ export function AdminPlatformPage() {
         </div>
 
         <div className="space-y-4">
+          <div className="bento space-y-4 p-6">
+            <div>
+              <h2 className="font-display text-base font-bold">Video length</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Creators can only upload videos within this range. The length is measured on the server, so shorter or longer videos are always refused.
+              </p>
+            </div>
+            {!len ? <div className="shimmer h-24 rounded-xl" /> : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="len-min">Minimum (seconds)</Label>
+                    <Input id="len-min" type="number" min={5} max={600} step={1} value={len.min} onChange={e => setLen(l => l && ({ ...l, min: e.target.value }))} className="h-11 rounded-xl" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="len-max">Maximum (seconds)</Label>
+                    <Input id="len-max" type="number" min={10} max={3600} step={1} value={len.max} onChange={e => setLen(l => l && ({ ...l, max: e.target.value }))} className="h-11 rounded-xl" />
+                  </div>
+                </div>
+                {lenProblem
+                  ? <p className="text-xs font-semibold text-rose-600">{lenProblem}</p>
+                  : <p className="text-xs text-muted-foreground">Allowed: {lenMin}–{lenMax} seconds. Default is 20–90 seconds.</p>}
+                <Button className="grad-btn h-11 w-full rounded-xl text-white" disabled={lenBusy || !!lenProblem} onClick={saveLength}>
+                  {lenBusy ? "Saving…" : "Save video length"}
+                </Button>
+              </>
+            )}
+          </div>
+          <div className="bento space-y-4 p-6">
+            <div>
+              <h2 className="font-display text-base font-bold">View counting</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Decides which plays count as views: the public view count, qualified views, creator earnings and the 2,500-view unlock target. Views already counted are not changed.
+              </p>
+            </div>
+            {!vc ? <div className="shimmer h-24 rounded-xl" /> : (
+              <>
+                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border p-3">
+                  <span>
+                    <span className="block text-sm font-semibold">Count only views from the mobile app</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {vc.appOnly ? "Website plays don't count as views." : "Views on the website count too."}
+                    </span>
+                  </span>
+                  <Switch checked={vc.appOnly} onCheckedChange={v => setVc(x => x && ({ ...x, appOnly: v }))} aria-label="Count only views from the mobile app" />
+                </label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="vc-hours">Repeat views: count the same viewer once every … hours</Label>
+                  <Input id="vc-hours" type="number" min={1} max={72} step={1} value={vc.hours} onChange={e => setVc(x => x && ({ ...x, hours: e.target.value }))} className="h-11 rounded-xl" />
+                  {vcProblem
+                    ? <p className="text-xs font-semibold text-rose-600">{vcProblem}</p>
+                    : <p className="text-xs text-muted-foreground">A viewer who replays a video counts once, then again only after {vcHours} hour{vcHours === 1 ? "" : "s"}. Default is 4.</p>}
+                </div>
+                <Button className="grad-btn h-11 w-full rounded-xl text-white" disabled={vcBusy || !!vcProblem} onClick={saveViewCounting}>
+                  {vcBusy ? "Saving…" : "Save view counting"}
+                </Button>
+              </>
+            )}
+          </div>
           <div className="bento p-5">
             <h2 className="font-display text-sm font-bold">Audit log (latest 30)</h2>
             <div className="scroll-slim mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
@@ -804,8 +914,8 @@ export function AdminPlatformPage() {
           </div>
 
           <div className="bento p-5">
-            <h2 className="font-display text-sm font-bold">Outbound mail log (demo email)</h2>
-            <p className="text-xs text-muted-foreground">Demo environment: emails are recorded, not sent.</p>
+            <h2 className="font-display text-sm font-bold">Outbound mail log</h2>
+            <p className="text-xs text-muted-foreground">Every email the platform sends (verification codes, notifications) is recorded here.</p>
             <div className="scroll-slim mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
               {data.mailLog.map(m => (
                 <div key={m.id} className="rounded-lg bg-secondary/60 px-3 py-2">

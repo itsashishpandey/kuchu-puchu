@@ -80,7 +80,7 @@ export function DashboardPreview() {
         />
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_380px]">
           <div className="reveal">
-            <BrowserMockup url="kuchupuchu.com/dashboard">
+            <BrowserMockup url="mykuchupuchu.com/dashboard">
               <div className="bg-surface p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -132,7 +132,7 @@ export function DashboardPreview() {
                 <div className="flex-1 space-y-2 overflow-hidden p-3">
                   {[
                     { t: "Qualified views · v14", a: "+$8.24", d: "2h ago" },
-                    { t: "Upload reward · v02", a: "+$0.50", d: "3h ago" },
+                    { t: "Upload reward · v02", a: "+₹30", d: "3h ago" },
                     { t: "Qualified views · v12", a: "+$5.71", d: "5h ago" },
                     { t: "Payout PAY-3J7…", a: "-$250.00", d: "1d ago" },
                     { t: "Qualified views · v14", a: "+$11.02", d: "1d ago" },
