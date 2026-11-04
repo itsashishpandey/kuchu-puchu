@@ -136,15 +136,18 @@ export const POLICIES: Record<string, Policy> = {
   privacy: {
     title: "Privacy Policy",
     intro: "Kuchu Puchu is made for children aged 3–8. We collect as little as possible, never show ads and never sell data.",
-    updated: "Last updated: November 2, 2026",
+    updated: "Last updated: November 4, 2026",
     sections: [
       {
         h: "1. Children (ages 3–8)",
         p: [
           "Children watch without an account. We do not knowingly collect personal information from children — no name, email, photo, voice, location or contact details — and children cannot post comments, send messages or upload videos.",
-          "The Kuchu Puchu app has no accounts at all: no login, no sign-up and no personal information. Chosen languages, liked videos and watch history are kept on the device.",
-          "To run the service we keep a random device key (not linked to a name) to count views, prevent abuse, remember chosen languages and pick the next videos. This is used only for operating Kuchu Puchu, never for advertising.",
-          "If you believe a child has given us personal information, email support@mykuchupuchu.com and we will delete it.",
+          "The Kuchu Puchu app has no accounts at all: no login, no sign-up and no personal information. Chosen languages, watch history, the list of liked videos and hidden videos and channels are saved on the device. The chosen languages are sent with each request for videos so we can show videos in those languages; we don't store them.",
+          "The app sends us which videos are watched and for how long, likes, shares, reports and search words. A like adds one to the video's like count, and we keep a record of it so the same device can't like a video twice.",
+          "To tell devices apart without knowing who anyone is, our server turns the device's internet address and the app or browser name into a scrambled code (a hash). We store only this code — never the internet address — and it is not linked to a name or account. The code changes when the device changes network (for example from home Wi-Fi to mobile data), and devices on the same connection with the same app version or browser can share one code. We also keep a second code made from the internet address alone, so one home connection can only add a few views to a video.",
+          "We use these codes only to count views once, stop fake views and abuse, keep track of likes and reports, and arrange the video feed — never for advertising or tracking.",
+          "Search words are stored with the time and the number of videos found, so we can see what children look for and which searches find nothing. They are stored without a device code, an account or an internet address.",
+          "If you believe a child has given us personal information — for example by typing it into search — email support@mykuchupuchu.com and we will delete it.",
         ],
       },
       {
@@ -153,32 +156,38 @@ export const POLICIES: Record<string, Policy> = {
       },
       {
         h: "3. Parent accounts (website only)",
-        p: ["On the website, a parent or guardian aged 18 or over may create a free account to save videos, follow creators and set languages and topics. We collect the parent's name, email, password (stored hashed) and optional country. Followers' names and countries are visible to the creators they follow unless the parent chooses private follows."],
+        p: ["On the website, a parent or guardian aged 18 or over may create a free account to save videos, follow creators and set languages and topics. We collect the parent's name, email, password (stored hashed) and optional country. When a parent is signed in, the videos they watch, like and save and the creators they follow are linked to their account, to show their lists and personalise their feed; searches are never linked to an account. Followers' names and countries are visible to the creators they follow unless the parent chooses private follows."],
       },
       {
         h: "4. Creators (adults only, website only)",
-        p: ["Creators must be 18 or over. We collect what's needed to verify and pay them: legal name, email, phone, city and PIN code, a government ID document (stored privately and only viewed by our verification team), channel details, uploaded videos, and payout details (stored masked)."],
+        p: ["Creators must be 18 or over. We collect what's needed to verify and pay them: legal name, email, phone, country, city and PIN code, a government ID document (stored privately and only viewed by our verification team), channel details, uploaded videos, and payout details (stored masked)."],
       },
       {
         h: "5. How we use data",
         p: ["Operating the feed and channels, reviewing every video for child safety, calculating qualified views and creator earnings, preventing fraud, and answering support requests. We never sell personal data."],
         list: [
-          "View events are stored with hashed viewer keys — not raw identities.",
+          "Views, likes and reports are stored with the scrambled device codes described above — never with an internet address.",
           "Payment details are stored masked; full account numbers are never displayed again after entry.",
           "Fraud-detection logic and internal signals are never exposed publicly.",
         ],
       },
       {
         h: "6. Sharing",
-        p: ["Only with payout providers (to pay creators), authorities where legally required, and infrastructure providers (hosting, email) under data-processing agreements."],
+        p: ["Only with payout providers (to pay creators), authorities where legally required, and infrastructure providers (hosting, network and email) under data-processing agreements."],
       },
       {
         h: "7. Parents' rights and your controls",
-        p: ["Parents can review, export or delete their account and data at any time from Account Settings, or by emailing support@mykuchupuchu.com. Deleting an account removes personal data; anonymised aggregate statistics may be retained."],
+        p: [
+          "Parents can see and change their account details, and delete their account and data, at any time from Account Settings. For a copy of your data, email support@mykuchupuchu.com. Deleting an account removes personal data; anonymous totals such as view and like counts stay.",
+          "In the app, grown-ups can clear the watch history and liked videos and show hidden videos again from the Grown-ups screen, and deleting the app removes everything saved on the device. Likes already counted stay in the video's like count.",
+        ],
       },
       {
         h: "8. Retention",
-        p: ["Creator earnings and transaction records are kept 7 years for accounting. View event details are kept 12 months, then aggregated. Creator ID documents are kept only while the channel is active plus the period the law requires. Session data expires automatically."],
+        p: [
+          "Creator earnings and transaction records are kept 7 years for accounting. Creator ID documents are kept while the creator account exists and deleted when it is deleted. Website sign-ins expire after 14 days.",
+          "Recommendation signals (which videos were watched, liked or shared) are deleted after 180 days. View records used to count views and pay creators, like records, reports and search words have no fixed deletion date: we keep them while we need them to count views, check creator earnings, improve search and keep Kuchu Puchu safe. Records from the app never include a name, an account or an internet address.",
+        ],
       },
       {
         h: "9. Contact",
