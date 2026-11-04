@@ -13,10 +13,5 @@ export function rateLimit(key: string, limit = 10, windowMs = 60_000): boolean {
   return true;
 }
 
-export function clientIp(req: Request): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+// the real visitor address (never the client-written first X-Forwarded-For entry)
+export { clientIp } from "@/lib/client-ip";

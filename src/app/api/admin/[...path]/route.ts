@@ -325,8 +325,12 @@ export async function GET(req: Request, ctx: Ctx) {
 
   // ── MONETIZATION SETTINGS + HISTORY ───────────────────────────────────
   if (seg === "monetization") {
-    const history = await db.monetizationSetting.findMany({ orderBy: { effectiveDate: "desc" } });
-    return Response.json({ current: history[0] ?? (await getMonetizationSettings()), history });
+    // "current" is the version in effect now; a version with a future date is only scheduled
+    const [inEffect, history] = await Promise.all([
+      getMonetizationSettings(),
+      db.monetizationSetting.findMany({ orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }] }),
+    ]);
+    return Response.json({ current: inEffect, inEffectId: inEffect.id, history });
   }
 
   // ── UPLOAD RULES ──────────────────────────────────────────────────────
@@ -765,13 +769,17 @@ export async function POST(req: Request, ctx: Ctx) {
       if (!transitions[actionKey].includes(w.status)) {
         return jsonError(`Cannot ${action} a withdrawal in "${w.status}" status`);
       }
+      // move the status only if it is still what we checked: a double click or two admins can't apply it twice
+      const move = async (data: Record<string, unknown>) =>
+        (await db.withdrawal.updateMany({ where: { id: w.id, status: { in: transitions[actionKey] } }, data })).count === 1;
+      const changedMeanwhile = () => jsonError("This withdrawal was just updated by someone else. Reload and check it.", 409);
 
       if (action === "review") {
-        await db.withdrawal.update({ where: { id: w.id }, data: { status: "UNDER_REVIEW" } });
+        if (!(await move({ status: "UNDER_REVIEW" }))) return changedMeanwhile();
         return Response.json({ ok: true, message: "Moved to review" });
       }
       if (action === "approve") {
-        await db.withdrawal.update({ where: { id: w.id }, data: { status: "APPROVED", adminNote: note || w.adminNote } });
+        if (!(await move({ status: "APPROVED", adminNote: note || w.adminNote }))) return changedMeanwhile();
         await notify({
           userId: w.userId, type: "WITHDRAWAL",
           title: "Withdrawal approved",
@@ -782,12 +790,12 @@ export async function POST(req: Request, ctx: Ctx) {
         return Response.json({ ok: true, message: "Withdrawal approved" });
       }
       if (action === "processing") {
-        await db.withdrawal.update({ where: { id: w.id }, data: { status: "PROCESSING" } });
+        if (!(await move({ status: "PROCESSING" }))) return changedMeanwhile();
         return Response.json({ ok: true, message: "Marked as processing" });
       }
       if (action === "paid") {
         const paymentRef = ref || payoutRef();
-        await db.withdrawal.update({ where: { id: w.id }, data: { status: "PAID", paymentRef, adminNote: note || w.adminNote, updatedAt: new Date() } });
+        if (!(await move({ status: "PAID", paymentRef, adminNote: note || w.adminNote, updatedAt: new Date() }))) return changedMeanwhile();
         // immutable ledger trail for the payout
         await db.ledgerEntry.create({
           data: {
@@ -808,7 +816,7 @@ export async function POST(req: Request, ctx: Ctx) {
       }
       if (action === "reject") {
         if (!note) return jsonError("A rejection reason is required");
-        await db.withdrawal.update({ where: { id: w.id }, data: { status: "REJECTED", adminNote: note } });
+        if (!(await move({ status: "REJECTED", adminNote: note }))) return changedMeanwhile();
         await db.ledgerEntry.create({
           data: {
             userId: w.userId, type: "WITHDRAWAL_REJECTED", amount: w.amount, status: "FINALIZED",
@@ -1011,6 +1019,16 @@ export async function POST(req: Request, ctx: Ctx) {
         return Number.isFinite(n) && n >= 0 ? n : d;
       };
       const current = await getMonetizationSettings();
+      // effective date: empty or today = from now; a future day = scheduled; the past is refused
+      // (a back-dated version would never apply, and past earnings keep their rates anyway)
+      let effectiveDate = new Date();
+      if (body?.effectiveDate) {
+        const d = new Date(String(body.effectiveDate));
+        if (Number.isNaN(d.getTime())) return jsonError("The effective date isn't a valid date.");
+        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+        if (d < todayStart) return jsonError("The effective date can't be in the past. Leave it empty to apply the change now, or pick a future date.");
+        if (d > effectiveDate) effectiveDate = d;
+      }
       const next = {
         ratePer1000Views: Math.max(0.01, num(body?.ratePer1000Views, current.ratePer1000Views)),
         // the upload reward is set in INR and converted to the USD amount the ledger pays
@@ -1022,7 +1040,7 @@ export async function POST(req: Request, ctx: Ctx) {
         minWithdrawalAmount: Math.max(1, num(body?.minWithdrawalAmount, current.minWithdrawalAmount)),
         holdingPeriodDays: Math.max(0, Math.min(90, Math.round(num(body?.holdingPeriodDays, current.holdingPeriodDays)))),
         monetizationPaused: !!body?.monetizationPaused,
-        effectiveDate: body?.effectiveDate ? new Date(body.effectiveDate) : new Date(),
+        effectiveDate,
       };
       next.rewardPerUpload = round2(next.rewardPerUploadInr / next.inrPerUsd);
       await db.monetizationSetting.update({ where: { id: current.id }, data: { active: false } });
@@ -1150,11 +1168,15 @@ export async function POST(req: Request, ctx: Ctx) {
         if (!Number.isFinite(hours) || hours < 1 || hours > 72 || Math.round(hours) !== hours) {
           return jsonError("The repeat-view window must be a whole number of hours from 1 to 72.");
         }
-        const next = { appOnly: vc.appOnly !== false, repeatWindowHours: hours };
+        const cap = vc.maxViewsPerNetwork === undefined ? (await getViewCounting(true)).maxViewsPerNetwork : Number(vc.maxViewsPerNetwork);
+        if (!Number.isFinite(cap) || cap < 1 || cap > 100 || Math.round(cap) !== cap) {
+          return jsonError("Views per internet connection must be a whole number from 1 to 100.");
+        }
+        const next = { appOnly: vc.appOnly !== false, repeatWindowHours: hours, maxViewsPerNetwork: cap };
         await setSetting("viewCounting", next);
         forgetViewCounting();
         await audit({ actorId: me.id, actorEmail: me.email, action: "VIEW_COUNTING_UPDATED", targetType: "SETTING", details: JSON.stringify(next) });
-        return Response.json({ ok: true, message: `View counting saved: ${next.appOnly ? "app views only" : "app and website views"}, one view per viewer every ${hours} h` });
+        return Response.json({ ok: true, message: `View counting saved: ${next.appOnly ? "app views only" : "app and website views"}, one view per viewer every ${hours} h, up to ${cap} per video from one internet connection` });
       }
       await audit({ actorId: me.id, actorEmail: me.email, action: "PLATFORM_SETTINGS_UPDATED", targetType: "SETTING" });
       return Response.json({ ok: true, message: "Platform settings saved" });

@@ -18,7 +18,7 @@ const faqs = (s: PublicSettings) => [
   },
   {
     q: "What counts as a qualified view?",
-    a: fillNumbers("A view {whereViewsCount} from a real person who actually watches. The same viewer counts once per video {repeatWindow} (repeat plays in between don't count). We also exclude {websitePlays}bot traffic and creator self-views. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.", s),
+    a: fillNumbers("A view {whereViewsCount} from a real person who actually watches. The same viewer counts once per video {repeatWindow} (repeat plays in between don't count), and one internet connection adds at most {networkCap} views per video in that time. We also exclude {websitePlays}bot traffic and creator self-views. Every view event is recorded with a reason when it's excluded, so payouts stay auditable.", s),
   },
   {
     q: "Why does my account need approval before I can upload?",

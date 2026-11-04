@@ -1,4 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { clientIp, networkKeyFromIp } from "@/lib/client-ip";
 import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
 
@@ -24,13 +25,12 @@ export function verifyPassword(password: string, stored: string): boolean {
 // ── Anonymous viewer key (device fingerprint surrogate) ────────────────────
 
 export function viewerKeyFromRequest(req: Request): string {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "0.0.0.0";
   const ua = req.headers.get("user-agent") || "unknown";
-  return createHash("sha256").update(`${ip}|${ua}`).digest("hex").slice(0, 32);
+  return createHash("sha256").update(`${clientIp(req)}|${ua}`).digest("hex").slice(0, 32);
 }
+
+/** Scrambled code for the visitor's internet connection (see src/lib/client-ip.ts). */
+export const networkKeyFromRequest = (req: Request) => networkKeyFromIp(clientIp(req));
 
 // ── Sessions ───────────────────────────────────────────────────────────────
 

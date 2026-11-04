@@ -206,6 +206,7 @@ model ViewEvent {
   videoId         String
   video           Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
   viewerKey       String // hashed ip+ua device key
+  networkKey      String? // hashed internet connection (IPv4 address / IPv6 /64) — caps views per shared connection
   isSelf          Boolean  @default(false)
   qualified       Boolean  @default(false)
   reason          String? // disqualification reason
@@ -216,6 +217,7 @@ model ViewEvent {
   createdAt       DateTime @default(now())
 
   @@index([videoId, viewerKey])
+  @@index([videoId, networkKey, createdAt])
   @@index([videoId, createdAt])
   @@index([userId, createdAt])
 }

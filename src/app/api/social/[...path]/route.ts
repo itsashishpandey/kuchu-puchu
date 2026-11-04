@@ -1,6 +1,7 @@
 import { COMMENTS_ENABLED, COMMENTS_OFF_MESSAGE } from "@/lib/kids";
+import { withLock } from "@/lib/locks";
 import { db } from "@/lib/db";
-import { getSessionUser, viewerKeyFromRequest, jsonError } from "@/lib/auth";
+import { getSessionUser, viewerKeyFromRequest, networkKeyFromRequest, jsonError } from "@/lib/auth";
 import { evaluateQualifiedView, creditViewEarning, NOT_COUNTED_REASONS } from "@/lib/monetization";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordInteraction } from "@/lib/interactions";
@@ -40,49 +41,55 @@ export async function POST(req: Request, ctx: Ctx) {
     if (!video || video.status !== "APPROVED") return jsonError("Video not found", 404);
     const durationSeconds = Number(body?.durationSeconds) > 0 ? Math.min(3600, Number(body.durationSeconds)) : video.duration || null;
 
-    const result = await evaluateQualifiedView({
-      video: {
-        id: video.id, creatorId: video.creatorId, status: video.status,
-        monetizationEnabled: video.monetizationEnabled,
-        earningExpiresAt: video.earningExpiresAt, publishedAt: video.publishedAt,
-        contentId: video.contentId,
-      },
-      viewerKey,
-      viewerUserId: me?.id ?? null,
-      watchSeconds,
-      userAgent: req.headers.get("user-agent") || "",
-    });
-
-    await db.viewEvent.create({
-      data: {
-        videoId: video.id, viewerKey, isSelf: !!me && me.id === video.creatorId,
-        qualified: result.qualified, reason: result.reason ?? null, watchSeconds,
-        durationSeconds, userId: me?.id ?? null,
-        // no country (or any location) is stored for views: kids' platform, nothing location-based is collected
-      },
-    });
-    await recordInteraction({
-      videoId: video.id, userId: me?.id ?? null, viewerKey, type: "VIEW", watchSeconds,
-      completion: durationSeconds ? Math.min(1, watchSeconds / durationSeconds) : null,
-      suspicious: SUSPICIOUS.has(result.reason ?? ""),
-    });
-
-    let credited = false;
-    if (result.qualified) {
-      const entry = await creditViewEarning({
-        userId: video.creatorId, videoId: video.id, contentId: video.contentId,
+    // one internet connection + video at a time: simultaneous requests can't all pass the
+    // repeat-viewer check or the per-connection cap
+    const networkKey = networkKeyFromRequest(req);
+    return withLock(`view:${video.id}:${networkKey}`, async () => {
+      const result = await evaluateQualifiedView({
+        video: {
+          id: video.id, creatorId: video.creatorId, status: video.status,
+          monetizationEnabled: video.monetizationEnabled,
+          earningExpiresAt: video.earningExpiresAt, publishedAt: video.publishedAt,
+          contentId: video.contentId,
+        },
+        viewerKey,
+        networkKey,
+        viewerUserId: me?.id ?? null,
+        watchSeconds,
+        userAgent: req.headers.get("user-agent") || "",
       });
-      credited = !!entry;
-      await db.video.update({
-        where: { id: video.id },
-        data: { views: { increment: 1 }, qualifiedViews: { increment: 1 } },
-      });
-    } else if (!NOT_COUNTED_REASONS.includes(result.reason ?? "")) {
-      // e.g. self-views or a channel below the unlock target: a real view, it just doesn't earn
-      await db.video.update({ where: { id: video.id }, data: { views: { increment: 1 } } });
-    }
 
-    return Response.json({ qualified: result.qualified, reason: result.reason ?? null, credited });
+      await db.viewEvent.create({
+        data: {
+          videoId: video.id, viewerKey, networkKey, isSelf: !!me && me.id === video.creatorId,
+          qualified: result.qualified, reason: result.reason ?? null, watchSeconds,
+          durationSeconds, userId: me?.id ?? null,
+          // no country (or any location) is stored for views: kids' platform, nothing location-based is collected
+        },
+      });
+      await recordInteraction({
+        videoId: video.id, userId: me?.id ?? null, viewerKey, type: "VIEW", watchSeconds,
+        completion: durationSeconds ? Math.min(1, watchSeconds / durationSeconds) : null,
+        suspicious: SUSPICIOUS.has(result.reason ?? ""),
+      });
+
+      let credited = false;
+      if (result.qualified) {
+        const entry = await creditViewEarning({
+          userId: video.creatorId, videoId: video.id, contentId: video.contentId,
+        });
+        credited = !!entry;
+        await db.video.update({
+          where: { id: video.id },
+          data: { views: { increment: 1 }, qualifiedViews: { increment: 1 } },
+        });
+      } else if (!NOT_COUNTED_REASONS.includes(result.reason ?? "")) {
+        // e.g. self-views or a channel below the unlock target: a real view, it just doesn't earn
+        await db.video.update({ where: { id: video.id }, data: { views: { increment: 1 } } });
+      }
+
+      return Response.json({ qualified: result.qualified, reason: result.reason ?? null, credited });
+    });
   }
 
   // ── COMPLETE (watched to the end; recommendation + analytics signal only, never money) ──

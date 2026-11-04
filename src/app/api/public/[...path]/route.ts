@@ -77,6 +77,7 @@ export async function GET(req: Request, ctx: Ctx) {
       // which plays count as views (Admin → Platform → View counting)
       appOnlyViews: viewCounting.appOnly,
       repeatWindowHours: viewCounting.repeatWindowHours,
+      maxViewsPerNetwork: viewCounting.maxViewsPerNetwork,
       branding: branding ? JSON.parse(branding.value) : null,
       homepage: homepage ? JSON.parse(homepage.value) : null,
     });

@@ -18,14 +18,15 @@ export type PublicSettings = {
   maxWeeklyUploads: number;
   appOnlyViews: boolean; // only views in the mobile app count
   repeatWindowHours: number; // the same viewer counts once per video in this window
+  maxViewsPerNetwork: number; // counted views per video from one internet connection in that window
   homepage: { announcement?: string; heroTitle?: string; heroSubtitle?: string } | null;
 };
 
-/** Shown until the settings load (and if they can't) — the live values on 2026-11-03. */
+/** Shown until the settings load (and if they can't) — the live values on 2026-11-04. */
 export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   ratePer1000Views: 1,
   rewardPerUpload: 0.26,
-  minMonthlyChannelViews: 2500,
+  minMonthlyChannelViews: 5500,
   monetizationDurationMonths: 3,
   minWithdrawalAmount: 25,
   holdingPeriodDays: 7,
@@ -37,6 +38,7 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   maxWeeklyUploads: 100,
   appOnlyViews: true,
   repeatWindowHours: 4,
+  maxViewsPerNetwork: 5,
   homepage: null,
 };
 
@@ -73,6 +75,7 @@ export function fillNumbers(text: string, s: PublicSettings): string {
     repeatWindow: repeatWindow(s),
     whereViewsCount: whereViewsCount(s),
     websitePlays: s.appOnlyViews ? "website plays, " : "",
+    networkCap: String(s.maxViewsPerNetwork),
   };
   return text.replace(/\{(\w+)\}/g, (m, k: string) => values[k] ?? m);
 }

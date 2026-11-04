@@ -414,6 +414,7 @@ const EXCLUSION_LABELS: Record<string, string> = {
   INSUFFICIENT_WATCH_TIME: "Under 2s watch time",
   DUPLICATE_VIEWER_DAILY_CAP: "Repeat views over daily cap",
   REPEAT_VIEW_WITHIN_WINDOW: "Repeat views (same viewer within the repeat window)",
+  NETWORK_VIEW_CAP: "Extra views from one internet connection",
   WEB_VIEW_NOT_COUNTED: "Website views (only app views count)",
   VIDEO_NOT_APPROVED: "Video not approved",
   MONETIZATION_WINDOW_EXPIRED: "Earning window expired",

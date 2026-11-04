@@ -13,6 +13,7 @@ import {
   DUP_VISUAL_THRESHOLD, DUP_AUDIO_THRESHOLD,
 } from "@/lib/fingerprint";
 import { rateLimit } from "@/lib/rate-limit";
+import { withLock } from "@/lib/locks";
 import { CHUNK_BYTES, pieceCount, writeChunk, finishedUpload, moveUpload, dropUpload } from "@/lib/chunked-upload";
 import { loadTaxonomy, clearTaxonomyCounts } from "@/lib/taxonomy";
 import { parseTagInput, firstError, reviewFor, writeVideoTags, validateVideoTags } from "@/lib/video-tags";
@@ -745,41 +746,44 @@ export async function POST(req: Request, ctx: Ctx) {
     if (!amount || amount <= 0) return jsonError("Enter a valid amount");
     if (!["BANK_TRANSFER", "PAYPAL"].includes(method)) return jsonError("Select a payout method");
 
-    const settings = await getMonetizationSettings();
-    if (settings.monetizationPaused) return jsonError("Payouts are temporarily paused for maintenance. Please try again later.");
-    if (amount < settings.minWithdrawalAmount) {
-      return jsonError(`Minimum withdrawal is $${settings.minWithdrawalAmount.toFixed(2)}`);
-    }
-    const wallet = await walletSummary(me.id);
-    if (amount > wallet.availableBalance) {
-      return jsonError(`Amount exceeds your available balance ($${wallet.availableBalance.toFixed(2)})`);
-    }
-    // payment details validation
-    if (method === "BANK_TRANSFER" && !details.accountName) return jsonError("Account holder name is required");
-    if (method === "BANK_TRANSFER" && !details.accountNumber) return jsonError("Account number is required");
-    if (method === "PAYPAL" && !details.paypalEmail) return jsonError("PayPal email is required");
+    // one request per creator at a time: two simultaneous requests can't both spend the same balance
+    return withLock(`withdraw:${me.id}`, async () => {
+      const settings = await getMonetizationSettings();
+      if (settings.monetizationPaused) return jsonError("Payouts are temporarily paused for maintenance. Please try again later.");
+      if (amount < settings.minWithdrawalAmount) {
+        return jsonError(`Minimum withdrawal is $${settings.minWithdrawalAmount.toFixed(2)}`);
+      }
+      const wallet = await walletSummary(me.id);
+      if (amount > wallet.availableBalance) {
+        return jsonError(`Amount exceeds your available balance ($${wallet.availableBalance.toFixed(2)})`);
+      }
+      // payment details validation
+      if (method === "BANK_TRANSFER" && !details.accountName) return jsonError("Account holder name is required");
+      if (method === "BANK_TRANSFER" && !details.accountNumber) return jsonError("Account number is required");
+      if (method === "PAYPAL" && !details.paypalEmail) return jsonError("PayPal email is required");
 
-    const masked = method === "BANK_TRANSFER"
-      ? { accountName: details.accountName, bank: details.bank || "", maskedAccount: `•••• ${String(details.accountNumber).slice(-4)}` }
-      : { accountName: details.accountName || me.name, maskedAccount: String(details.paypalEmail).replace(/^(.).*@/, "$1•••@") };
+      const masked = method === "BANK_TRANSFER"
+        ? { accountName: details.accountName, bank: details.bank || "", maskedAccount: `•••• ${String(details.accountNumber).slice(-4)}` }
+        : { accountName: details.accountName || me.name, maskedAccount: String(details.paypalEmail).replace(/^(.).*@/, "$1•••@") };
 
-    const w = await db.withdrawal.create({
-      data: {
-        userId: me.id, amount, method,
-        details: JSON.stringify(masked), status: "REQUESTED",
-      },
+      const w = await db.withdrawal.create({
+        data: {
+          userId: me.id, amount, method,
+          details: JSON.stringify(masked), status: "REQUESTED",
+        },
+      });
+      await notify({
+        userId: me.id, type: "WITHDRAWAL",
+        title: "Withdrawal requested",
+        body: `Your withdrawal request for $${amount.toFixed(2)} via ${method === "PAYPAL" ? "PayPal" : "bank transfer"} has been submitted and is awaiting review. Funds are locked until it is processed.`,
+        link: "#/dashboard/withdraw",
+        email: {
+          to: me.email, subject: `Withdrawal request received: $${amount.toFixed(2)}`,
+          body: `We received your withdrawal request. Once approved, bank transfers usually arrive in 3–5 business days and PayPal in 1–3.`,
+        },
+      });
+      return Response.json({ withdrawal: w }, { status: 201 });
     });
-    await notify({
-      userId: me.id, type: "WITHDRAWAL",
-      title: "Withdrawal requested",
-      body: `Your withdrawal request for $${amount.toFixed(2)} via ${method === "PAYPAL" ? "PayPal" : "bank transfer"} has been submitted and is awaiting review. Funds are locked until it is processed.`,
-      link: "#/dashboard/withdraw",
-      email: {
-        to: me.email, subject: `Withdrawal request received: $${amount.toFixed(2)}`,
-        body: `We received your withdrawal request. Payouts are processed within ${settings.holdingPeriodDays} days of approval.`,
-      },
-    });
-    return Response.json({ withdrawal: w }, { status: 201 });
   }
 
   // ── MARK NOTIFICATIONS READ ───────────────────────────────────────────

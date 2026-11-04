@@ -372,12 +372,13 @@ export function AdminFraudPage() {
   };
 
   const FRAUD_LABEL: Record<string, string> = {
-    VIEW_BOT: "Bot traffic", SELF_VIEW: "Self-view burst", RAPID_REFRESH: "Rapid refresh",
+    VIEW_BOT: "Bot traffic", SELF_VIEW: "Self-view burst", RAPID_REFRESH: "Rapid refresh", VIEW_NETWORK_CAP: "Many views from one connection",
     DUPLICATE_CONTENT: "Duplicate content", UNUSUAL_PATTERN: "Unusual pattern", FAKE_ENGAGEMENT: "Fake engagement",
   };
   const REASON_LABEL: Record<string, string> = {
     CREATOR_SELF_VIEW: "Creator self-view", BOT_USER_AGENT: "Bot user-agent",
     INSUFFICIENT_WATCH_TIME: "Watch time under 2s", DUPLICATE_VIEWER_DAILY_CAP: "Daily cap exceeded",
+    REPEAT_VIEW_WITHIN_WINDOW: "Repeat view (same viewer)", NETWORK_VIEW_CAP: "Over the per-connection limit", WEB_VIEW_NOT_COUNTED: "Website view (not counted)",
     VIDEO_NOT_APPROVED: "Video not approved", MONETIZATION_WINDOW_EXPIRED: "Earning window expired",
   };
 

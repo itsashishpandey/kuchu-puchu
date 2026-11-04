@@ -16,14 +16,15 @@ export async function getMonetizationSettings() {
 // ── Monetization unlock (one-time): a channel starts earning (upload rewards + view earnings)
 // the first time it has `minMonthlyChannelViews` genuine views within 30 days, and stays unlocked.
 // Self-views, bots, refresh spam, sub-2-second "views" and views on unpublished videos don't count.
-const INVALID_VIEW_REASONS = ["BOT_USER_AGENT", "CREATOR_SELF_VIEW", "DUPLICATE_VIEWER_DAILY_CAP", "INSUFFICIENT_WATCH_TIME", "VIDEO_NOT_APPROVED", "WEB_VIEW_NOT_COUNTED", "REPEAT_VIEW_WITHIN_WINDOW"];
+const INVALID_VIEW_REASONS = ["BOT_USER_AGENT", "CREATOR_SELF_VIEW", "DUPLICATE_VIEWER_DAILY_CAP", "INSUFFICIENT_WATCH_TIME", "VIDEO_NOT_APPROVED", "WEB_VIEW_NOT_COUNTED", "REPEAT_VIEW_WITHIN_WINDOW", "NETWORK_VIEW_CAP"];
 
 /** Views that don't count at all — not in the public view count, earnings or the unlock target. */
-export const NOT_COUNTED_REASONS = ["BOT_USER_AGENT", "WEB_VIEW_NOT_COUNTED", "REPEAT_VIEW_WITHIN_WINDOW", "INSUFFICIENT_WATCH_TIME", "DUPLICATE_VIEWER_DAILY_CAP"];
+export const NOT_COUNTED_REASONS = ["BOT_USER_AGENT", "WEB_VIEW_NOT_COUNTED", "REPEAT_VIEW_WITHIN_WINDOW", "NETWORK_VIEW_CAP", "INSUFFICIENT_WATCH_TIME", "DUPLICATE_VIEWER_DAILY_CAP"];
 
-// ── View counting rules (Admin → Platform). Defaults: only app views; one view per viewer per video every 4 h.
-export type ViewCounting = { appOnly: boolean; repeatWindowHours: number };
-export const VIEW_COUNTING_DEFAULTS: ViewCounting = { appOnly: true, repeatWindowHours: 4 };
+// ── View counting rules (Admin → Platform). Defaults: only app views; one view per viewer per video every 4 h;
+// at most 5 counted views per video from one internet connection in that window.
+export type ViewCounting = { appOnly: boolean; repeatWindowHours: number; maxViewsPerNetwork: number };
+export const VIEW_COUNTING_DEFAULTS: ViewCounting = { appOnly: true, repeatWindowHours: 4, maxViewsPerNetwork: 5 };
 let viewCountingCache: { at: number; v: ViewCounting } | null = null;
 export async function getViewCounting(fresh = false): Promise<ViewCounting> {
   if (!fresh && viewCountingCache && Date.now() - viewCountingCache.at < 30_000) return viewCountingCache.v;
@@ -130,6 +131,8 @@ export async function evaluateQualifiedView(opts: {
     earningExpiresAt: Date | null; publishedAt: Date | null; contentId: string;
   };
   viewerKey: string;
+  /** scrambled code for the viewer's internet connection (src/lib/client-ip.ts) */
+  networkKey?: string | null;
   viewerUserId?: string | null;
   watchSeconds: number;
   userAgent: string;
@@ -177,6 +180,26 @@ export async function evaluateQualifiedView(opts: {
       }).catch(() => {});
     }
     return { qualified: false, reason: "REPEAT_VIEW_WITHIN_WINDOW" };
+  }
+
+  // One internet connection adds at most N counted views per video in the window — otherwise a
+  // script could pose as many "different" app viewers (any User-Agent text) from one place
+  if (opts.networkKey && rules.maxViewsPerNetwork > 0) {
+    const fromNetwork = await db.viewEvent.count({
+      where: { videoId: video.id, networkKey: opts.networkKey, createdAt: { gte: since }, OR: [{ reason: null }, { reason: { notIn: NOT_COUNTED_REASONS } }] },
+    });
+    if (fromNetwork >= rules.maxViewsPerNetwork) {
+      const refused = await db.viewEvent.count({ where: { videoId: video.id, networkKey: opts.networkKey, reason: "NETWORK_VIEW_CAP", createdAt: { gte: since } } });
+      if (refused + 1 === 20) {
+        await db.fraudFlag.create({
+          data: {
+            videoId: video.contentId, userId: video.creatorId, type: "VIEW_NETWORK_CAP", severity: "MEDIUM",
+            details: `One internet connection tried to add 20+ extra views to ${video.contentId} within ${rules.repeatWindowHours} h (only the first ${rules.maxViewsPerNetwork} count)`,
+          },
+        }).catch(() => {});
+      }
+      return { qualified: false, reason: "NETWORK_VIEW_CAP" };
+    }
   }
 
   // Self-view exclusion
@@ -235,16 +258,24 @@ export async function creditUploadReward(opts: {
   if (settings.monetizationPaused) return null;
   // no upload reward until the channel has unlocked monetization
   if (!(await monetizationUnlock(opts.userId, { fresh: true, settings })).unlocked) return null;
+  // claim the video's one reward first: a double click or two admins approving at once can't pay it twice
+  const claim = await db.video.updateMany({ where: { id: opts.videoId, uploadRewardCredited: false }, data: { uploadRewardCredited: true } });
+  if (claim.count !== 1) return null;
   const availableAt = new Date(Date.now() + settings.holdingPeriodDays * 864e5);
-  return db.ledgerEntry.create({
-    data: {
-      userId: opts.userId, videoId: opts.videoId, type: "UPLOAD_REWARD",
-      amount: settings.rewardPerUpload, status: "PENDING", availableAt,
-      rateSnapshot: settings.rewardPerUpload,
-      description: `Approved upload reward for ${opts.contentId}`,
-      reference: `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-    },
-  });
+  try {
+    return await db.ledgerEntry.create({
+      data: {
+        userId: opts.userId, videoId: opts.videoId, type: "UPLOAD_REWARD",
+        amount: settings.rewardPerUpload, status: "PENDING", availableAt,
+        rateSnapshot: settings.rewardPerUpload,
+        description: `Approved upload reward for ${opts.contentId}`,
+        reference: `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      },
+    });
+  } catch (e) {
+    await db.video.update({ where: { id: opts.videoId }, data: { uploadRewardCredited: false } }).catch(() => {});
+    throw e;
+  }
 }
 
 // ── Wallet (computed from the immutable ledger + withdrawal records) ───────

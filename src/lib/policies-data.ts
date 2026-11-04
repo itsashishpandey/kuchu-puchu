@@ -25,7 +25,7 @@ export const POLICIES: Record<string, Policy> = {
         h: "2. View revenue",
         p: [
           "Creators earn {rate} per 1,000 qualified views (the current rate). Earnings are calculated proportionally per qualified view event — we never round down to complete thousands.",
-          "A view is qualified when a real viewer watches {whereViewsCount} with genuine watch time. The same viewer counts once per video {repeatWindow}; repeat plays in between, {websitePlays}bot traffic and creator self-views don't count. Kuchu Puchu may adjust these rules in the admin settings.",
+          "A view is qualified when a real viewer watches {whereViewsCount} with genuine watch time. The same viewer counts once per video {repeatWindow}, and one internet connection (for example a home Wi-Fi) adds at most {networkCap} views per video in that time; repeat plays in between, {websitePlays}bot traffic and creator self-views don't count. Kuchu Puchu may adjust these rules in the admin settings.",
         ],
       },
       {

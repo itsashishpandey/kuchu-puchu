@@ -34,15 +34,17 @@ type Monetization = {
 export function AdminMonetizationPage() {
   const [current, setCurrent] = useState<Monetization | null>(null);
   const [history, setHistory] = useState<Monetization[]>([]);
+  const [inEffectId, setInEffectId] = useState<string | null>(null);
   const [form, setForm] = useState({
     ratePer1000Views: "", rewardPerUploadInr: "", inrPerUsd: "", minMonthlyChannelViews: "", monetizationDurationMonths: "",
     minWithdrawalAmount: "", holdingPeriodDays: "", monetizationPaused: false, effectiveDate: "",
   });
   const [busy, setBusy] = useState(false);
 
-  const load = () => get<{ current: Monetization; history: Monetization[] }>("/admin/monetization").then(d => {
+  const load = () => get<{ current: Monetization; inEffectId?: string; history: Monetization[] }>("/admin/monetization").then(d => {
     setCurrent(d.current);
     setHistory(d.history);
+    setInEffectId(d.inEffectId ?? d.current.id);
     setForm({
       ratePer1000Views: String(d.current.ratePer1000Views),
       rewardPerUploadInr: String(d.current.rewardPerUploadInr),
@@ -119,14 +121,15 @@ export function AdminMonetizationPage() {
               </p>
             )}
             <div className="grid gap-1.5">
-              <Label htmlFor="m-eff">Effective date (optional — default now)</Label>
-              <Input id="m-eff" type="date" value={form.effectiveDate}
+              <Label htmlFor="m-eff">Effective date (optional)</Label>
+              <Input id="m-eff" type="date" value={form.effectiveDate} min={new Date().toISOString().slice(0, 10)}
                 onChange={e => setForm(fm => ({ ...fm, effectiveDate: e.target.value }))} className="h-11 rounded-xl" />
+              <p className="text-[11px] text-muted-foreground">Leave empty to apply the change now. A future date schedules it; past dates aren't allowed.</p>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-secondary/70 p-4">
               <div>
                 <p className="text-sm font-bold">Monetization status</p>
-                <p className="text-xs text-muted-foreground">{form.monetizationPaused ? "Paused — no new earnings credit" : "Active — earning normally"}</p>
+                <p className="text-xs text-muted-foreground">{form.monetizationPaused ? "Paused — no new earnings are credited and new withdrawal requests are blocked" : "Active — earning normally"}</p>
               </div>
               <Switch checked={!form.monetizationPaused} onCheckedChange={v => setForm(fm => ({ ...fm, monetizationPaused: !v }))} />
             </div>
@@ -144,11 +147,18 @@ export function AdminMonetizationPage() {
           <h2 className="font-display text-base font-bold">Rate history</h2>
           <p className="text-xs text-muted-foreground">Append-only versions with effective dates</p>
           <div className="scroll-slim mt-4 max-h-[520px] space-y-2.5 overflow-y-auto pr-1">
-            {history.map((h, i) => (
-              <div key={h.id} className={`rounded-xl p-4 ${i === 0 ? "bg-brand-red-soft/50 ring-1 ring-brand-red/30" : "bg-secondary/60"}`}>
+            {history.map(h => {
+              const inEffect = h.id === inEffectId;
+              const scheduled = !inEffect && new Date(h.effectiveDate) > new Date();
+              return (
+              <div key={h.id} className={`rounded-xl p-4 ${inEffect ? "bg-brand-red-soft/50 ring-1 ring-brand-red/30" : scheduled ? "bg-brand-blue-soft/60 ring-1 ring-brand-blue/30" : "bg-secondary/60"}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold">{fmtDate(h.effectiveDate)}</p>
-                  {i === 0 && <span className="rounded-full grad-btn px-2.5 py-0.5 text-[10px] font-bold text-white">ACTIVE</span>}
+                  {inEffect
+                    ? <span className="rounded-full grad-btn px-2.5 py-0.5 text-[10px] font-bold text-white">IN EFFECT</span>
+                    : scheduled
+                      ? <span className="rounded-full bg-brand-blue px-2.5 py-0.5 text-[10px] font-bold text-white">SCHEDULED</span>
+                      : <span className="text-[10px] font-semibold uppercase text-muted-foreground">Replaced</span>}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <span>Rate/1K views: <strong className="text-ink">{usd(h.ratePer1000Views)}</strong></span>
@@ -157,10 +167,11 @@ export function AdminMonetizationPage() {
                   <span>Duration: <strong className="text-ink">{h.monetizationDurationMonths}mo</strong></span>
                   <span>Hold: <strong className="text-ink">{h.holdingPeriodDays}d</strong></span>
                   <span>Min payout: <strong className="text-ink">{usd(h.minWithdrawalAmount)}</strong></span>
-                  <span>Status: <strong className={h.monetizationPaused ? "text-rose-500" : "text-emerald-600"}>{h.monetizationPaused ? "paused" : "active"}</strong></span>
+                  <span>Earnings: <strong className={h.monetizationPaused ? "text-rose-500" : "text-emerald-600"}>{h.monetizationPaused ? "paused" : "on"}</strong></span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -737,7 +748,7 @@ export function AdminPlatformPage() {
     settings: {
       branding: { name: string; tagline: string; supportEmail: string; domain: string } | null;
       payouts: { methods: { id: string; name: string; regions: string }[]; processingDays: string } | null;
-      viewCounting?: { appOnly: boolean; repeatWindowHours: number };
+      viewCounting?: { appOnly: boolean; repeatWindowHours: number; maxViewsPerNetwork?: number };
     };
     auditLog: { id: string; actorEmail: string; action: string; targetType: string; targetId: string | null; details: string | null; createdAt: string }[];
     mailLog: { id: string; toEmail: string; subject: string; createdAt: string }[];
@@ -747,7 +758,7 @@ export function AdminPlatformPage() {
   const [branding, setBranding] = useState({ name: "", tagline: "", supportEmail: "", domain: "" });
   const [busy, setBusy] = useState(false);
   const [len, setLen] = useState<{ min: string; max: string } | null>(null);
-  const [vc, setVc] = useState<{ appOnly: boolean; hours: string } | null>(null);
+  const [vc, setVc] = useState<{ appOnly: boolean; hours: string; cap: string } | null>(null);
   const [vcBusy, setVcBusy] = useState(false);
   const [lenBusy, setLenBusy] = useState(false);
   useEffect(() => {
@@ -761,12 +772,16 @@ export function AdminPlatformPage() {
     : lenMin >= lenMax ? "Minimum must be shorter than the maximum."
     : null;
   const vcHours = Number(vc?.hours);
-  const vcProblem = vc && (!Number.isInteger(vcHours) || vcHours < 1 || vcHours > 72) ? "Use a whole number of hours from 1 to 72." : null;
+  const vcCap = Number(vc?.cap);
+  const vcProblem = !vc ? null
+    : !Number.isInteger(vcHours) || vcHours < 1 || vcHours > 72 ? "Use a whole number of hours from 1 to 72."
+    : !Number.isInteger(vcCap) || vcCap < 1 || vcCap > 100 ? "Views per internet connection: a whole number from 1 to 100."
+    : null;
   const saveViewCounting = async () => {
     if (!vc || vcProblem) return;
     setVcBusy(true);
     try {
-      const res = await action("/admin/platform", { viewCounting: { appOnly: vc.appOnly, repeatWindowHours: vcHours } });
+      const res = await action("/admin/platform", { viewCounting: { appOnly: vc.appOnly, repeatWindowHours: vcHours, maxViewsPerNetwork: vcCap } });
       toast({ title: "View counting saved", description: res.message });
     } catch (e) {
       toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" });
@@ -787,7 +802,7 @@ export function AdminPlatformPage() {
     setData(d);
     if (d?.settings.branding) setBranding(d.settings.branding);
     const v = d?.settings.viewCounting;
-    setVc({ appOnly: v?.appOnly ?? true, hours: String(v?.repeatWindowHours ?? 4) });
+    setVc({ appOnly: v?.appOnly ?? true, hours: String(v?.repeatWindowHours ?? 4), cap: String(v?.maxViewsPerNetwork ?? 5) });
   }).catch(() => {});
   useEffect(() => { load(); }, []);
 
@@ -894,6 +909,13 @@ export function AdminPlatformPage() {
                   {vcProblem
                     ? <p className="text-xs font-semibold text-rose-600">{vcProblem}</p>
                     : <p className="text-xs text-muted-foreground">A viewer who replays a video counts once, then again only after {vcHours} hour{vcHours === 1 ? "" : "s"}. Default is 4.</p>}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="vc-cap">Views per internet connection (per video, in that window)</Label>
+                  <Input id="vc-cap" type="number" min={1} max={100} step={1} value={vc.cap} onChange={e => setVc(x => x && ({ ...x, cap: e.target.value }))} className="h-11 rounded-xl" />
+                  <p className="text-xs text-muted-foreground">
+                    Stops one place (one Wi-Fi or one phone network) from faking many viewers. Homes and schools sharing a connection still count up to this many views per video. Default is 5.
+                  </p>
                 </div>
                 <Button className="grad-btn h-11 w-full rounded-xl text-white" disabled={vcBusy || !!vcProblem} onClick={saveViewCounting}>
                   {vcBusy ? "Saving…" : "Save view counting"}

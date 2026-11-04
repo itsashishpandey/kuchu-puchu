@@ -91,8 +91,8 @@ await test("Test 3 — three categories, one video ID, one reward", async () => 
   check(rows === 1 && rewards === 1 && assignments === 3, `rows=${rows} rewards=${rewards} assignments=${assignments}`);
   const ms = await db.monetizationSetting.findFirst({ orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }] });
   const reward = await db.ledgerEntry.findFirst({ where: { type: "UPLOAD_REWARD", videoId: hiVideo.id } });
-  check(Math.abs(reward.amount - Math.round((ms.rewardPerUploadInr / ms.inrPerUsd) * 100) / 100) < 0.001 && reward.description.includes("₹"), `reward ${reward.amount} "${reward.description}"`);
-  return `${hiVideo.contentId}: found under all 3 paths; 1 video row, 1 upload reward (₹${ms.rewardPerUploadInr} → ${reward.amount}), 3 tag rows`;
+  check(Math.abs(reward.amount - Math.round((ms.rewardPerUploadInr / ms.inrPerUsd) * 100) / 100) < 0.001 && reward.description === `Approved upload reward for ${hiVideo.contentId}` && !reward.description.includes("₹"), `reward ${reward.amount} "${reward.description}"`);
+  return `${hiVideo.contentId}: found under all 3 paths; 1 video row, 1 upload reward (${reward.amount}, shown in USD), 3 tag rows`;
 });
 
 // ── Test 4 + 5 via the real upload endpoint (rejected before any file work) ──
