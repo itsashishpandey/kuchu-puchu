@@ -53,6 +53,8 @@ export const metadata: Metadata = {
     description: "Earn from qualified views and approved original kids uploads.",
   },
   robots: { index: true, follow: true },
+  // Google Search Console ownership check
+  verification: { google: "HbJKsTTjiv8DCV7_saQC_o2d31vqcmZvxnKUH7-cbdc" },
 };
 
 export const viewport: Viewport = {
