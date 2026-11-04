@@ -36,7 +36,7 @@ export async function getViewCounting(fresh = false): Promise<ViewCounting> {
 }
 export function forgetViewCounting() { viewCountingCache = null; }
 
-/** The Android app identifies itself as "KuchuPuchuApp/<version> (Android)". */
+/** The apps identify themselves as "KuchuPuchuApp/<version> (Android)" or "(iOS)": both count as app views. */
 export const isAppUserAgent = (ua: string) => /^KuchuPuchuApp\//i.test(ua || "");
 const viewsCache = new Map<string, { at: number; n: number }>();
 

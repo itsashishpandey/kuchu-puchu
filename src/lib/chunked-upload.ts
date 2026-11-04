@@ -2,7 +2,7 @@
 // 100 seconds (HTTP 524), which slow home connections hit with bigger phone videos. Each piece is
 // written into a private part file (never web-served); the final /api/creator/upload request names
 // the finished upload by its id, and the file is moved into place from there.
-import { open, stat, mkdir, readdir, unlink, rename, copyFile } from "fs/promises";
+import { open, stat, mkdir, readdir, unlink, rename, copyFile, chmod } from "fs/promises";
 import { constants } from "fs";
 import path from "path";
 import { privateDir } from "@/lib/private-files";
@@ -85,6 +85,9 @@ export async function moveUpload(from: string, to: string) {
     await copyFile(from, to); // different disk: copy, then remove the part
     await unlink(from).catch(() => {});
   }
+  // The part file is private (0600) and a rename keeps that, but the web server reads the
+  // videos folder as another user: without this, every pieced upload played as a 404.
+  await chmod(to, 0o644);
 }
 
 export async function dropUpload(userId: string, uploadId: string) {
