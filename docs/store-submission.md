@@ -82,19 +82,23 @@ messages, financial info and health. The app collects no personal information. C
 is collected on the website only, so it doesn't belong in the app's Data safety form. This matches
 `/privacy`.
 
-## 3. Apple App Store (later — no iOS build exists yet)
+## 3. Apple App Store
 
-- **Needs:** a Mac with Xcode, the Flutter iOS build (`mobile/ios`), and an Apple Developer account.
+**The full plan is [`docs/ios-app.md`](ios-app.md).** Claude follows it on the Mac: setup, build, upload,
+listing text, privacy answers and a status log. The key points:
+
+- **Needs:** a Mac with Xcode 26 or newer, and an Apple Developer Program membership (US$99/year).
 - **Kids Category:** Apple lets you pick **one** age band. Pick **5 and Under**: the content rules are written so
   a 3-year-old can watch everything, and most videos are rhymes, stories and early learning. Choose
   6–8 instead if you later add mostly school-age content.
 - **Guideline 1.3 / 5.1.4 (Kids):**
-  - links out, sign-in, the studio and settings sit behind the parental gate (done);
+  - Grown-ups, share, report and outside links sit behind the parental gate (done);
   - no third-party analytics or ads (done);
   - no purchases in the app (done).
-- **Account deletion in the app** (guideline 5.1.1(v)): done.
-- **Sign in with Apple:** not required, because the app only uses email and password.
-- **App Privacy "nutrition label":** same answers as the Data safety table above.
+- **Accounts:** the app has none since 1.5.0 (watch-only), so in-app account deletion and Sign in with Apple
+  don't apply.
+- **App Privacy "nutrition label":** the same answers as the Data safety table above (Product Interaction and
+  Device ID, for app functionality only, not linked to a person, no tracking).
 
 ## 4. Known review risks and what to do
 
