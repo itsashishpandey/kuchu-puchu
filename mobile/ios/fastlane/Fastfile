@@ -1,0 +1,81 @@
+# Kuchu Puchu iOS: Apple-side setup with the team's App Store Connect API key.
+# Run from mobile/ios:   fastlane <lane>      (docs/ios-app.md, step 6)
+#
+# Nothing secret or account-specific lives in this public repository. The Mac keeps, outside it:
+#   ~/.kuchupuchu/asc.json   { "key_id": "...", "issuer_id": "...", "key_path": "/path/AuthKey_<id>.p8" }
+#   ~/.kuchupuchu/signing/   the App Store profile fetched below
+# The team ID and profile name are written to ios/Flutter/Signing.xcconfig, which git ignores.
+
+require 'json'
+
+default_platform(:ios)
+
+APP_ID = 'kuchupuchu.com'
+KEY_DIR = File.expand_path('~/.kuchupuchu')
+SIGNING_DIR = File.join(KEY_DIR, 'signing')
+SIGNING_XCCONFIG = File.expand_path('../Flutter/Signing.xcconfig', __dir__)
+
+def asc
+  path = File.join(KEY_DIR, 'asc.json')
+  UI.user_error!("#{path} is missing (key_id, issuer_id, key_path). See docs/ios-app.md.") unless File.exist?(path)
+  ids = JSON.parse(File.read(path))
+  UI.user_error!("The API key file #{ids['key_path']} is missing.") unless File.exist?(ids['key_path'].to_s)
+  ids
+end
+
+def connect_api
+  ids = asc
+  Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+    key_id: ids['key_id'], issuer_id: ids['issuer_id'], filepath: ids['key_path']
+  )
+end
+
+platform :ios do
+  desc 'Read-only: the bundle ID, the app record and the distribution certificates on the team'
+  lane :check do
+    connect_api
+    bundle = Spaceship::ConnectAPI::BundleId.find(APP_ID)
+    UI.message(bundle ? "#{APP_ID} is registered" : "#{APP_ID} is not registered yet")
+    app = Spaceship::ConnectAPI::App.find(APP_ID)
+    UI.message(app ? "App record exists: '#{app.name}'" : 'No App Store Connect app record yet (create it on the website)')
+    certs = Spaceship::ConnectAPI::Certificate.all.select { |c| c.certificate_type.to_s.include?('DISTRIBUTION') }
+    UI.message("Distribution certificates on the team: #{certs.count}")
+  end
+
+  desc 'Register the bundle ID kuchupuchu.com (safe to re-run)'
+  lane :register_bundle_id do
+    connect_api
+    if Spaceship::ConnectAPI::BundleId.find(APP_ID)
+      UI.message("#{APP_ID} is already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(name: 'Kuchu Puchu', platform: 'IOS', identifier: APP_ID)
+      UI.success("Registered #{APP_ID}")
+    end
+  end
+
+  desc 'Fetch the App Store profile (made with the distribution certificate already in this Mac\'s keychain)'
+  lane :signing do
+    ids = asc
+    app_store_connect_api_key(key_id: ids['key_id'], issuer_id: ids['issuer_id'], key_filepath: ids['key_path'], in_house: false)
+    FileUtils.mkdir_p(SIGNING_DIR)
+    # A team may hold very few distribution certificates. This reuses the one in the keychain
+    # and stops instead of creating another.
+    UI.user_error!('No "Apple Distribution" identity in the keychain; ask the owner before creating one.') \
+      unless `security find-identity -v -p codesigning`.include?('Apple Distribution')
+    get_provisioning_profile(app_identifier: APP_ID, output_path: SIGNING_DIR)
+
+    profile = FastlaneCore::ProvisioningProfile.parse(lane_context[SharedValues::SIGH_PROFILE_PATH])
+    team = profile['TeamIdentifier'].first
+    name = lane_context[SharedValues::SIGH_NAME]
+    File.write(SIGNING_XCCONFIG, <<~XC)
+      // Release signing for the App Store. Written by `fastlane signing`; git ignores this file.
+      DEVELOPMENT_TEAM = #{team}
+      CODE_SIGN_STYLE = Manual
+      CODE_SIGN_IDENTITY = Apple Distribution
+      CODE_SIGN_IDENTITY[sdk=iphoneos*] = Apple Distribution
+      PROVISIONING_PROFILE_SPECIFIER = #{name}
+      KP_PROFILE_NAME = #{name}
+    XC
+    UI.success("Release signs with the profile '#{name}' (settings in ios/Flutter/Signing.xcconfig)")
+  end
+end

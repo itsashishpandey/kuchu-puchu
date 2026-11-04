@@ -6,18 +6,22 @@ import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import 'widgets.dart';
 
-/// Parental gate (Google Play Families / Apple Kids): a grown-up must type a random two-digit
-/// number that is shown spelled out in words ("forty-seven"). No colour or picture puzzles a
-/// pre-reader could solve. A new number on every try; the gate closes after 3 wrong answers.
+/// Parental gate (Google Play Families / Apple Kids): a grown-up solves a multiplication that is
+/// written only in words ("fourteen times three") and types the answer in digits. Pre-readers
+/// can't read it, and children up to about 9 can't work it out in their heads. No colour or
+/// picture puzzles. A new sum on every try; after 3 wrong answers the gate closes and stays shut
+/// for a minute, so a child can't keep guessing.
 ///
-/// Grown-up areas (account, studio, settings) stay open for 5 minutes after a pass.
-/// External links and sharing pass `remember: false` and ask every time.
+/// Grown-up areas (the Grown-ups tab, language settings) stay open for 5 minutes after a pass.
+/// External links, sharing and reporting pass `remember: false` and ask every time.
 class ParentalGate {
   ParentalGate._();
 
   static const unlockFor = Duration(minutes: 5);
   static const maxTries = 3;
+  static const lockoutFor = Duration(minutes: 1);
   static DateTime? _unlockedUntil;
+  static DateTime? _lockedOutUntil;
   static Timer? _relock;
 
   /// Notifies when the grown-up area opens or closes (so open screens can hide again).
@@ -38,19 +42,36 @@ class ParentalGate {
     state.value = true;
   }
 
+  static bool get lockedOut => _lockedOutUntil != null && DateTime.now().isBefore(_lockedOutUntil!);
+
   /// True when a grown-up passed. [remember] = keep grown-up areas open for 5 minutes.
   static Future<bool> check(BuildContext context, {bool remember = true}) async {
     if (remember && unlocked) return true;
-    final ok = await showDialog<bool>(
+    if (lockedOut) {
+      await showDialog<void>(context: context, builder: (_) => const _WaitDialog());
+      return false;
+    }
+    final result = await showDialog<_GateResult>(
           context: context,
           barrierDismissible: false,
           builder: (_) => const _GateDialog(),
         ) ??
-        false;
+        _GateResult.cancelled;
+    if (result == _GateResult.tooManyTries) _lockedOutUntil = DateTime.now().add(lockoutFor);
+    final ok = result == _GateResult.passed;
     if (ok && remember) _unlock();
     return ok;
   }
 }
+
+enum _GateResult { passed, cancelled, tooManyTries }
+
+/// The sum the gate shows: a teen number times a small number, in words only.
+/// (14, 3) → "fourteen times three"; the answer is 42.
+String gateQuestion(int a, int b) => '${numberInWords(a)} times ${numberInWords(b)}';
+
+/// The numbers the gate picks from: [gateFirst] × [gateSecond].
+const gateFirst = (min: 11, max: 19), gateSecond = (min: 3, max: 6);
 
 /// 10 → "ten", 47 → "forty-seven".
 String numberInWords(int n) {
@@ -73,11 +94,14 @@ class _GateDialog extends StatefulWidget {
 class _GateDialogState extends State<_GateDialog> {
   final _rng = Random.secure();
   final _c = TextEditingController();
-  late int _n = _pick();
+  late (int, int) _q = _pick();
   int _wrong = 0;
   String? _msg;
 
-  int _pick() => 10 + _rng.nextInt(90);
+  (int, int) _pick() => (
+        gateFirst.min + _rng.nextInt(gateFirst.max - gateFirst.min + 1),
+        gateSecond.min + _rng.nextInt(gateSecond.max - gateSecond.min + 1),
+      );
 
   @override
   void dispose() {
@@ -86,26 +110,28 @@ class _GateDialogState extends State<_GateDialog> {
   }
 
   void _submit() {
-    if (int.tryParse(_c.text.trim()) == _n) {
-      Navigator.of(context).pop(true);
+    if (int.tryParse(_c.text.trim()) == _q.$1 * _q.$2) {
+      Navigator.of(context).pop(_GateResult.passed);
       return;
     }
     _wrong++;
     if (_wrong >= ParentalGate.maxTries) {
-      Navigator.of(context).pop(false);
+      Navigator.of(context).pop(_GateResult.tooManyTries);
       return;
     }
     setState(() {
-      _n = _pick();
+      _q = _pick();
       _c.clear();
-      _msg = 'That’s not it. Try this new number (${ParentalGate.maxTries - _wrong} ${ParentalGate.maxTries - _wrong == 1 ? 'try' : 'tries'} left).';
+      _msg = 'That’s not it. Try this new one (${ParentalGate.maxTries - _wrong} ${ParentalGate.maxTries - _wrong == 1 ? 'try' : 'tries'} left).';
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final words = numberInWords(_n);
+    final words = gateQuestion(_q.$1, _q.$2);
     return AlertDialog(
+      // Scrolls instead of overflowing when the keyboard leaves little room (iPhone apps on iPad).
+      scrollable: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       title: Column(children: [
         const Text('🔒', style: TextStyle(fontSize: 40)),
@@ -113,22 +139,22 @@ class _GateDialogState extends State<_GateDialog> {
         Text('Ask a grown-up', style: KP.display(24)),
       ]),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('Grown-ups: type this number using digits.', textAlign: TextAlign.center, style: KP.body(14.5, color: KP.inkSoft)),
+        Text('Grown-ups: work out this sum and type the answer using digits.', textAlign: TextAlign.center, style: KP.body(14.5, color: KP.inkSoft)),
         const SizedBox(height: 12),
         Semantics(
-          label: 'Number in words: $words',
-          child: Text(words, textAlign: TextAlign.center, style: KP.display(28, color: KP.blue)),
+          label: 'Sum in words: $words',
+          child: Text(words, textAlign: TextAlign.center, style: KP.display(26, color: KP.blue)),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _c,
           autofocus: true,
           keyboardType: TextInputType.number,
-          maxLength: 2,
+          maxLength: 3,
           textAlign: TextAlign.center,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: KP.display(26),
-          decoration: const InputDecoration(hintText: '00', counterText: ''),
+          decoration: const InputDecoration(hintText: '000', counterText: ''),
           onSubmitted: (_) => _submit(),
         ),
         if (_msg != null) ...[
@@ -138,11 +164,34 @@ class _GateDialogState extends State<_GateDialog> {
       ]),
       actionsAlignment: MainAxisAlignment.spaceBetween,
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('Cancel', style: KP.body(15, color: KP.inkSoft, weight: FontWeight.w800))),
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(_GateResult.cancelled),
+            child: Text('Cancel', style: KP.body(15, color: KP.inkSoft, weight: FontWeight.w800))),
         KpButton(label: 'Continue', expand: false, height: 46, gradient: KP.blueGrad, onTap: _submit),
       ],
     );
   }
+}
+
+/// Shown instead of the gate for a minute after 3 wrong answers.
+class _WaitDialog extends StatelessWidget {
+  const _WaitDialog();
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Column(children: [
+          const Text('⏳', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 6),
+          Text('Ask a grown-up', style: KP.display(24)),
+        ]),
+        content: Text('Too many tries. A grown-up can try again in a minute.',
+            textAlign: TextAlign.center, style: KP.body(14.5, color: KP.inkSoft)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK', style: KP.body(15, color: KP.blue, weight: FontWeight.w900))),
+        ],
+      );
 }
 
 /// Wraps a grown-up screen (route). Asks on entry unless the area is already open; a child who

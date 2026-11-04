@@ -11,25 +11,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GuestPrefs {
   final bool loaded;
 
-  /// null = never changed → the phone's language + English ([effectiveLanguages]).
+  /// null = never chosen → every language ([effectiveLanguages] is empty).
   final List<String>? languages;
   final String locale;
   const GuestPrefs({this.loaded = false, this.languages, this.locale = 'en'});
 
-  /// What the feeds use: the saved choice, else the device language + English.
-  List<String> get effectiveLanguages => languages ?? defaultLanguages();
-}
-
-/// The phone's language first, then English ("hi", "en"); just English if they're the same.
-List<String> defaultLanguages() {
-  final out = <String>[];
-  for (final l in WidgetsBinding.instance.platformDispatcher.locales) {
-    final c = l.languageCode.toLowerCase();
-    if (c.isNotEmpty && !out.contains(c)) out.add(c);
-    if (out.length == 1) break;
-  }
-  if (!out.contains('en')) out.add('en');
-  return out;
+  /// What the feeds use: the languages a grown-up saved, else none, which means every language.
+  /// (Filtering by the phone's language hid most of the catalogue on English phones.)
+  List<String> get effectiveLanguages => languages ?? const [];
 }
 
 class GuestPrefsController extends StateNotifier<GuestPrefs> {

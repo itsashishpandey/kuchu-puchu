@@ -178,7 +178,9 @@ class _BarItem extends StatelessWidget {
     return Center(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutBack,
+        // Bounce only when a tab turns on. Turning off with an overshooting curve would push the
+        // padding and shadow below zero for a moment (assertions in debug builds).
+        curve: active ? Curves.easeOutBack : Curves.easeOut,
         height: 50,
         padding: EdgeInsets.symmetric(horizontal: active ? 10 : 0),
         decoration: BoxDecoration(
@@ -193,7 +195,11 @@ class _BarItem extends StatelessWidget {
           if (active) ...[
             const SizedBox(width: 5),
             Flexible(
-              child: Text(item.label, maxLines: 1, overflow: TextOverflow.clip, style: KP.body(12.5, color: Colors.white, weight: FontWeight.w900)),
+              // Shrinks a little on narrow phones instead of cutting "Grown-ups" to "Grown-".
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(item.label, maxLines: 1, softWrap: false, style: KP.body(12.5, color: Colors.white, weight: FontWeight.w900)),
+              ),
             ),
           ],
         ]),

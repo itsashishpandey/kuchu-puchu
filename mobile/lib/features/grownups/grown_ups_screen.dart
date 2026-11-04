@@ -78,7 +78,7 @@ class _GrownUpsBody extends ConsumerWidget {
             _Row(
               emoji: '🗣️',
               title: 'Languages',
-              subtitle: mine.map(langs.label).join(', '),
+              subtitle: mine.isEmpty ? 'All languages' : mine.map(langs.label).join(', '),
               onTap: () => showGuestLanguageSheet(context),
             ),
           ]),

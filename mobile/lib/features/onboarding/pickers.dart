@@ -87,7 +87,8 @@ class _LanguageChooserState extends State<LanguageChooser> {
 
   @override
   Widget build(BuildContext context) {
-    final all = widget.languages;
+    // only languages that have videos (plus any already picked, so they can be removed)
+    final all = widget.languages.where((l) => l.videoCount > 0 || widget.selected.contains(l.code)).toList();
     final selected = [for (final c in widget.selected) ?all.byCode(c)];
     final searching = _q.trim().isNotEmpty;
     final matches = searching ? all.where((l) => l.matches(_q)).toList() : const <TaxLanguage>[];

@@ -15,7 +15,7 @@ class AppConfig {
 
   /// Shown in Grown-ups → About. Keep in sync with pubspec.yaml (a test checks it).
   static const String version = '1.5.2';
-  static const int build = 9;
+  static const int build = 10;
 
   /// Public pages for grown-ups (always the live site, even in debug builds).
   static const String site = 'https://mykuchupuchu.com';

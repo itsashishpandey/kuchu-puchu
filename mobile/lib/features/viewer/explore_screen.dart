@@ -142,7 +142,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         .animate(onPlay: (c) => c.repeat(reverse: true))
                         .rotate(begin: -0.05, end: 0.05, duration: 1200.ms),
                   ]),
-                  Text('Videos in 100+ languages — try “Hindi nursery rhymes”', style: KP.body(14.5, color: KP.inkSoft, weight: FontWeight.w700)),
+                  Text('Try “nursery rhymes”, “animals” or “ABC”', style: KP.body(14.5, color: KP.inkSoft, weight: FontWeight.w700)),
                   const SizedBox(height: 14),
                   Container(
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(KP.rMd), boxShadow: KP.softShadow(KP.purple)),

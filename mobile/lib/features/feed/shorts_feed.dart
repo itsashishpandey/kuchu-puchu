@@ -145,7 +145,7 @@ class _ShortsFeedState extends ConsumerState<ShortsFeed> with WidgetsBindingObse
   Map<String, dynamic> _query(int offset, {bool fresh = false}) {
     final kind = widget.kind!;
     final filter = ref.read(feedLanguageFilterProvider);
-    // the 🌐 filter, else the languages saved on this phone (device language + English by default)
+    // the 🌐 filter, else the languages saved on this phone (none saved = every language)
     final languages = filter.isNotEmpty ? filter : ref.read(guestPrefsProvider).effectiveLanguages;
     return {
       'feed': kind.name,
@@ -513,7 +513,15 @@ class _ShortsFeedState extends ConsumerState<ShortsFeed> with WidgetsBindingObse
                 onTap: () => ref.read(feedLanguageFilterProvider.notifier).state = const [],
               ),
             const SizedBox(height: 10),
-            KpButton.light(label: 'Change languages', emoji: '🌐', expand: false, height: 48, onTap: () => showGuestLanguageSheet(context)),
+            KpButton.light(
+              label: 'Change languages',
+              emoji: '🌐',
+              expand: false,
+              height: 48,
+              onTap: () async {
+                if (await ParentalGate.check(context) && mounted) showGuestLanguageSheet(context);
+              },
+            ),
           ]),
         ),
       ));
@@ -757,7 +765,7 @@ class _FeedPageState extends State<_FeedPage> {
             Wrap(spacing: 8, runSpacing: 6, children: [
               _Chip('${cat.emoji} ${v.categoryLabel}', cat.color),
               if (lang != null) _Chip('🗣 ${lang.label}', KP.yellow),
-              _Chip('▶ ${compact(v.views)} views', Colors.white),
+              _Chip('▶ ${plural(v.views, 'view', short: true)}', Colors.white),
             ]),
           ]),
         ),
@@ -869,7 +877,8 @@ class _RailButton extends StatelessWidget {
 
 /// "Something's not right" sheet — for grown-ups (behind the parental gate).
 Future<void> showReportSheet(BuildContext context, ApiClient api, Video v) async {
-  if (!await ParentalGate.check(context)) return;
+  // asks every time, like Share and outside links
+  if (!await ParentalGate.check(context, remember: false)) return;
   if (!context.mounted) return;
   const reasons = [
     ('INAPPROPRIATE', '🚫', 'Not okay for kids'),

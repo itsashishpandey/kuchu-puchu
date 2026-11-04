@@ -4,6 +4,7 @@ import '../../core/api.dart';
 import '../../core/preferences.dart';
 import '../../core/taxonomy.dart';
 import '../../core/theme.dart';
+import '../../shared/parental_gate.dart';
 import '../../shared/widgets.dart';
 import 'pickers.dart';
 
@@ -212,7 +213,10 @@ class _FeedLanguageFilterSheetState extends ConsumerState<_FeedLanguageFilterShe
                   _Option(
                     emoji: '✏️',
                     title: 'Edit my languages',
-                    onTap: () {
+                    subtitle: 'For grown-ups',
+                    onTap: () async {
+                      // saved languages are a grown-up setting
+                      if (!await ParentalGate.check(context) || !context.mounted) return;
                       Navigator.of(context).pop();
                       showGuestLanguageSheet(context);
                     },

@@ -208,7 +208,7 @@ class _About extends StatelessWidget {
             if ((ch.country ?? '').isNotEmpty) _line('📍', ch.country!),
             if (ch.joinedAt != null) _line('🗓️', 'Joined ${shortDate(ch.joinedAt)}'),
             _line('🎬', plural(ch.videoCount, 'video')),
-            _line('👀', '${compact(ch.totalViews)} views'),
+            _line('👀', plural(ch.totalViews, 'view', short: true)),
           ]),
         ),
         if (ch.languages.isNotEmpty || ch.preferredCategories.isNotEmpty) ...[

@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'config.dart';
@@ -30,7 +32,7 @@ class ApiClient {
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 60),
           validateStatus: (s) => s != null && s < 500,
-          headers: {'User-Agent': 'KuchuPuchuApp/${AppConfig.version} (Android)'},
+          headers: {'User-Agent': 'KuchuPuchuApp/${AppConfig.version} (${Platform.isIOS ? 'iOS' : 'Android'})'},
         )) {
     final host = Uri.parse(AppConfig.serverUrl).host;
     dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {

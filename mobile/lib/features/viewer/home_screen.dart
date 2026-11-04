@@ -154,7 +154,7 @@ class _HeroBanner extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(20)),
-                    child: Text('NEW EVERY DAY', style: KP.body(10.5, color: Colors.white, weight: FontWeight.w900)),
+                    child: Text('CARTOONS & RHYMES', style: KP.body(10.5, color: Colors.white, weight: FontWeight.w900)),
                   ),
                   const SizedBox(height: 8),
                   Text('Watch, giggle & learn!', style: KP.display(25, color: Colors.white, height: 1.05)),

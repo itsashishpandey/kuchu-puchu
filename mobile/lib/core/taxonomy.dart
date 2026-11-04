@@ -80,10 +80,16 @@ final languagesProvider = FutureProvider<List<TaxLanguage>>((ref) async {
 });
 
 /// Main categories (with subcategories) in the viewer's category-name language.
+/// Only the ones that have videos: an empty "0 videos" tile is a dead end for a child.
 final taxonomyCategoriesProvider = FutureProvider<List<TaxCategory>>((ref) async {
   final locale = ref.watch(uiLocaleProvider);
   final res = await ref.read(apiProvider).get('/taxonomy/categories', query: {'locale': locale});
-  return ((res['categories'] as List?) ?? const []).whereType<Map>().map((e) => TaxCategory.fromJson(e.cast<String, dynamic>())).toList();
+  return ((res['categories'] as List?) ?? const [])
+      .whereType<Map>()
+      .map((e) => TaxCategory.fromJson(e.cast<String, dynamic>()))
+      .where((c) => c.videoCount > 0)
+      .map((c) => c..subcategories.removeWhere((s) => s.videoCount == 0))
+      .toList();
 });
 
 extension LanguageLookup on List<TaxLanguage> {

@@ -9,6 +9,77 @@ Written 4 Nov 2026 on the Windows PC.
 
 ---
 
+## ▶ Pick up here (4 Nov 2026)
+
+On 4 Nov, Claude on the owner's Windows PC did steps 1–6 on this Mac over SSH. The owner then asked to
+continue **on the Mac itself**. The PC session has stopped, so don't wait for it.
+
+**This folder:** `~/Claude/kuchu puchu`, branch `ios-app`. Nothing is committed yet. All the changes
+below are in the working tree.
+
+### Done
+
+- **iOS project** in `mobile/ios`:
+  - bundle ID `kuchupuchu.com`, iPhone only, portrait only;
+  - the icon and launch screen from `mobile/ios-assets/`, and `PrivacyInfo.xcprivacy` in the Runner target;
+  - no Team ID in any committed file.
+- **Dart changes**, each checked on Android code paths too:
+  - `lib/core/api.dart` sends `(iOS)` or `(Android)` to the server.
+  - `lib/features/viewer/viewer_shell.dart`:
+    - the "Grown-ups" tab label shrinks instead of being cut to "Grown-";
+    - the tab bounce runs only when a tab turns on, which ends the negative-padding and shadow assertions.
+  - `lib/shared/parental_gate.dart`: the gate dialog is `scrollable` (it overflowed on iPad when the keyboard opened).
+- **Screen tour:** `integration_test/screens_test.dart`, with `tool/ios-screenshots.sh` photographing each screen.
+  It passes on iPhone 17 Pro Max, iPhone 16e and iPad (A16).
+  - `pubspec.yaml` and `pubspec.lock` gained the SDK's `integration_test` dev dependency **on purpose**. The 6 new lock
+    entries are SDK packages, test-only. That is the one allowed lock change.
+- **Screenshots:** `store/ios/iphone-1-shorts.png` … `iphone-8-grownups.png`, 1320×2868, taken from the real app.
+- **Signing.** This differs from step 6 above: **use the repo's files, don't replace them with the script text in
+  step 6.**
+  - `~/.kuchupuchu/asc.json` points at the team's App Store Connect API key, which was already on this Mac. The key
+    file stays where it was.
+  - `mobile/ios/fastlane/Fastfile` has three lanes:
+    - `check` (read-only);
+    - `register_bundle_id` (**done**);
+    - `signing` (**done**): it made the profile "kuchupuchu.com AppStore" with the existing Apple Distribution
+      certificate, so no new certificate, and wrote the git-ignored `mobile/ios/Flutter/Signing.xcconfig`.
+  - `mobile/tool/build-ios.sh`: manual signing. `--upload` sends the build with the API key, so Xcode needs no
+    Apple ID sign-in.
+- **The first signed archive** failed only because macOS locks the keychain for SSH logins
+  (`errSecInternalComponent`). Run here in the Mac's own session, it should work. If it still says
+  `errSecInternalComponent`, ask the owner to unlock the login keychain: in Keychain Access, or with
+  `security unlock-keychain ~/Library/Keychains/login.keychain-db` in Terminal.
+
+- **Moved:** the project now lives in `~/Claude/kuchu puchu` (moved from `~/Projects/kuchu-puchu`, then cleaned and rebuilt; the Simulator build and all tests pass there).
+- **CocoaPods notes:** over a plain SSH login `pod install` fails with "Unicode Normalization not appropriate for ASCII-8BIT": set `LANG=en_US.UTF-8`. Its warning about the base configuration for **Profile** is the usual harmless one for Flutter projects.
+- **Home-folder git repo:** `~/.git` (empty, no commits, no remote, made 24 Aug) makes the app treat the whole home folder as a project. Never commit from there; the owner decides whether to remove it.
+
+### Next, in order
+
+1. **Step 7: the app record.**
+   - Ask the owner to sign in to https://appstoreconnect.apple.com in this Mac's browser pane.
+   - The owner agreed on 4 Nov to create the record with the step 7 values: name **Kuchu Puchu - videos for kids**,
+     English (U.S.), bundle `kuchupuchu.com`, SKU `kuchupuchu-ios`, full access.
+   - Confirm once with the owner, then create it.
+   - Then run `cd mobile/ios && fastlane check`: it should say "App record exists".
+2. **Upload.** Run `cd mobile && bash tool/build-ios.sh --upload`, then the archive checks at the end of step 6
+   (look in `build/ios/KuchuPuchu.xcarchive`).
+3. **Step 8: TestFlight.** The owner has **no iPhone**, so add the internal group but skip the device test, and note
+   that in the log.
+4. **Step 9: the listing.**
+   - Use 6 screenshots, in this order: `1-shorts`, `2-home`, `3-player`, `4-explore`, `5-category`, `8-grownups`.
+     Leave out `6-grownups-locked` and `7-gate`.
+   - Ask the owner for the App Review contact (9.7).
+5. **Step 10: submit.** Ask the owner before **Submit for Review**.
+6. **Step 11: save the work.**
+   - Run the checks, then commit on `ios-app`.
+   - This Mac's GitHub login has **expired**: ask the owner to approve `gh auth login --web`, then
+     `git push -u origin ios-app`.
+   - If they'd rather not, leave the commit on the Mac and tell them. The Windows PC can fetch it over the Wi-Fi.
+7. Add a status-log row after each step.
+
+---
+
 ## 0. How to start (for the owner)
 
 1. On the Mac, install **Xcode** from the Mac App Store. It's free and large (about 15 GB), so it can take
@@ -188,8 +259,8 @@ sw_vers; uname -m; df -h ~ | tail -1; xcodebuild -version; xcode-select -p
 ### Step 3: Get the code
 
 ```bash
-git clone https://github.com/itsashishpandey/kuchu-puchu.git ~/Projects/kuchu-puchu
-cd ~/Projects/kuchu-puchu
+git clone https://github.com/itsashishpandey/kuchu-puchu.git ~/Claude/kuchu puchu
+cd ~/Claude/kuchu puchu
 git switch ios-app 2>/dev/null || git switch -c ios-app
 cd mobile && flutter pub get && flutter analyze && flutter test
 ```
@@ -620,7 +691,7 @@ update them, and never claim something the app doesn't have.
 
 ### Step 11: Save the work to GitHub
 
-Run these checks before **every** commit (from `~/Projects/kuchu-puchu`):
+Run these checks before **every** commit (from `~/Claude/kuchu puchu`):
 
 ```bash
 git add -A mobile store docs/ios-app.md
@@ -737,3 +808,25 @@ Claude on the Mac: add a row after each step, newest at the bottom, and commit i
 | Date | Step | Result |
 |---|---|---|
 | 2026-11-04 | Plan written on the Windows PC | Icons ready in `mobile/ios-assets/`. Server checked: no change needed. Nothing built for iOS yet. |
+| 2026-11-04 | How the work runs | Claude on the Windows PC drives this Mac over the home Wi-Fi (SSH key login). The Mac's GitHub login isn't needed: the finished work is copied back to the PC and pushed from there. |
+| 2026-11-04 | 1–3: Mac, tools, code | macOS 26.5 (Apple silicon), Xcode 26.2, iOS 26.2 Simulator, Flutter 3.41.9 (same as the PC), CocoaPods. Branch `ios-app` from `592e1af`; all 10 tests pass. |
+| 2026-11-04 | 4: iOS project | Bundle ID `kuchupuchu.com`, iPhone only, portrait, new icon and launch screen, privacy manifest, the app now says `(iOS)` to the server. The Team ID is only in the git-ignored `Signing.xcconfig`. Analyzer unchanged, tests pass. |
+| 2026-11-04 | 5: Simulator, first look | iPhone 17 Pro Max: opens straight into the Shorts feed and the live video plays; nothing under the Dynamic Island or the home bar. Checking the other screens next. |
+| 2026-11-04 | 5: Simulator, every screen | An automated screen tour (`integration_test/screens_test.dart`, `tool/ios-screenshots.sh`) passes on iPhone 17 Pro Max, iPhone 16e and iPad (A16): Shorts, Home, full-screen player, Explore, a category, the Grown-ups gate and area. Fixed on the way, for Android too: the Grown-ups tab label was cut to "Grown-" on narrow phones; the tab bounce briefly gave negative padding and shadow; the gate box overflowed when the keyboard left little room (now scrolls). 8 App Store screenshots (1320×2868) in `store/ios/`. |
+| 2026-11-04 | 6: Signing | With the team's App Store Connect API key already on this Mac: `kuchupuchu.com` registered, profile "kuchupuchu.com AppStore" made with the existing Apple Distribution certificate (no new certificate). `mobile/ios/fastlane/Fastfile` + `tool/build-ios.sh` (manual signing, upload with the API key). |
+| 2026-11-04 | Hand-off to the Mac | First signed archive stopped on the keychain lock over SSH (expected). The owner asked to continue in the Mac's own Claude session: see "Pick up here" at the top. |
+| 2026-11-04 | 6: First signed build (Mac's own session) | `bash tool/build-ios.sh` (no upload) archived and exported `Kuchu Puchu.ipa` with no keychain error. Checks: `kuchupuchu.com`, 1.5.2 (9), iOS 26.2 SDK, Xcode 26.2, `UIDeviceFamily` = [1], encryption exempt, signed "Apple Distribution" with the profile "kuchupuchu.com AppStore", live server built in, `192.168.1.12` absent. `fastlane check`: bundle ID registered, no app record yet. Waiting for the owner to sign in to App Store Connect for step 7. |
+| 2026-11-04 | 7: App record | The API can't create apps (`POST /v1/apps` → 403 "does not allow 'CREATE'"), so the owner created it on the website with the step 7 values. `fastlane check`: "App record exists: 'Kuchu Puchu - videos for kids'". Agreements and EU trader status: still to confirm with the owner. |
+| 2026-11-04 | 8: Upload and TestFlight | `bash tool/build-ios.sh --upload`: "Upload succeeded". Build 9 processed as VALID, encryption exempt. Two harmless warnings: the iOS 13.0 deployment target must be 15.0+ from April 2027 (raise it in a later build), and no dSYM for `objective_c.framework` (crash symbols only). Internal TestFlight group "Owner" made with build 9; **no device test** (the owner has no iPhone). |
+| 2026-11-04 | 9: Listing, first part (API) | Version renamed 1.0 → 1.5.2 with build 9 attached, copyright, release automatically after approval. Description, promotional text, keywords, subtitle, support, marketing and privacy URLs as in 9.4–9.6. Categories: App Store Connect has no "Kids" category to pick, so primary **Entertainment**, secondary **Education**; the Kids category comes from "Made for Kids" + age band in the age rating. Content rights: uses third-party content. Free; every territory except China mainland, new territories on. Still to do: age rating, screenshots, App Privacy (website only), review contact and notes, after a guideline check the owner asked for. |
+| 2026-11-04 | Guideline check before submitting (not submitted) | Likely rejection as things stand. **4.2 thin content:** an en-US reviewer gets `languages=en` → 6 videos (26 in all, ~8 min), and 6 of 15 categories show "0 videos". **1.3/5.2:** some videos don't suit under-6s or look re-uploaded (a test-pattern thumbnail, a gold-chain "dad" meme, YouTube play/Subscribe marks, a channel watermark, a Cocomelon-like baby); screenshots 1, 3, 5 show the classroom-meme videos. **2.3:** "Videos in 100+ languages", "stories" (0 stories), "likes stay on this device" (likes are posted). **5.1:** search text is logged on the server (`SearchLog`) but declared not collected. Smaller: Report gate remembers for 5 min, no wait after 3 wrong tries, "Edit my languages" not gated, `integration_test` and creator artwork ship in the release. Checked fine: no third-party SDKs, only mykuchupuchu.com contacted, no device IDs, privacy manifests, Info.plist, offline error, legal pages. |
+| 2026-11-04 | Fixes for the check (app, build 10) | The owner said the audience is usually 3–9, so the band stays **5 and Under** and the gate got harder. Dart, both platforms: no saved languages now means **every language** (was phone language + English); categories, topics and languages with 0 videos are hidden; the gate asks a teen-times-small multiplication in words ("fourteen times three" → 42) and stays shut for a minute after 3 wrong answers; Report asks every time; "Edit my languages" and "Change languages" are gated; "Videos in 100+ languages" and "NEW EVERY DAY" replaced. Tests and the screen tour updated; analyzer back to its 13 old infos; 11 tests pass. `pubspec.yaml` 1.5.2+10, `config.dart` build 10, so Android's next build must be 11 or higher. |
+| 2026-11-04 | 9: Listing, second part (API) | Text no longer says "3–8", "stories", "and more" or that likes stay on the phone; Marketing URL left blank (the home page is the creator pitch). Subtitle "Cartoons, rhymes & learning". Age rating: everything None/No except user-generated content = yes and parental controls = yes; band 5 and Under; Apple computes **4+**. Review notes saved (gate, content review, licence, no SDKs); contact still to come from the owner. |
+| 2026-11-04 | Build 10 on the Simulator | Screen tour passes on iPhone 17 Pro Max (en-US): the gate shows e.g. "eleven times five" and the right answer opens Grown-ups; Explore shows only categories with videos; Grown-ups → Languages says "All languages". Check shots only (not the store set): screenshots are retaken after the owner's video clean-up. Waiting on the owner: unpublish/fix the 9 flagged videos, add more videos (aim 50+, plenty in English), review contact, agreements and EU trader status. |
+| 2026-11-04 | Owner: "upload everything and submit" | **Found: VID-2026-000030…033** (the 4 newest, @tripple707 "Jungle School": Urdu Class, English Poem Class, हिंदी मुहावरे, Punjabi Musical Instruments) return **404 for the video file**; they sort first in For You, so the app opens on "Can't play this one right now". Website fix (PC/admin): re-upload or unpublish them. Submission paused for this, the review contact and App Privacy (website only). `PrivacyInfo.xcprivacy` now also declares Search History (not linked, not tracking; App Functionality + Analytics). "1 views" → "1 view" (feed chip, channel page). |
+| 2026-11-04 | 9.5: Screenshots | 6 uploaded in order as 6.9-inch (`APP_IPHONE_67`), flattened to JPEG (no alpha): 1-shorts (Greet Your Elders), 2-home, 3-player (alphabet "M for Moon", taken by hand), 4-explore, 5-category (Early Learning → Alphabet & Phonics, by hand), 8-grownups. None shows a flagged video. `store/ios/` holds the new set. |
+| 2026-11-04 | Build 10, first try | Export validation failed: `objective_c.framework` had a Simulator slice left from the Simulator runs. Fix: `flutter clean`, `pub get`, `pod install`, then build again. **Run `flutter clean` before every store build that follows a Simulator run.** |
+| 2026-11-04 | Build 10 uploaded | After the clean: "Upload succeeded", `objective_c` is iOS-only (platform 2). Apple is processing it; attach it to 1.5.2 in place of build 9 before submitting. |
+| 2026-11-04 | Build 10 attached; review contact | Build 10 VALID, attached to 1.5.2 and added to the "Owner" TestFlight group. The owner gave the review contact (company name and email); Apple won't save it without the phone, and the number given has 9 digits after +91, so it waits for the owner to confirm. VID-030…033 still 404. |
+| 2026-11-04 | 9.7 + 10: ready, not submitted | Contact saved (company name, the owner's phone and email: in App Store Connect only, not here); sign-in not required; notes saved. A review submission draft with version 1.5.2 (build 10) was accepted with no missing-field errors: version state **READY_FOR_REVIEW**. Not submitted: waiting for the owner's answer on the 4 videos with missing files. |
+| 2026-11-04 | 10: Submitted | The owner said "Submit anyway" knowing VID-030…033 still 404. Submitted 09:59 UTC; 1.5.2 (10) is **Waiting for Review**. Still open on the website (PC/admin): fix or unpublish VID-030…033 and the 9 flagged videos, add more videos, fix the privacy policy (likes are counted on the server; the viewer key is derived from the connection; search text is logged). If Apple rejects, read App Review in App Store Connect, log it here, fix, raise the build (11+), resubmit after asking the owner. |

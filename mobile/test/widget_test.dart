@@ -58,12 +58,9 @@ void main() {
     expect(back.languages.first.nameNative, 'English');
   });
 
-  test('languages default to the phone language plus English, unless chosen', () {
-    TestWidgetsFlutterBinding.ensureInitialized();
+  test('languages default to every language (no filter), unless a grown-up chose some', () {
     expect(const GuestPrefs(languages: ['ta']).effectiveLanguages, ['ta']);
-    final d = const GuestPrefs().effectiveLanguages;
-    expect(d, contains('en'));
-    expect(d.length, lessThanOrEqualTo(2));
+    expect(const GuestPrefs().effectiveLanguages, isEmpty);
   });
 
   test('the version shown to grown-ups matches pubspec.yaml', () {
@@ -98,6 +95,17 @@ void main() {
     expect(numberInWords(99), 'ninety-nine');
     for (var n = 10; n < 100; n++) {
       expect(numberInWords(n), isNot(matches(RegExp(r'\d'))), reason: 'no digits for $n');
+    }
+  });
+
+  test('parental gate sums are written only in words and need real arithmetic', () {
+    expect(gateQuestion(14, 3), 'fourteen times three');
+    for (var a = gateFirst.min; a <= gateFirst.max; a++) {
+      for (var b = gateSecond.min; b <= gateSecond.max; b++) {
+        expect(gateQuestion(a, b), isNot(matches(RegExp(r'\d'))), reason: 'no digits for $a × $b');
+        expect(a * b, greaterThanOrEqualTo(33), reason: 'no times-table-from-memory answers');
+        expect(a * b, lessThan(1000), reason: 'fits the 3-digit answer box');
+      }
     }
   });
 }
