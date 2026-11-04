@@ -208,9 +208,9 @@ export function FreshDrops() {
             <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-brand-pink-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-pink">
               <Icons.Sparkles size={13} /> Fresh drops
             </span>
-            <h2 className="font-display text-3xl font-bold md:text-[2.6rem]">New from creators this week</h2>
+            <h2 className="font-display text-3xl font-bold md:text-[2.6rem]">New Kuchu Puchu Videos for Kids</h2>
             <p className="mt-3 max-w-xl text-muted-foreground">
-              Every day approved creators publish new originals — hover a card to preview it right here.
+              The newest cartoons, rhymes and learning videos from our approved creators. Hover a card to preview it.
             </p>
           </div>
           <Link to="/explore" className="inline-flex items-center gap-1.5 rounded-full border bg-white px-5 py-2.5 text-sm font-semibold transition hover:border-brand-blue/40 hover:text-brand-blue">

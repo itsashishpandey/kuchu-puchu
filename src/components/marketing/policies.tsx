@@ -1,6 +1,8 @@
 "use client";
 
+import { Fragment } from "react";
 import * as Icons from "lucide-react";
+import { AppButtons, AppCtaBand } from "@/components/shared/app-buttons";
 import { Button } from "@/components/ui/button";
 import { PrimaryCTA } from "@/components/shared/ui-bits";
 import { Link, navigate } from "@/components/app/router";
@@ -30,8 +32,10 @@ export function PolicyPage({ slug }: { slug: string }) {
     );
   }
   return (
+    <>
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-28 md:px-6 md:pt-36">
-      <div className="grid gap-10 lg:grid-cols-[240px_1fr]">
+      {/* grid-cols-1 (minmax(0,1fr)): the side-scrolling policy menu otherwise widens the page on phones */}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[240px_1fr]">
         <aside className="lg:sticky lg:top-28 lg:self-start" aria-label="Policy documents">
           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Policies</p>
           <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -53,9 +57,24 @@ export function PolicyPage({ slug }: { slug: string }) {
           <p className="mt-3 text-muted-foreground">{policy.intro}</p>
           <p className="mt-2 text-xs text-muted-foreground">{policy.updated}</p>
 
+          {/* app CTA 1 */}
+          <div className="mt-6 flex flex-col gap-4 rounded-3xl bg-gradient-to-br from-brand-blue-soft to-brand-pink-soft p-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-display text-base font-bold text-ink">The Kuchu Puchu app: free learning videos for kids, no ads.</p>
+            <AppButtons className="shrink-0" />
+          </div>
+
           <div className="mt-8 space-y-6">
-            {policy.sections.map(s => (
-              <section key={s.h} className="bento p-6 md:p-7">
+            {policy.sections.map((s, i) => (
+              <Fragment key={s.h}>
+              {/* app CTA 2, halfway down */}
+              {i === Math.floor(policy.sections.length / 2) && (
+                <aside className="rounded-3xl bg-ink p-6 text-center text-white" aria-label="Get the Kuchu Puchu app">
+                  <p className="font-display text-lg font-bold">Watch Kuchu Puchu videos in the app</p>
+                  <p className="mt-1 text-sm text-white/70">Cartoons, rhymes, stories and learning videos for kids aged 3–8.</p>
+                  <AppButtons tone="dark" align="center" className="mt-4" />
+                </aside>
+              )}
+              <section className="bento p-6 md:p-7">
                 <h2 className="font-display text-lg font-bold text-ink">{s.h}</h2>
                 {s.p.map((para, i) => (
                   <p key={i} className="mt-3 text-sm leading-relaxed text-muted-foreground">{para}</p>
@@ -70,15 +89,24 @@ export function PolicyPage({ slug }: { slug: string }) {
                   </ul>
                 )}
               </section>
+              </Fragment>
             ))}
           </div>
 
-          <div className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-ink p-8 text-center text-white">
-            <h2 className="font-display text-xl font-bold">Ready to put these rates to work?</h2>
-            <PrimaryCTA to="/register">Become a Creator</PrimaryCTA>
-          </div>
+          {CREATOR_POLICIES.has(slug) && (
+            <div className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-surface p-8 text-center ring-1 ring-black/5">
+              <h2 className="font-display text-xl font-bold">Make videos for kids? Put these rules to work.</h2>
+              <PrimaryCTA to="/register">Become a Creator</PrimaryCTA>
+            </div>
+          )}
         </article>
       </div>
     </div>
+    {/* app CTA 3 */}
+    <AppCtaBand tone="dark" heading="Download the Kuchu Puchu App"
+      text="Free, ad-free learning videos for kids aged 3–8: cartoons, nursery rhymes, stories, ABCs and more." />
+    </>
   );
 }
+
+const CREATOR_POLICIES = new Set(["monetization", "payment", "copyright"]);

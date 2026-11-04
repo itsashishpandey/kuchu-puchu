@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
-import { StaticPolicy, policy } from "@/components/marketing/static-policy";
+import { StaticSeoPage, staticMetadata } from "@/components/app/server-page";
 
-export const metadata: Metadata = { title: "Community Guidelines", alternates: { canonical: "/community-guidelines" } };
+// mykuchupuchu.com/community-guidelines: a real page (title, description and text in the server HTML)
+export const dynamic = "force-dynamic";
+export const metadata = staticMetadata("/community-guidelines");
 
 export default function Page() {
-  return <StaticPolicy policy={policy("community")} />;
+  return <StaticSeoPage path="/community-guidelines" />;
 }

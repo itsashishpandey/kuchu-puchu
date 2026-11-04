@@ -36,6 +36,9 @@ import {
   AdminUsersPage, AdminPlatformPage,
 } from "@/components/admin/settings-pages";
 import { AdminDiscoveryPage } from "@/components/admin/discovery-pages";
+import { CategoryPage } from "@/components/marketing/category-page";
+import { PageDataContext, type PageData } from "./page-data";
+import { SITE_TITLE, staticPage, categorySeoByPath, titleForPath } from "@/lib/seo-pages";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
@@ -110,6 +113,11 @@ function Routes() {
   else if (first === "saved") page = <SavedPage />;
   else if (first === "settings" && second === "interests") page = <InterestsSettingsPage />;
   else if (first === "policies" && second) page = <PolicyPage slug={second} />;
+  else if (staticPage(route.path)?.policy) page = <PolicyPage slug={staticPage(route.path)!.policy!} />;
+  else if (categorySeoByPath(route.path)) {
+    const dbSlug = categorySeoByPath(route.path)!.dbSlug;
+    page = <CategoryPage key={dbSlug} dbSlug={dbSlug} />;
+  }
   else if (first === "delete-account") page = <DeleteAccountPage />;
   else if (first === "c" && second) page = <CreatorChannelPage username={second} />;
   else page = <Home />;
@@ -123,11 +131,12 @@ function Routes() {
   );
 }
 
-export function App({ initialPath = "/" }: { initialPath?: string } = {}) {
+export function App({ initialPath = "/", pageData = null }: { initialPath?: string; pageData?: PageData | null } = {}) {
   useEffect(() => {
-    // SEO: dynamic title per hash route
+    // Tab title. Real pages (/about, /nursery-rhymes…) use their search title from seo-pages.ts,
+    // channel pages keep the one their server page set, /#/ screens use the list below.
     const titles: Record<string, string> = {
-      "": "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
+      "": SITE_TITLE,
       "delete-account": "Delete Your Account — Kuchu Puchu",
       about: "About Us — Kuchu Puchu",
       contact: "Contact Us — Kuchu Puchu",
@@ -144,26 +153,44 @@ export function App({ initialPath = "/" }: { initialPath?: string } = {}) {
       dashboard: "Creator Dashboard — Kuchu Puchu",
       admin: "Admin Console — Kuchu Puchu",
     };
+    const wanted = (): string | null => {
+      const hash = window.location.hash.replace(/^#\/?/, "");
+      if (!hash) return titleForPath(window.location.pathname);
+      const seg = hash.split(/[/?]/)[0] ?? "";
+      return titles[seg] ?? (seg === "policies" ? "Policies — Kuchu Puchu" : seg === "c" ? "Creator — Kuchu Puchu" : titles[""]);
+    };
     const apply = () => {
-      // channel pages (/c/<username>) set their own title (the channel name)
-      if (!window.location.hash && window.location.pathname.startsWith("/c/")) return;
-      const seg = (window.location.hash.replace(/^#\/?/, "").split("/")[0]) ?? "";
-      document.title = titles[seg] ?? (seg === "policies" ? "Policies — Kuchu Puchu" : seg === "c" ? "Creator — Kuchu Puchu" : titles[""]);
+      const t = wanted();
+      if (t && document.title !== t) document.title = t;
     };
     apply();
+    // routechange fires after the router swapped the address, so read it on the next tick
+    const later = () => setTimeout(apply, 0);
     window.addEventListener("hashchange", apply);
     window.addEventListener("popstate", apply);
-    return () => { window.removeEventListener("hashchange", apply); window.removeEventListener("popstate", apply); };
+    window.addEventListener("routechange", later);
+    // Next.js puts the server page's <title> back after an address change it didn't make (e.g. an
+    // old /#/about link moved to /about while the page starts): put ours back whenever that happens
+    const mo = new MutationObserver(apply);
+    mo.observe(document.head, { subtree: true, childList: true, characterData: true });
+    return () => {
+      mo.disconnect();
+      window.removeEventListener("hashchange", apply);
+      window.removeEventListener("popstate", apply);
+      window.removeEventListener("routechange", later);
+    };
   }, []);
 
   return (
     <InitialPathContext.Provider value={initialPath}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Routes />
-          <UpdateNotice />
-        </AuthProvider>
-      </QueryClientProvider>
+      <PageDataContext.Provider value={pageData}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <Routes />
+            <UpdateNotice />
+          </AuthProvider>
+        </QueryClientProvider>
+      </PageDataContext.Provider>
     </InitialPathContext.Provider>
   );
 }

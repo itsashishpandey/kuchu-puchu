@@ -1,15 +1,14 @@
 "use client";
 
 import * as Icons from "lucide-react";
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
-import { SectionHeading, PrimaryCTA, SecondaryCTA } from "@/components/shared/ui-bits";
+import { SectionHeading, SecondaryCTA } from "@/components/shared/ui-bits";
 import { Link } from "@/components/app/router";
 import { usd } from "@/lib/format";
-import { usePublicSettings, money, plural, unlockTarget, lengthRange, formatList, fillNumbers, type PublicSettings } from "@/lib/use-public-settings";
+import { usePublicSettings, money, plural, lengthRange, formatList, fillNumbers, type PublicSettings } from "@/lib/use-public-settings";
+import { FaqList } from "./home-parents";
+import { AppButtons } from "@/components/shared/app-buttons";
 
-// ── Section 14: FAQ ────────────────────────────────────────────────────────
+// ── Creator FAQ ────────────────────────────────────────────────────────────
 
 const faqs = (s: PublicSettings) => [
   {
@@ -60,25 +59,11 @@ export function FAQ() {
     <section className="py-16 md:py-24" aria-label="Frequently asked questions">
       <div className="mx-auto max-w-4xl px-4 md:px-6">
         <SectionHeading
-          eyebrow="FAQ"
-          title={<>Questions, <span className="grad-text-blue">answered</span></>}
+          eyebrow="Creator FAQ"
+          title={<>Creator questions, <span className="grad-text-blue">answered</span></>}
           subtitle="Everything creators ask before their first payout. Something missing? Our team replies within a business day."
         />
-        <Accordion type="single" collapsible className="reveal space-y-3">
-          {faqs(live).map((f, i) => (
-            <AccordionItem
-              key={i} value={`q${i}`}
-              className="bento overflow-hidden border-none px-5 data-[state=open]:shadow-md"
-            >
-              <AccordionTrigger className="py-4 text-left font-display text-[15px] font-bold hover:no-underline hover:text-brand-red">
-                {f.q}
-              </AccordionTrigger>
-              <AccordionContent className="pb-5 text-sm leading-relaxed text-muted-foreground">
-                {f.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <FaqList items={faqs(live)} />
         <p className="reveal mt-6 text-center text-sm text-muted-foreground">
           Still curious? <Link to="/contact" className="font-semibold text-brand-red underline underline-offset-2">Talk to creator support →</Link>
         </p>
@@ -87,7 +72,7 @@ export function FAQ() {
   );
 }
 
-// ── Section 15: Final CTA ─────────────────────────────────────────────────
+// ── Final CTA: parents first, creators second ─────────────────────────────
 
 export function FinalCTA() {
   const live = usePublicSettings();
@@ -100,25 +85,25 @@ export function FinalCTA() {
       </div>
       <div className="reveal relative mx-auto max-w-4xl px-4 text-center md:px-6">
         <span className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-yellow ring-1 ring-white/15">
-          <Icons.Sparkles size={13} /> Free to join · Non-exclusive · You own your content
+          <Icons.Sparkles size={13} /> Free · No ads · Ages 3–8
         </span>
         <h2 className="font-display text-4xl font-bold leading-[1.08] text-white md:text-6xl">
-          Your Creativity<br /><span className="grad-text">Deserves to Get Paid.</span>
+          Learning Time Is<br /><span className="grad-text">Fun Time.</span>
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-white/70">
-          Join the creators turning 60 seconds of originality into a real income stream.
-          Apply in 3 minutes — your first approved upload already earns.
+          Download the free Kuchu Puchu app or watch on the website: funny learning videos for kids,
+          with no ads and no sign-up.
         </p>
-        <div className="mt-9 flex flex-wrap justify-center gap-3">
-          <PrimaryCTA to="/register" className="!px-9 !py-6 !text-base">
-            Become a Creator <Icons.ArrowRight size={18} className="ml-1" />
-          </PrimaryCTA>
+        <AppButtons tone="dark" align="center" className="mt-9" />
+        <div className="mt-5 flex justify-center">
           <SecondaryCTA to="/feed" className="!border-white/20 !bg-white/5 !text-white !px-9 !py-6 !text-base hover:!border-white/40 hover:!text-white">
-            <Icons.Play size={17} fill="currentColor" className="mr-1.5" /> Watch Videos First
+            <Icons.Play size={17} fill="currentColor" className="mr-1.5" /> Watch Free Videos
           </SecondaryCTA>
         </div>
-        <p className="mt-6 text-xs text-white/45">
-          No credit card · No follower minimum · Withdraw anytime from {money(live.minWithdrawalAmount)}
+        <p className="mt-8 text-sm text-white/60">
+          Make videos for kids?{" "}
+          <Link to="/register" className="font-semibold text-brand-yellow underline underline-offset-2">Become a creator</Link>
+          {" "}· free to join, withdraw from {money(live.minWithdrawalAmount)}
         </p>
       </div>
     </section>

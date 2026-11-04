@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, EmptyState } from "@/components/shared/ui-bits";
-import { navigate, useRoute } from "@/components/app/router";
+import { Link, navigate, useRoute } from "@/components/app/router";
+import { AppButtons, AppCtaBand } from "@/components/shared/app-buttons";
+import { categoryPath } from "@/lib/seo-pages";
 import { get, post, type FeedVideo } from "@/lib/client";
 import { compact, fmtDate, usd } from "@/lib/format";
 import { useAuth } from "@/components/app/auth-provider";
@@ -107,7 +109,8 @@ function ChannelContent({ username }: { username: string }) {
   const popular = [...data.videos].sort((a, b) => b.views - a.views);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-24 pt-20 md:px-6 md:pt-24">
+    <>
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-20 md:px-6 md:pt-24">
       {/* banner */}
       <div className="relative aspect-[4/1] overflow-hidden rounded-2xl md:aspect-[6.2/1]"
         style={!data.bannerUrl ? { background: pink ? "linear-gradient(120deg,#FF4E9B,#FFC531)" : "linear-gradient(120deg,#1677FF,#FF4E9B)" } : undefined}>
@@ -158,6 +161,12 @@ function ChannelContent({ username }: { username: string }) {
         </div>
       </div>
 
+      {/* app CTA 1 */}
+      <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-gradient-to-br from-brand-blue-soft to-brand-pink-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="font-display text-base font-bold text-ink">Watch {data.name} in the free Kuchu Puchu app</p>
+        <AppButtons className="shrink-0" />
+      </div>
+
       {/* tabs */}
       <div className="sticky top-16 z-20 mt-6 border-b bg-background/95 backdrop-blur" role="tablist">
         <div className="flex gap-6">
@@ -185,9 +194,9 @@ function ChannelContent({ username }: { username: string }) {
               <h2 className="mb-3 font-display text-lg font-bold">What this channel makes</h2>
               <div className="flex flex-wrap gap-2">
                 {data.preferredCategories.map(c => (
-                  <button key={c.id} onClick={() => navigate(`/explore?category=${c.slug}`)} className="rounded-full bg-secondary px-3.5 py-1.5 text-sm font-semibold hover:bg-secondary/70">
+                  <Link key={c.id} to={categoryPath(c.slug)} className="rounded-full bg-secondary px-3.5 py-1.5 text-sm font-semibold hover:bg-secondary/70">
                     {c.emoji} {c.name}
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -274,7 +283,18 @@ function ChannelContent({ username }: { username: string }) {
           </aside>
         </div>
       )}
+
+      {/* app CTA 2 */}
+      <aside className="mt-12 rounded-3xl bg-ink p-6 text-center text-white md:p-8" aria-label="Get the Kuchu Puchu app">
+        <p className="font-display text-xl font-bold">More videos like these in the Kuchu Puchu app</p>
+        <p className="mt-1 text-sm text-white/70">Free learning videos for kids aged 3–8, with no ads and no sign-up.</p>
+        <AppButtons tone="dark" align="center" className="mt-5" />
+      </aside>
     </div>
+    {/* app CTA 3 */}
+    <AppCtaBand heading="Download the Kuchu Puchu App"
+      text="Cartoons, nursery rhymes, stories and ABC videos for kids, free and with no ads." />
+    </>
   );
 }
 

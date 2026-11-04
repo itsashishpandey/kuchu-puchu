@@ -9,13 +9,12 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
 import { SectionHeading } from "@/components/shared/ui-bits";
+import { AppButtons, AppCtaBand } from "@/components/shared/app-buttons";
 import { useReveal } from "@/components/app/router";
 import { post } from "@/lib/client";
 import { toast } from "@/hooks/use-toast";
+import { FaqList } from "./home-parents";
 
 const SUPPORT_CATEGORIES = [
   { id: "CREATOR_SUPPORT", icon: Icons.UserRoundCheck, title: "Creator support", desc: "Applications, approvals, channel settings and upload issues.", sla: "Within 1 business day" },
@@ -25,6 +24,9 @@ const SUPPORT_CATEGORIES = [
 ];
 
 const CONTACT_FAQS = [
+  { q: "How do I report a video on Kuchu Puchu?", a: "Tap Report on the video in the Kuchu Puchu app (a grown-ups check comes first) or on the website. You can also email support@mykuchupuchu.com with the video's ID (VID-…). Our team reviews every report." },
+  { q: "Is Kuchu Puchu free for my child?", a: "Yes. The Kuchu Puchu app and website are free, with no subscription, nothing to buy and no ads. Kids watch without an account." },
+  { q: "How do I delete my account and data?", a: "Follow the steps on our account deletion page (mykuchupuchu.com/account-deletion), or email support@mykuchupuchu.com from the address on your account and we'll delete it for you." },
   { q: "How long does creator application review take?", a: "Usually within 2 business days. You'll get an in-app notification and an email the moment your status changes — approved, rejected (with reason) or questions." },
   { q: "My withdrawal is stuck in 'Processing' — what now?", a: "Bank payouts take 3–5 business days after approval; PayPal typically 1–3. If it exceeds that, contact payment support with your payment reference (PAY-…) and we'll trace it." },
   { q: "How do I appeal a duplicate flag?", a: "Open My Videos in your dashboard, find the flagged video and click 'Submit appeal'. Reviews complete within 2 business days and rewards are credited if cleared." },
@@ -63,11 +65,13 @@ export function ContactPage() {
             <Icons.Headset size={13} /> Contact us
           </span>
           <h1 className="font-display text-4xl font-bold leading-tight md:text-5xl">
-            We answer <span className="grad-text">within a day</span>
+            Contact Kuchu Puchu: <span className="grad-text">Help for Parents &amp; Creators</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-white/70">
-            Real humans, real answers. Whether it's your first payout or your thousandth upload — we've got you.
+            A question about the Kuchu Puchu app, a video your child watched, or your creator account? Write to us.
+            Real people read every message and we aim to answer within a day.
           </p>
+          <AppButtons tone="dark" align="center" className="mt-8" />
         </div>
       </section>
 
@@ -147,6 +151,8 @@ export function ContactPage() {
         </div>
       </section>
 
+      <AppCtaBand heading="Get the Kuchu Puchu App" text="Free learning videos for kids aged 3–8, with no ads, no comments and no sign-up for kids." />
+
       {/* 4. Creator support spotlight */}
       <section className="bg-surface py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
@@ -202,14 +208,7 @@ export function ContactPage() {
       <section className="bg-surface py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-4 md:px-6">
           <SectionHeading eyebrow="Quick answers" title="Common support questions" />
-          <Accordion type="single" collapsible className="space-y-3">
-            {CONTACT_FAQS.map((f, i) => (
-              <AccordionItem key={i} value={`q${i}`} className="bento overflow-hidden border-none px-5">
-                <AccordionTrigger className="py-4 text-left font-display text-[15px] font-bold hover:no-underline hover:text-brand-red">{f.q}</AccordionTrigger>
-                <AccordionContent className="pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FaqList items={CONTACT_FAQS} />
         </div>
       </section>
 
@@ -239,6 +238,9 @@ export function ContactPage() {
           </div>
         </div>
       </section>
+
+      <AppCtaBand tone="dark" heading="Download the Kuchu Puchu App"
+        text="Cartoons, nursery rhymes, stories and ABC videos for kids, free and with no ads." />
     </div>
   );
 }

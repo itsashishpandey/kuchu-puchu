@@ -1,8 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { isCleanPath, toCleanPath, isChannelPath } from "@/lib/seo-pages";
 
-// ── Hash router (single visible route: /) ──────────────────────────────────
+// ── Router ─────────────────────────────────────────────────────────────────
+// Public pages have real addresses (mykuchupuchu.com/nursery-rhymes, /about, /c/<username>) that the
+// server renders, so search engines can find them; the list lives in src/lib/seo-pages.ts.
+// Private and app-like screens (feed, login, dashboard, admin…) stay at /#/<path>.
 
 export type RouteInfo = {
   path: string;          // e.g. "/dashboard/upload"
@@ -11,30 +15,33 @@ export type RouteInfo = {
   full: string;          // "/dashboard/upload?x=1"
 };
 
-/** Channel pages have clean, shareable addresses: mykuchupuchu.com/c/<username>. */
-export const isChannelPath = (p: string) => /^\/c\/[^/?#]+/.test(p);
+export { isChannelPath, isCleanPath };
 
-/** Server-side hint for the first render on a clean-address page (e.g. "/c/kidsminds"). */
+/** Server-side hint for the first render on a real page (e.g. "/c/kidsminds", "/nursery-rhymes"). */
 export const InitialPathContext = createContext<string>("/");
 
 function currentRoute(): string {
   const hash = window.location.hash.replace(/^#/, "");
   if (hash) return hash;
   const { pathname, search } = window.location;
-  return isChannelPath(pathname) ? pathname + search : "/";
+  return isCleanPath(pathname) ? pathname + search : "/";
 }
 
+const announce = () => window.dispatchEvent(new Event("routechange"));
+
 export function navigate(path: string, opts?: { replace?: boolean }) {
-  const p = path.startsWith("/") ? path : `/${path}`;
-  if (isChannelPath(p)) {
-    // no reload: swap the address to /c/<username> and re-render
-    window.history[opts?.replace ? "replaceState" : "pushState"](null, "", p);
-    window.dispatchEvent(new Event("routechange"));
+  const p = toCleanPath(path.startsWith("/") ? path : `/${path}`);
+  const method = opts?.replace ? "replaceState" : "pushState";
+  if (isCleanPath(p)) {
+    // a real page: swap the address and re-render, no reload
+    window.history[method](null, "", p);
+    announce();
     return;
   }
   if (window.location.pathname !== "/") {
-    // leaving a clean-address page: the rest of the site lives at /#/...
-    window.location.assign(`/#${p}`);
+    // from a real page to a /#/ screen (feed, login…): the screens live at /#/..., still no reload
+    window.history[method](null, "", `/#${p}`);
+    announce();
     return;
   }
   const target = `#${p}`;
@@ -47,7 +54,7 @@ export function navigate(path: string, opts?: { replace?: boolean }) {
 }
 
 export function useRoute(): RouteInfo {
-  // useSyncExternalStore keeps SSR and hydration snapshots identical ("/"),
+  // useSyncExternalStore keeps SSR and hydration snapshots identical (the page's own address),
   // then React re-renders with the real hash right after mount — no mismatch.
   const initial = useContext(InitialPathContext);
   const raw = useSyncExternalStore(
@@ -64,12 +71,15 @@ export function useRoute(): RouteInfo {
     currentRoute,
     () => initial
   );
-  // old links (/#/c/<username>) move to the clean address
+  // old links (/#/about, /#/policies/monetization, /#/c/<username>) move to the real address
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
-    if (hash && isChannelPath(hash)) {
-      window.history.replaceState(null, "", hash);
-      window.dispatchEvent(new Event("routechange"));
+    if (!hash) return;
+    const [hp, hq] = hash.split("?");
+    const clean = toCleanPath(hp);
+    if (isCleanPath(clean)) {
+      window.history.replaceState(null, "", clean + (hq ? `?${hq}` : ""));
+      announce();
     }
   }, [raw]);
   return parseRoute(raw);
@@ -86,19 +96,20 @@ function parseRoute(raw: string): RouteInfo {
   };
 }
 
+/** A link inside the site: real pages get their real address (crawlable), screens get /#/<path>. */
 export function Link({
   to, children, className, onClick, ...rest
 }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) {
-  if (isChannelPath(to)) {
-    return (
-      <a href={to} className={className} {...rest}
-        onClick={e => { onClick?.(e); if (!e.defaultPrevented && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); navigate(to); } }}>
-        {children}
-      </a>
-    );
-  }
+  const dest = toCleanPath(to);
+  const href = isCleanPath(dest) ? dest : `/#${dest}`;
   return (
-    <a href={`/#${to}`} className={className} onClick={onClick} {...rest}>
+    <a href={href} className={className} {...rest}
+      onClick={e => {
+        onClick?.(e);
+        if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0 || rest.target === "_blank") return;
+        e.preventDefault();
+        navigate(dest);
+      }}>
       {children}
     </a>
   );

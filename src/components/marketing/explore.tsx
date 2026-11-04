@@ -1,12 +1,14 @@
 "use client";
 
 // Explore / Trending: browse by main category, then narrow with horizontal subcategory chips and a
-// language filter — all combinable, URL-driven (#/explore?category=&sub=&languages=), no reloads.
+// language filter — all combinable, URL-driven (/explore?category=&sub=&languages=), no reloads.
 import { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/ui-bits";
-import { navigate, useRoute } from "@/components/app/router";
+import { AppButtons, AppCtaBand } from "@/components/shared/app-buttons";
+import { Link, navigate, useRoute } from "@/components/app/router";
+import { CATEGORY_SEO } from "@/lib/seo-pages";
 import { get, type FeedPage, type FeedVideo } from "@/lib/client";
 import { useLanguages, useCategories, useUiLocale } from "@/lib/use-taxonomy";
 import { LanguageCombobox } from "@/components/shared/video-tag-editor";
@@ -79,15 +81,19 @@ export function ExplorePage({ trending = false }: { trending?: boolean }) {
   const byCode = new Map(languages.map(l => [l.code, l]));
 
   return (
+    <>
     <div className="mx-auto max-w-7xl px-4 pb-20 pt-28 md:px-6 md:pt-32">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold md:text-4xl">
-            {trending ? <>🔥 Trending <span className="grad-text">this month</span></> : cat ? <>{cat.emoji} <span className="grad-text">{cat.name}</span></> : <>Explore <span className="grad-text">categories</span></>}
+            {trending ? <>🔥 Trending <span className="grad-text">Kuchu Puchu Videos</span></> : cat ? <>{cat.emoji} <span className="grad-text">{cat.name}</span></> : <>Kuchu Puchu <span className="grad-text">Videos for Kids</span></>}
           </h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            {trending ? "The most-watched originals from the last 30 days." : cat?.description ?? "Original short videos in 100+ languages — pick a category, then narrow it down."}
+            {trending
+              ? "The most-watched kids videos on Kuchu Puchu from the last 30 days: cartoons, rhymes, stories and learning videos."
+              : cat?.description ?? "Watch free Kuchu Puchu videos online: cartoons, nursery rhymes, stories, ABC and learning videos for kids aged 3–8. Pick a category, then narrow it by topic and language."}
           </p>
+          <AppButtons className="mt-4" />
         </div>
         <form onSubmit={e => { e.preventDefault(); if (search.trim()) navigate(`/search?q=${encodeURIComponent(search.trim())}`); }} className="relative w-full max-w-sm" role="search">
           <Icons.Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -162,5 +168,27 @@ export function ExplorePage({ trending = false }: { trending?: boolean }) {
         )}
       </div>
     </div>
+
+    <AppCtaBand heading="Watch Kuchu Puchu in the App" text="The free Kuchu Puchu app opens straight into short videos for kids, with no ads and no sign-up." />
+
+    {/* every category page, as real links */}
+    <section className="bg-white py-14 md:py-16" aria-labelledby="explore-browse">
+      <div className="mx-auto max-w-6xl px-4 text-center md:px-6">
+        <h2 id="explore-browse" className="font-display text-2xl font-bold text-ink md:text-3xl">Browse Kuchu Puchu Videos by Category</h2>
+        <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {CATEGORY_SEO.map(c => (
+            <li key={c.dbSlug}>
+              <Link to={c.path} className="bento flex h-full items-center gap-2 p-4 text-left text-sm font-bold text-ink transition hover:-translate-y-0.5 hover:text-brand-blue">
+                <span className="text-2xl" aria-hidden>{c.emoji}</span> {c.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <AppCtaBand tone="dark" heading="Download the Kuchu Puchu App"
+      text="Funny learning videos for kids aged 3–8: ABCs, counting, colors, rhymes and stories. Free, with no ads." />
+    </>
   );
 }

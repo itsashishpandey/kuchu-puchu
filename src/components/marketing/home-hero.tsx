@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
-import {
-  PrimaryCTA, SecondaryCTA, StatCounter, SectionHeading, ANDROID_APK_URL, ANDROID_APK_NOTE,
-} from "@/components/shared/ui-bits";
+import { SecondaryCTA, StatCounter, SectionHeading } from "@/components/shared/ui-bits";
+import { AppButtons, ApkTextLink } from "@/components/shared/app-buttons";
+import { Link } from "@/components/app/router";
 import { get } from "@/lib/client";
-import { compact, usd } from "@/lib/format";
+import { usd } from "@/lib/format";
 import { usePublicSettings, money, unlockTarget, lengthRange, type PublicSettings } from "@/lib/use-public-settings";
 
-// ── Section 1: Hero — video-first, creator-appeal ─────────────────────────
+// ── Section 1: Hero — for parents and kids (matches the page title); creators get a link ──
 
 const HERO_CARDS = [
   {
@@ -53,7 +53,6 @@ function HeroVideoCard({
 }
 
 export function Hero({ announcement }: { announcement?: string }) {
-  const live = usePublicSettings();
   return (
     <section className="relative overflow-hidden mesh-bg pt-16" aria-label="Hero">
       {/* playful floating decorations */}
@@ -77,56 +76,43 @@ export function Hero({ announcement }: { announcement?: string }) {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-12 md:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:pb-24 lg:pt-16">
+      {/* grid-cols-1 (minmax(0,1fr)): without it the phone video strip widened the column past the screen */}
+      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 pb-16 pt-12 md:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:pb-24 lg:pt-16">
         <div>
           <div className="mb-5 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-blue/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue ring-1 ring-brand-blue/25">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-blue opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-blue" />
-              </span>
-              Creators are earning right now
-            </span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-200">
               <Icons.ShieldCheck size={13} /> Made for kids aged 3–8
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-blue/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue ring-1 ring-brand-blue/25">
+              <Icons.Sparkles size={13} /> Free · No ads
             </span>
           </div>
 
           <h1 className="font-display text-[2.6rem] font-extrabold leading-[1.05] md:text-6xl">
-            Create Videos.<br />
-            Get Views.<br />
-            <span className="grad-text">Earn Real Money.</span>
+            Kuchu Puchu<br />
+            <span className="grad-text">Educational Videos</span><br />
+            for Kids
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink/70 md:text-lg">
-            Kuchu Puchu is the safe video platform made only for kids aged 3–8 — and it pays the
-            creators who make it. Upload original short cartoons, rhymes and stories ({lengthRange(live)}). Once your
-            channel gets {unlockTarget(live)}, earn on every qualified view plus a reward for every
-            approved upload.
+            Kuchu Puchu is a free kids video app for children aged 3–8. Funny cartoons, nursery rhymes,
+            poems and stories help kids learn ABCs, counting, colors, shapes, names and good habits,
+            with no ads and no sign-up.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <PrimaryCTA to="/register">
-              <Icons.UploadCloud size={17} className="mr-1" /> Upload Videos &amp; Earn
-            </PrimaryCTA>
+          <AppButtons className="mt-8" />
+          <ApkTextLink className="mt-2.5" note />
+          <div className="mt-5">
             <SecondaryCTA to="/feed">
-              <Icons.Play size={16} className="mr-1" fill="currentColor" /> Watch Videos
+              <Icons.Play size={16} className="mr-1" fill="currentColor" /> Watch Free Videos
             </SecondaryCTA>
-            <a
-              href={ANDROID_APK_URL}
-              download
-              className="inline-flex h-12 items-center gap-2 rounded-full border border-ink/10 bg-white/80 px-5 text-sm font-semibold text-ink shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
-            >
-              <Icons.Smartphone size={16} /> Get the Android app
-            </a>
           </div>
-          <p className="mt-2.5 text-xs text-ink/55">{ANDROID_APK_NOTE}</p>
 
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-2 sm:gap-3">
             {[
-              { label: "Per 1,000 qualified views", value: usd(live.ratePer1000Views) },
-              { label: "Per approved upload", value: usd(live.rewardPerUpload) },
-              { label: "Payout methods", value: "Bank + PayPal" },
+              { label: "Made for little kids", value: "Ages 3–8" },
+              { label: "No tracking, no comments", value: "No ads" },
+              { label: "App and website", value: "100% free" },
             ].map(s => (
               <div key={s.label} className="glass min-w-0 rounded-xl px-2 py-2.5 sm:px-3.5 sm:py-3">
                 <p className="truncate font-display text-sm font-bold grad-text sm:text-lg">{s.value}</p>
@@ -134,6 +120,10 @@ export function Hero({ announcement }: { announcement?: string }) {
               </div>
             ))}
           </div>
+          <p className="mt-5 text-sm text-ink/60">
+            Make videos for kids?{" "}
+            <Link to="/register" className="font-semibold text-brand-blue underline underline-offset-2">Upload and earn as a creator →</Link>
+          </p>
         </div>
 
         {/* ── video card collage — the platform, alive ── */}

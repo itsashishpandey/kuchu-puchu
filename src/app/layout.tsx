@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { App } from "@/components/app/app";
+import { SITE_TITLE, SITE_DESCRIPTION } from "@/lib/seo-pages";
 
 const display = Baloo_2({
   variable: "--font-display",
@@ -16,11 +16,7 @@ const body = Nunito({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
-// The home page's title and description: used for search results and link previews.
-const SITE_TITLE = "Kuchu Puchu App — 5M+ Kuchu Puchu Educational Videos for kids";
-const SITE_DESCRIPTION =
-  "Free Kuchu Puchu Funny Learning Videos for Kids and Parents | Kuchu Puchu app helps kids to learn ABCs, counting, colors, names, poems & more. Download Kuchu Puchu App";
-
+// The home page's title and description (search results and link previews) live in seo-pages.ts.
 export const metadata: Metadata = {
   metadataBase: new URL("https://mykuchupuchu.com"),
   title: {
@@ -29,10 +25,13 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   keywords: [
-    "kids video platform", "creator monetization", "kids cartoon creators",
-    "nursery rhymes", "earn from kids videos", "Kuchu Puchu", "creator payouts",
-    "kids content", "cartoon shorts",
+    "Kuchu Puchu", "Kuchu Puchu app", "educational videos for kids", "learning videos for kids",
+    "kids learning app", "ABC videos for kids", "counting videos for kids", "colors for kids",
+    "nursery rhymes", "poems for kids", "Hindi rhymes for kids", "safe video app for kids",
+    "kids cartoon videos", "kids video creators",
   ],
+  applicationName: "Kuchu Puchu",
+  category: "education",
   authors: [{ name: "Kuchu Puchu" }],
   alternates: { canonical: "/" },
   icons: {
@@ -66,17 +65,29 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Who we are, on every page (the homepage adds the app and its FAQ in src/app/page.tsx).
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "Kuchu Puchu",
-  url: "https://mykuchupuchu.com",
-  description: "Creator-first kids short video monetization platform.",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://mykuchupuchu.com/#/explore?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://mykuchupuchu.com/#organization",
+      name: "Kuchu Puchu",
+      url: "https://mykuchupuchu.com",
+      logo: "https://mykuchupuchu.com/brand/icon-192.png",
+      email: "support@mykuchupuchu.com",
+      description: "Kuchu Puchu makes a free, ad-free video app and website with educational videos for kids aged 3–8.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://mykuchupuchu.com/#website",
+      name: "Kuchu Puchu",
+      url: "https://mykuchupuchu.com",
+      description: SITE_DESCRIPTION,
+      inLanguage: "en",
+      publisher: { "@id": "https://mykuchupuchu.com/#organization" },
+    },
+  ],
 };
 
 export default function RootLayout({

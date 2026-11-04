@@ -32,7 +32,7 @@ export function VideoCard({ video: v, feedQuery = "" }: { video: FeedVideo; feed
       className="group relative aspect-[9/16] overflow-hidden rounded-2xl bg-ink text-left shadow-md transition-all hover:-translate-y-1 hover:shadow-xl"
       aria-label={`Play ${v.title}`}
     >
-      <img src={v.thumbnailUrl ?? ""} alt="" loading="lazy"
+      <img src={v.thumbnailUrl ?? ""} alt={v.title} loading="lazy"
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
       <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/10 to-ink/20" />
       <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-1.5">

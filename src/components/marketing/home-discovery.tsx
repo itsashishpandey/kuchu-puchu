@@ -9,6 +9,7 @@ import { SectionHeading } from "@/components/shared/ui-bits";
 import { Link, navigate } from "@/components/app/router";
 import { get, type FeedVideo } from "@/lib/client";
 import { useLanguages, useCategories } from "@/lib/use-taxonomy";
+import { categoryPath } from "@/lib/seo-pages";
 
 function useShowcaseVideos() {
   const [videos, setVideos] = useState<FeedVideo[]>([]);
@@ -36,7 +37,8 @@ export function DiscoverInYourLanguage() {
               Discover Videos in <span className="grad-text">Your Language.</span>
             </h2>
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-              Safe, original short videos for kids aged 3–8 in 100+ languages — cartoons, rhymes, stories, early learning and more.
+              Safe, original short videos for kids aged 3–8 in Hindi, English, Punjabi, Haryanvi, Urdu and
+              more: cartoons, rhymes, stories and early learning. Pick the languages your family speaks.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               {chips.map(l => (
@@ -114,7 +116,7 @@ export function SomethingForEveryInterest() {
           {featured.map(c => {
             const img = c.coverImageUrl ?? thumbFor.get(c.id);
             return (
-              <Link key={c.id} to={`/explore?category=${c.slug}`}
+              <Link key={c.id} to={categoryPath(c.slug)}
                 className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-2xl p-4 text-white shadow-md transition-all hover:-translate-y-1 hover:shadow-xl"
                 style={{ background: `linear-gradient(135deg, ${c.color ?? "#1677FF"}, ${c.color ?? "#1677FF"}AA 55%, #151923)` }}>
                 {img && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-60 transition-transform duration-500 group-hover:scale-110" />}

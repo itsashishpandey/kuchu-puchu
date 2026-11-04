@@ -4,12 +4,19 @@ import { useState } from "react";
 import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Logo, ANDROID_APK_URL, ANDROID_APK_NOTE } from "@/components/shared/ui-bits";
+import { Logo } from "@/components/shared/ui-bits";
+import { AppButtons, ApkTextLink } from "@/components/shared/app-buttons";
 import { Link, navigate } from "@/components/app/router";
 import { post } from "@/lib/client";
 import { toast } from "@/hooks/use-toast";
+import { CATEGORY_SEO } from "@/lib/seo-pages";
 
 const COLUMNS: { title: string; links: { to: string; label: string }[] }[] = [
+  {
+    // every category page, linked from every page (real addresses, so search engines find them)
+    title: "Videos for kids",
+    links: CATEGORY_SEO.map(c => ({ to: c.path, label: c.label })),
+  },
   {
     title: "Platform",
     links: [
@@ -88,11 +95,11 @@ export function Footer() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <Logo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The creator-first kids video platform. Original cartoons, rhymes and stories earn from qualified views and approved uploads — transparently, from day one.
+              Kuchu Puchu is a free kids video app with fun educational videos for children aged 3–8: no ads, no sign-up. Made by approved creators, who can earn from qualified views.
             </p>
             <div className="mt-5 flex gap-2">
               {[
@@ -109,19 +116,9 @@ export function Footer() {
                 </button>
               ))}
             </div>
-            <a
-              href={ANDROID_APK_URL}
-              download
-              className="mt-5 inline-flex items-center gap-3 rounded-2xl bg-ink px-4 py-2.5 text-white shadow-lg transition hover:-translate-y-0.5"
-            >
-              <img src="/brand/icon-96.png" alt="" width={34} height={34} className="h-[34px] w-[34px] rounded-lg" />
-              <span className="leading-tight">
-                <span className="block text-[11px] text-white/70">Get the Android app</span>
-                <span className="block font-display text-[15px] font-bold">Download APK</span>
-              </span>
-              <Icons.Download size={16} className="ml-1 text-white/80" />
-            </a>
-            <p className="mt-2 max-w-[16rem] text-[11px] leading-snug text-muted-foreground">{ANDROID_APK_NOTE}</p>
+            <p className="mt-6 text-sm font-bold text-ink">Get the Kuchu Puchu app</p>
+            <AppButtons className="mt-3" />
+            <ApkTextLink className="mt-2 max-w-xs" note />
             <div className="mt-5 space-y-1 text-sm text-muted-foreground">
               <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@mykuchupuchu.com</p>
               <p className="flex items-center gap-2"><Icons.MapPin size={14} /> Made with 💙 & 💗 for kids creators worldwide</p>

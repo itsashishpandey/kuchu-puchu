@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
-import { StaticPolicy, policy } from "@/components/marketing/static-policy";
+import { StaticSeoPage, staticMetadata } from "@/components/app/server-page";
 
-export const metadata: Metadata = { title: "Terms & Conditions", alternates: { canonical: "/terms" } };
+// mykuchupuchu.com/terms: a real page (title, description and text in the server HTML)
+export const dynamic = "force-dynamic";
+export const metadata = staticMetadata("/terms");
 
 export default function Page() {
-  return <StaticPolicy policy={policy("terms")} />;
+  return <StaticSeoPage path="/terms" />;
 }

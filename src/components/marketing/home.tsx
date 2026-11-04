@@ -5,6 +5,7 @@ import { TrendingMarquee, FreshDrops } from "./home-rails";
 import { EarningsCalculator, TopCreators } from "./home-calculator";
 import { UploadAndEarn } from "./home-creator-appeal";
 import { DiscoverInYourLanguage, SomethingForEveryInterest } from "./home-discovery";
+import { LearnTopics, ParentTrust, AppDownload, ParentFAQ, CreatorsDivider } from "./home-parents";
 import { FAQ, FinalCTA } from "./home-faq";
 import { useReveal } from "@/components/app/router";
 import { usePublicSettings } from "@/lib/use-public-settings";
@@ -15,20 +16,27 @@ export function Home() {
 
   return (
     <div ref={setRef}>
-      {/* video-first: the platform itself leads, monetization appeal follows */}
+      {/* Parents and kids first (the page title and search terms are about learning videos for kids);
+          the creators' part follows the divider. */}
       <Hero announcement={homepage?.announcement} />
       <TrendingMarquee />
+      <LearnTopics />
       <DiscoverInYourLanguage />
       <SomethingForEveryInterest />
-      <StatsBand />
-      <HowItWorks />
-      <UploadAndEarn />
-      <EarningsCalculator />
+      <ParentTrust />
       <FreshDrops />
+      <AppDownload />
+      <ParentFAQ />
+
+      <CreatorsDivider />
+      <UploadAndEarn />
+      <HowItWorks />
+      <EarningsCalculator />
+      <StatsBand />
       <TopCreators />
       <FAQ />
       <FinalCTA />
-      {/* Section 16: Newsletter + footer render in the shared Footer */}
+      {/* Newsletter + footer render in the shared Footer */}
     </div>
   );
 }

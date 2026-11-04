@@ -31,7 +31,7 @@ export function UploadAndEarn() {
       <div className="relative mx-auto max-w-7xl px-4 md:px-6">
         <div className="reveal mx-auto mb-12 max-w-3xl text-center">
           <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-brand-blue-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue">
-            <Icons.UploadCloud size={13} /> Two ways to earn on every video
+            <Icons.UploadCloud size={13} /> For creators · two ways to earn
           </span>
           <h2 className="font-display text-3xl font-bold leading-tight md:text-[2.6rem]">
             Made something cute? <span className="grad-text">Upload it. Get paid.</span>
