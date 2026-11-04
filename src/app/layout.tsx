@@ -16,14 +16,18 @@ const body = Nunito({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
+// The home page's title and description: used for search results and link previews.
+const SITE_TITLE = "Kuchu Puchu App — 5M+ Kuchu Puchu Educational Videos for kids";
+const SITE_DESCRIPTION =
+  "Free Kuchu Puchu Funny Learning Videos for Kids and Parents | Kuchu Puchu app helps kids to learn ABCs, counting, colors, names, poems & more. Download Kuchu Puchu App";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://mykuchupuchu.com"),
   title: {
-    default: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
+    default: SITE_TITLE,
     template: "%s | Kuchu Puchu",
   },
-  description:
-    "Kuchu Puchu pays kids-content creators for every qualified view and every approved original upload. Make cartoon videos, nursery rhymes and fun stories — build your channel and withdraw real earnings.",
+  description: SITE_DESCRIPTION,
   keywords: [
     "kids video platform", "creator monetization", "kids cartoon creators",
     "nursery rhymes", "earn from kids videos", "Kuchu Puchu", "creator payouts",
@@ -39,9 +43,8 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   openGraph: {
-    title: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
-    description:
-      "The creator-first kids short video platform. $1.00 per 1,000 qualified views + $0.50 per approved original upload.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     url: "https://mykuchupuchu.com",
     siteName: "Kuchu Puchu",
     type: "website",
@@ -49,8 +52,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kuchu Puchu — Create Kids Videos. Get Views. Earn Real Money.",
-    description: "Earn from qualified views and approved original kids uploads.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
   robots: { index: true, follow: true },
   // Google Search Console ownership check
