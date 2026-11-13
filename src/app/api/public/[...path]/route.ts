@@ -31,7 +31,7 @@ export async function GET(req: Request, ctx: Ctx) {
         db.user.count({ where: { role: "CREATOR" } }),
         db.user.count({ where: { role: "CREATOR", status: "APPROVED" } }),
         db.user.count({ where: { role: "CREATOR", status: "APPROVED", updatedAt: { gte: new Date(Date.now() - 30 * 864e5) } } }),
-        db.video.count(),
+        db.video.count({ where: { status: "APPROVED" } }), // published only (not pending, rejected or removed)
         db.video.aggregate({ _sum: { views: true } }),
         db.video.aggregate({ _sum: { qualifiedViews: true } }),
         db.withdrawal.aggregate({ _sum: { amount: true }, where: { status: "PAID" } }),
