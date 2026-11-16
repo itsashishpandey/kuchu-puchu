@@ -5,7 +5,7 @@ import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/shared/ui-bits";
-import { AppButtons, ApkTextLink } from "@/components/shared/app-buttons";
+import { AppButtons } from "@/components/shared/app-buttons";
 import { Link, navigate } from "@/components/app/router";
 import { post } from "@/lib/client";
 import { toast } from "@/hooks/use-toast";
@@ -118,7 +118,6 @@ export function Footer() {
             </div>
             <p className="mt-6 text-sm font-bold text-ink">Get the Kuchu Puchu app</p>
             <AppButtons className="mt-3" />
-            <ApkTextLink className="mt-2 max-w-xs" note />
             <div className="mt-5 space-y-1 text-sm text-muted-foreground">
               <p className="flex items-center gap-2"><Icons.Mail size={14} /> support@mykuchupuchu.com</p>
               <p className="flex items-center gap-2"><Icons.MapPin size={14} /> Made with 💙 & 💗 for kids creators worldwide</p>

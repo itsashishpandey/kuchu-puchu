@@ -13,8 +13,8 @@
 
 ## The app
 
-- The Kuchu Puchu app for Android and iPhone is coming soon to the app stores.
-- Until then, Android users can install it from the APK file: https://mykuchupuchu.com/downloads/my-kuchu-puchu.apk
+- Android: free on Google Play: https://play.google.com/store/apps/details?id=kuchupuchu.com
+- iPhone: free on the App Store: https://apps.apple.com/us/app/kuchu-puchu-videos-for-kids/id6830569072
 - The website also plays every video free: https://mykuchupuchu.com
 
 ## For creators

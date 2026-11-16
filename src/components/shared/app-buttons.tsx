@@ -1,13 +1,13 @@
 "use client";
 
 // "Get the app" buttons for Android and iPhone, used three times on every public page.
-// The store links aren't ready yet: while a link below is null its button shows "Coming soon" and
-// can't be clicked. Add the link here and every button on the site becomes a real download link.
-import { ANDROID_APK_URL, ANDROID_APK_NOTE } from "@/components/shared/ui-bits";
+// While a store link below is null its button shows "Coming soon" and can't be clicked. Add the
+// link here and every button on the site becomes a real download link.
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/seo-pages";
 
 export const APP_LINKS: { android: string | null; ios: string | null } = {
-  android: null, // e.g. the Google Play listing
-  ios: null,     // e.g. the App Store listing
+  android: PLAY_STORE_URL, // Google Play (live since 2026-11-16)
+  ios: APP_STORE_URL,      // App Store (live since 2026-11-16)
 };
 
 function AndroidGlyph({ className }: { className?: string }) {
@@ -64,19 +64,6 @@ export function AppButtons({ tone = "light", className = "", align = "start" }: 
         );
       })}
     </div>
-  );
-}
-
-/** The small working link to the Android app file, until the store listing is live. */
-export function ApkTextLink({ className = "", tone = "light", note = false }: { className?: string; tone?: "light" | "dark"; note?: boolean }) {
-  return (
-    <p className={`text-xs ${tone === "dark" ? "text-white/55" : "text-muted-foreground"} ${className}`}>
-      or{" "}
-      <a href={ANDROID_APK_URL} download className={`font-semibold underline underline-offset-2 ${tone === "dark" ? "text-white/80" : "text-brand-blue"}`}>
-        download the Android APK file
-      </a>
-      {note ? <> · {ANDROID_APK_NOTE}</> : null}
-    </p>
   );
 }
 

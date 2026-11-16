@@ -50,7 +50,7 @@ export const PARENT_FAQS = [
   },
   {
     q: "How do I download the Kuchu Puchu app?",
-    a: "The Kuchu Puchu app is coming soon to Android and iPhone app stores. Until then, on an Android phone or tablet you can tap \"download the Android APK file\" on mykuchupuchu.com and open the file to install it (your phone may ask you to allow installs from your browser). On any phone or computer, kids can also watch free on the website without downloading anything.",
+    a: "Download Kuchu Puchu free from Google Play on an Android phone or tablet, or from the App Store on an iPhone: search for \"Kuchu Puchu\" in your app store, or tap \"Download for Android\" or \"Download for iPhone\" on mykuchupuchu.com. On any phone or computer, kids can also watch free on the website without downloading anything.",
   },
   {
     q: "Does my child need an account to watch?",

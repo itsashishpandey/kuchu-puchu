@@ -1,5 +1,6 @@
 import { App } from "@/components/app/app";
 import { PARENT_FAQS, SITE_URL } from "@/lib/home-seo";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/seo-pages";
 
 // always serve the latest shell (no year-long caching), so a deploy reaches everyone on the next visit
 export const dynamic = "force-dynamic";
@@ -15,9 +16,9 @@ const homeJsonLd = {
       name: "Kuchu Puchu",
       alternateName: "Kuchu Puchu - videos for kids",
       description: "A free kids video app with short, funny educational videos for children aged 3–8: ABCs, counting, colors, shapes, names, nursery rhymes, poems and stories. No ads and no sign-up.",
-      operatingSystem: "Android",
+      operatingSystem: "iOS, Android",
       applicationCategory: "EducationalApplication",
-      downloadUrl: `${SITE_URL}/downloads/my-kuchu-puchu.apk`,
+      downloadUrl: [APP_STORE_URL, PLAY_STORE_URL],
       image: `${SITE_URL}/brand/icon-192.png`,
       isFamilyFriendly: true,
       audience: { "@type": "PeopleAudience", suggestedMinAge: 3, suggestedMaxAge: 8 },

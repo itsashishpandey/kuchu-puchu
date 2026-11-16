@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
 import { SecondaryCTA, StatCounter, SectionHeading } from "@/components/shared/ui-bits";
-import { AppButtons, ApkTextLink } from "@/components/shared/app-buttons";
+import { AppButtons } from "@/components/shared/app-buttons";
 import { Link } from "@/components/app/router";
 import { get } from "@/lib/client";
 import { usd } from "@/lib/format";
@@ -101,7 +101,6 @@ export function Hero({ announcement }: { announcement?: string }) {
           </p>
 
           <AppButtons className="mt-8" />
-          <ApkTextLink className="mt-2.5" note />
           <div className="mt-5">
             <SecondaryCTA to="/feed">
               <Icons.Play size={16} className="mr-1" fill="currentColor" /> Watch Free Videos

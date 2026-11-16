@@ -5,6 +5,11 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://mykuchupuchu.com";
 
+/** The apps in the stores (both live since 2026-11-16). */
+export const APP_STORE_URL = "https://apps.apple.com/us/app/kuchu-puchu-videos-for-kids/id6830569072";
+export const APP_STORE_ID = "6830569072";
+export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=kuchupuchu.com";
+
 export const SITE_TITLE = "Kuchu Puchu App — 5M+ Kuchu Puchu Educational Videos for kids";
 export const SITE_DESCRIPTION =
   "Free Kuchu Puchu Funny Learning Videos for Kids and Parents | Kuchu Puchu app helps kids to learn ABCs, counting, colors, names, poems & more. Download Kuchu Puchu App";

@@ -120,7 +120,7 @@ export function ParentTrust() {
 // ── The app ────────────────────────────────────────────────────────────────
 
 const APP_STEPS = [
-  { title: "Get the app", text: "Kuchu Puchu is coming to Android and iPhone. It's free, with nothing to buy." },
+  { title: "Get the app", text: "Download Kuchu Puchu free from Google Play or the App Store. Nothing to buy." },
   { title: "Open & watch", text: "The app opens straight into videos. Kids need no account." },
   { title: "Set it up together", text: "A grown-up can pick languages and report videos behind a grown-ups check." },
 ];
@@ -139,7 +139,7 @@ export function AppDownload() {
           <p className="reveal mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
             Get Kuchu Puchu funny learning videos for kids on your phone or tablet. The app is free,
             has no ads and is made for small hands: big buttons, swipe-to-watch short videos, and
-            settings behind a grown-ups check. Until it's in your app store, kids can watch free on the website.
+            settings behind a grown-ups check. Get it free on Google Play for Android and on the App Store for iPhone; on a computer, kids can watch free on the website.
           </p>
           <ol className="mt-7 grid gap-3 sm:grid-cols-3">
             {APP_STEPS.map((s, i) => (

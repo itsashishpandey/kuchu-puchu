@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { SITE_TITLE, SITE_DESCRIPTION } from "@/lib/seo-pages";
+import { SITE_TITLE, SITE_DESCRIPTION, APP_STORE_ID } from "@/lib/seo-pages";
 
 const display = Baloo_2({
   variable: "--font-display",
@@ -31,6 +31,8 @@ export const metadata: Metadata = {
     "kids cartoon videos", "kids video creators",
   ],
   applicationName: "Kuchu Puchu",
+  // iPhone Safari shows its "Open in the App Store" banner for the app
+  itunes: { appId: APP_STORE_ID },
   category: "education",
   authors: [{ name: "Kuchu Puchu" }],
   alternates: { canonical: "/" },
