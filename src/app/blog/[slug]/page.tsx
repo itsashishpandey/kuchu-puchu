@@ -65,7 +65,7 @@ export default async function BlogPostRoute({ params }: Props) {
           item: {
             "@type": "SoftwareApplication",
             name: a.name,
-            applicationCategory: a.rank === 1 ? "EducationalApplication" : "EntertainmentApplication",
+            applicationCategory: a.rank === 1 ? "EducationalApplication" : post.appCategory,
             operatingSystem: a.platforms,
             description: a.bestFor,
             ...(a.links[0] ? { sameAs: a.links.filter(l => l.url.startsWith("http")).map(l => l.url) } : {}),

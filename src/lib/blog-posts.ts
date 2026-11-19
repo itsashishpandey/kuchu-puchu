@@ -9,8 +9,7 @@ export type BlogApp = {
   bestFor: string;
   ages: string;
   cost: string;
-  postsVideos: string;   // can kids post their own videos?
-  chat: string;          // can kids talk to others?
+  compare: string[];     // one value per post.compareColumns entry
   platforms: string;
   summary: string[];     // paragraphs
   highlights: string[];
@@ -36,8 +35,14 @@ export type BlogPost = {
   intro: string[];
   disclosure: string;
   howWeChose: { title: string; text: string }[];
+  compareColumns: string[];  // extra columns in the comparison table (after Ages and Cost); the first also shows on each app card
+  appCategory: string;       // schema.org applicationCategory for the other apps
   apps: BlogApp[];
+  sections?: { id: string; heading: string; paragraphs: string[]; points?: { title: string; text: string }[]; source?: string }[]; // after the apps
+  tipsHeading: string;
   tips: { title: string; text: string }[];
+  ctaMid: { heading: string; text: string };
+  ctaEnd: { heading: string; text: string };
   faqs: { q: string; a: string }[];
   related: { label: string; path: string }[];
 };
@@ -72,11 +77,13 @@ export const BLOG_POSTS: BlogPost[] = [
       { title: "Ads and costs", text: "Whether there are ads or paid extras, so you know what your child will see and what you may pay." },
       { title: "Parent controls", text: "Ways for grown-ups to manage languages, timers, reports or contacts." },
     ],
+    compareColumns: ["Kids post videos", "Chat"],
+    appCategory: "EntertainmentApplication",
     apps: [
       {
         rank: 1, id: "kuchu-puchu", name: "Kuchu Puchu",
         bestFor: "Short learning videos for ages 3–8",
-        ages: "3–8", cost: "Free, no ads", postsVideos: "No (watch only)", chat: "No comments or chat",
+        ages: "3–8", cost: "Free, no ads", compare: ["No (watch only)", "No comments or chat"],
         platforms: "Android, iPhone, web",
         summary: [
           "Kuchu Puchu is the closest thing to a TikTok made for little kids. The app opens straight into a swipe-to-watch feed of short videos: funny cartoons, nursery rhymes, poems, stories, ABC and counting videos, animals and good habits. Every video is made for children aged 3 to 8.",
@@ -102,7 +109,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 2, id: "youtube-kids", name: "YouTube Kids",
         bestFor: "A very large library of kids videos",
-        ages: "Up to 12", cost: "Free with limited ads", postsVideos: "No", chat: "No",
+        ages: "Up to 12", cost: "Free with limited ads", compare: ["No", "No"],
         platforms: "Android, iOS, web, TVs",
         summary: [
           "YouTube Kids is Google's separate app for children, with a huge choice of shows, music and learning videos. Parents pick a content setting by age: Preschool (4 and under), Younger (5–8) or Older (9–12).",
@@ -118,7 +125,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 3, id: "zigazoo", name: "Zigazoo",
         bestFor: "Kids who want to make their own videos",
-        ages: "About 6–12", cost: "Free, optional premium", postsVideos: "Yes, moderated", chat: "No private messages",
+        ages: "About 6–12", cost: "Free, optional premium", compare: ["Yes, moderated", "No private messages"],
         platforms: "iOS, Android",
         summary: [
           "Zigazoo is often called a TikTok for kids because children don't just watch: they record short video answers to fun prompts and challenges from creators, teachers, museums and zoos.",
@@ -134,7 +141,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 4, id: "pbs-kids-video", name: "PBS KIDS Video",
         bestFor: "Trusted educational TV shows (US)",
-        ages: "2–8", cost: "Free", postsVideos: "No", chat: "No",
+        ages: "2–8", cost: "Free", compare: ["No", "No"],
         platforms: "Android, iOS, TVs",
         summary: [
           "PBS KIDS Video brings free full episodes and clips from well-known PBS KIDS shows, made for ages 2 to 8, with new videos added often and downloads for offline viewing.",
@@ -147,7 +154,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 5, id: "kidoodle-tv", name: "Kidoodle.TV",
         bestFor: "Free kids shows and movies",
-        ages: "Kids (rated 4+)", cost: "Free with ads, ad-free option", postsVideos: "No", chat: "No",
+        ages: "Kids (rated 4+)", cost: "Free with ads, ad-free option", compare: ["No", "No"],
         platforms: "Android, iOS, smart TVs, web",
         summary: [
           "Kidoodle.TV is a free streaming app for kids with shows and movies chosen by people, not just an algorithm. It holds a kidSAFE+ COPPA seal.",
@@ -160,7 +167,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 6, id: "khan-academy-kids", name: "Khan Academy Kids",
         bestFor: "Learning first: reading, math and more",
-        ages: "2–8", cost: "Free, no ads", postsVideos: "No", chat: "No",
+        ages: "2–8", cost: "Free, no ads", compare: ["No", "No"],
         platforms: "Android, iOS",
         summary: [
           "Khan Academy Kids is a free learning app from the nonprofit Khan Academy, with games, books, activities and sing-along videos that cover reading, math and early skills.",
@@ -173,7 +180,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 7, id: "coverstar", name: "Coverstar",
         bestFor: "Tweens (9+) making music and dance videos",
-        ages: "9+", cost: "Free to download", postsVideos: "Yes", chat: "Public comments only, no DMs",
+        ages: "9+", cost: "Free to download", compare: ["Yes", "Public comments only, no DMs"],
         platforms: "iOS, Android",
         summary: [
           "Coverstar is a short-video app for tweens who want to sing, dance and make music videos. It has no direct messages: all interaction is through public comments, which are moderated by people and AI tools.",
@@ -186,7 +193,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         rank: 8, id: "kinzoo", name: "Kinzoo",
         bestFor: "Family video messages",
-        ages: "All ages, parent-approved", cost: "Free, in-app purchases", postsVideos: "Video messages to family", chat: "Parent-approved contacts only",
+        ages: "All ages, parent-approved", cost: "Free, in-app purchases", compare: ["Video messages to family", "Parent-approved contacts only"],
         platforms: "iOS, Android",
         summary: [
           "Kinzoo isn't a video feed, but it gives kids the fun of sending short videos to the people who matter. It's a family messenger where parents approve every contact, with short video messages, photos and calls.",
@@ -197,6 +204,7 @@ export const BLOG_POSTS: BlogPost[] = [
         links: [{ label: "Kinzoo", url: "https://www.kinzoo.com/" }],
       },
     ],
+    tipsHeading: "Tips for Using Video Apps with Young Kids",
     tips: [
       { title: "Watch together first", text: "Spend the first few sessions watching with your child. You'll learn what they like and spot anything you're not happy with." },
       { title: "Set a simple limit", text: "Agree on a number of videos or a time before you start, and give a gentle warning before the end." },
@@ -219,6 +227,234 @@ export const BLOG_POSTS: BlogPost[] = [
       { label: "Funny cartoons for kids", path: "/cartoons-for-kids" },
       { label: "Kids stories", path: "/kids-stories" },
     ],
+    ctaMid: { heading: "Try Kuchu Puchu Free", text: "The TikTok-style video app made for kids aged 3–8: short learning videos, no ads, no comments and no sign-up." },
+    ctaEnd: { heading: "Download the Kuchu Puchu App", text: "The safe, ad-free alternative to TikTok for kids aged 3–8. Free on Google Play and the App Store." },
+  },
+  {
+    slug: "learning-apps-for-toddlers",
+    topic: "Learning Apps for Toddlers & Preschoolers",
+    crumb: "Learning apps for toddlers",
+    title: "10 Best Learning Apps for Toddlers & Preschoolers in 2027 | Kuchu Puchu",
+    description: "The 10 best learn-with-fun apps for toddlers and preschoolers in 2027, compared by age, cost and ads. Led by Kuchu Puchu: free, ad-free learning videos.",
+    h1: "10 Best Learn-with-Fun Kids Apps for Toddlers & Preschoolers (2027)",
+    published: "2026-11-19",
+    updated: "2026-11-19",
+    factsChecked: "19 November 2026",
+    readMinutes: 11,
+    image: "/images/hero-kids.webp",
+    imageAlt: "Two smiling cartoon toddlers ready to learn with fun kids apps",
+    excerpt: "Fun learning apps can help toddlers and preschoolers learn ABCs, numbers, colors and rhymes. Here are the 10 best for 2027, compared by age, cost and ads.",
+    quickAnswer: "The best learn-with-fun app for toddlers and preschoolers is Kuchu Puchu: free, ad-free short videos that teach ABCs, counting, colors, shapes, animals, nursery rhymes and good habits, made for ages 3–8 on Android and iPhone. The best free learning games are Khan Academy Kids and PBS KIDS Games. Other top picks are Lingokids, Pok Pok, Sago Mini World, Hungry Caterpillar Play School, Kiddopia, ABCmouse and Duolingo ABC.",
+    intro: [
+      "Toddlers and preschoolers learn best through play: singing, copying, tapping, laughing and asking for \"again!\". A good learning app turns that into short, gentle activities that teach ABCs, numbers, colors, shapes, animals and first words, without ads or pressure.",
+      "But app stores are full of apps labelled \"educational\" that are packed with ads, pop-ups and paid unlocks. We compared the best learn-with-fun kids apps for toddlers and preschoolers for 2027 by age, cost, ads and what kids actually learn, so you can choose the right one for your family. Most of these apps are for ages 2 and up; see our screen time section below for younger children.",
+    ],
+    disclosure: "Kuchu Puchu is our app, so we put it first. We checked the facts about every other app on this list from its own store listing and website, and we say where another app may suit your child better, for example for 2-year-olds or for hands-on learning games.",
+    howWeChose: [
+      { title: "Made for little ones", text: "Big pictures, voices and simple taps, so toddlers and preschoolers can play without reading." },
+      { title: "Real early learning", text: "Letters, phonics, numbers, shapes, colors, words and feelings, not just tapping for rewards." },
+      { title: "Ads and costs", text: "No ads aimed at kids, and a clear note on what's free and what needs a subscription." },
+      { title: "Safety and privacy", text: "Kid-safe design, no chat with strangers, and privacy certifications where we could confirm them." },
+    ],
+    compareColumns: ["Ads", "Kids learn"],
+    appCategory: "EducationalApplication",
+    apps: [
+      {
+        rank: 1, id: "kuchu-puchu", name: "Kuchu Puchu",
+        bestFor: "Fun learning videos: rhymes, ABCs and counting",
+        ages: "3–8", cost: "Free", compare: ["No ads", "ABCs, numbers, colors, shapes, rhymes, animals, good habits"],
+        platforms: "Android, iPhone, web",
+        summary: [
+          "Kuchu Puchu is a free kids video app full of short, funny learning videos for children aged 3 to 8, which makes it a great fit for 3-year-olds and preschoolers. Little ones learn ABCs and phonics, counting and numbers, colors and shapes, animal names and sounds, nursery rhymes and poems, stories, and good habits and feelings.",
+          "The videos are short, so they suit a little attention span, and the app opens straight into a simple swipe-to-watch feed, so kids don't need to read. Every creator is approved by the Kuchu Puchu team and every video is reviewed before it goes live. There are no ads, no comments and no sign-up for kids, and videos come in Hindi, English, Punjabi, Haryanvi, Urdu and more.",
+        ],
+        highlights: [
+          "Free, with no ads and nothing to buy",
+          "Short videos sized for little attention spans",
+          "Learn ABCs, numbers, colors, shapes, animals, rhymes and good habits",
+          "Videos in Hindi, English and more; grown-ups choose the languages",
+          "No comments, no chat and no account needed for kids",
+          "No advertising IDs or tracking tools",
+        ],
+        goodToKnow: [
+          "Kuchu Puchu is made for ages 3–8. For children under 3, keep screen time very small and watch together.",
+          "It's a new app, so its video library is still growing.",
+        ],
+        links: [
+          { label: "Get it on Google Play", url: PLAY, own: true },
+          { label: "Download on the App Store", url: APPLE, own: true },
+          { label: "Watch free on the website", url: "https://mykuchupuchu.com/", own: true },
+        ],
+      },
+      {
+        rank: 2, id: "khan-academy-kids", name: "Khan Academy Kids",
+        bestFor: "A free, complete early-learning program",
+        ages: "2–8", cost: "Free", compare: ["No ads", "Phonics, reading, math, logic, creativity"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Khan Academy Kids comes from the nonprofit Khan Academy and is completely free: no ads, no subscriptions and nothing to buy. Kids follow a friendly cast of animal characters through thousands of activities and hundreds of read-aloud books.",
+          "It covers phonics and reading, math, logic, creativity and social-emotional skills, and was developed with experts from Stanford's Graduate School of Education. Activities can be downloaded to use offline.",
+        ],
+        highlights: ["100% free, with no ads or subscriptions", "Thousands of activities and hundreds of books", "Works offline once downloaded", "Parents' Choice Gold award"],
+        goodToKnow: ["The app is in English; some books are read aloud in Spanish.", "It's game-based, so younger toddlers may need a grown-up to help at first."],
+        links: [{ label: "Khan Academy Kids", url: "https://www.khanacademykids.org/" }],
+      },
+      {
+        rank: 3, id: "pbs-kids-games", name: "PBS KIDS Games",
+        bestFor: "Free games with favorite PBS KIDS characters",
+        ages: "2–8", cost: "Free", compare: ["No ads", "Math, reading, science, feelings"],
+        platforms: "iPhone, iPad, Android, Fire tablets, web",
+        summary: [
+          "PBS KIDS Games brings together hundreds of free learning games starring characters from PBS KIDS shows. The games cover math, reading, science, engineering, art and social-emotional skills, and dozens of them are in Spanish.",
+          "It's free, with no in-app purchases, and games can be downloaded to play offline.",
+        ],
+        highlights: ["Free, with no in-app purchases", "280+ games with familiar characters", "Games in English and Spanish", "Offline downloads"],
+        goodToKnow: ["After funding cuts, PBS KIDS has retired some older web games, but this app is still being updated.", "The characters come from US TV shows your child may not know yet."],
+        links: [{ label: "PBS KIDS Games", url: "https://pbskids.org/apps/play-pbs-kids-games" }],
+      },
+      {
+        rank: 4, id: "lingokids", name: "Lingokids",
+        bestFor: "Learning English and early skills through play",
+        ages: "2–8", cost: "Free Basic, paid Plus", compare: ["No ads", "English, letters, math, science, music"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Lingokids mixes games, songs and short shows to teach early skills: letters and reading, math, science, music, art and feelings. It's popular with families who want their kids to pick up English as they play.",
+          "There are no ads in either version. The free Basic plan allows a limited number of activities each day; the paid Lingokids Plus plan unlocks the full library, offline play and up to 4 child profiles, with a 7-day free trial.",
+        ],
+        highlights: ["No ads, even in the free version", "Thousands of games, songs and shows", "kidSAFE COPPA certified", "Up to 4 child profiles with Plus"],
+        goodToKnow: ["The free plan is limited to 10 activities a day.", "Plus is a subscription that renews automatically, so set a reminder before the trial ends."],
+        links: [{ label: "Lingokids", url: "https://lingokids.com/" }],
+      },
+      {
+        rank: 5, id: "pok-pok", name: "Pok Pok",
+        bestFor: "Calm, Montessori-inspired play",
+        ages: "2–8", cost: "Subscription, 7-day free trial", compare: ["No ads", "Numbers, shapes, cause and effect, building"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Pok Pok is a set of calm, open-ended digital toys inspired by Montessori ideas. There are no levels, no scores, no winning or losing and no words to read, so 2-year-olds can explore on their own.",
+          "Kids build, draw, sort and experiment to discover how things work, which grows early STEM thinking: numbers, shapes, cause and effect and problem solving. It has won an Apple Design Award.",
+        ],
+        highlights: ["No ads, no reading needed, no winning or losing", "Calm, gentle design", "Apple Design Award and App Store Award winner", "Works offline"],
+        goodToKnow: ["It needs a subscription after the 7-day free trial.", "It's free play, not step-by-step lessons: great for curiosity rather than ABC practice."],
+        links: [{ label: "Pok Pok on the App Store", url: "https://apps.apple.com/us/app/pok-pok-montessori-preschool/id1550204730" }],
+      },
+      {
+        rank: 6, id: "sago-mini-world", name: "Sago Mini World",
+        bestFor: "Pretend play and creativity for little ones",
+        ages: "2–6", cost: "Subscription, free trial", compare: ["No ads for subscribers", "Pretend play, creativity, feelings"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Sago Mini World is a big playground of gentle games starring cute animal characters. Kids explore playful worlds where they build, pretend and make music, which grows imagination, creativity and early social-emotional skills.",
+          "It's made for toddlers and preschoolers and is kidSAFE and COPPA certified. Subscribers get no ads and no in-app purchases, and downloaded games play offline.",
+        ],
+        highlights: ["Made for ages 2–6", "No ads or in-app purchases for subscribers", "kidSAFE and COPPA certified", "Parents' Choice Gold award"],
+        goodToKnow: ["It needs a subscription after the free trial.", "It's open-ended play rather than an ABC or math course, and it's a large download, so use Wi-Fi."],
+        links: [{ label: "Sago Mini World", url: "https://sagomini.com/world/" }],
+      },
+      {
+        rank: 7, id: "hungry-caterpillar-play-school", name: "Hungry Caterpillar Play School",
+        bestFor: "Montessori-inspired lessons with Eric Carle's art",
+        ages: "2–6", cost: "Subscription, free samples", compare: ["No third-party ads", "ABCs, numbers 1–10, shapes, nature"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Hungry Caterpillar Play School from StoryToys brings The Very Hungry Caterpillar and Eric Carle's famous artwork into a gentle preschool. Activities follow Montessori ideas and cover ABCs and letter tracing, numbers 1 to 10, shapes, patterns, nature, music and even early coding.",
+          "There's no third-party advertising, and downloaded activities play offline. Some activities are free to try; the full school needs a subscription.",
+        ],
+        highlights: ["Beautiful Eric Carle artwork", "Letter tracing, including writing their own name", "No third-party ads", "Apple Editors' Choice"],
+        goodToKnow: ["Most activities need a subscription.", "The subscription renews automatically; check how to cancel before you start."],
+        links: [{ label: "Hungry Caterpillar Play School on the App Store", url: "https://apps.apple.com/us/app/hungry-caterpillar-play-school/id1318671922" }],
+      },
+      {
+        rank: 8, id: "kiddopia", name: "Kiddopia",
+        bestFor: "A big all-in-one preschool app",
+        ages: "2–7", cost: "Subscription, 7-day free trial", compare: ["No ads", "Phonics, math, science, art, role-play"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Kiddopia packs many kinds of learning games into one app: phonics and sight words, counting and shapes, early math, science, art, music, role-play and simple coding.",
+          "It has no ads, has been kidSAFE and COPPA certified since 2018, and works offline. It's a subscription after a 7-day free trial.",
+        ],
+        highlights: ["No ads", "kidSAFE and COPPA certified", "Works offline", "Award-winning, including a Parents' Choice award"],
+        goodToKnow: ["It's subscription-only after the free trial.", "Some games feature licensed brand characters, which some parents prefer to avoid."],
+        links: [{ label: "Kiddopia", url: "https://kiddopia.com/" }],
+      },
+      {
+        rank: 9, id: "abcmouse", name: "ABCmouse",
+        bestFor: "A big library of early reading and math",
+        ages: "2–8", cost: "Free Basic, paid Premium", compare: ["No ads", "Phonics, counting, science, art, music"],
+        platforms: "iPhone, iPad, Android, Fire tablets, web",
+        summary: [
+          "ABCmouse from Age of Learning is one of the best-known early-learning programs. In January 2026 it relaunched as a new app, ABCmouse: Kids Learning Games, with activities in phonics, sight words, counting, adding, shapes, science, art, music and early coding.",
+          "There are no ads. The free Basic plan includes a limited number of activities a day, and Premium unlocks everything. It holds a kidSAFE+ COPPA seal and works offline once installed.",
+        ],
+        highlights: ["No ads", "A free Basic plan to try it", "kidSAFE+ COPPA seal", "Plays on the web as well as in the app"],
+        goodToKnow: ["Progress from the old ABCmouse Classic app doesn't carry over to the new app.", "In 2020 the company settled US FTC charges over its subscription and cancellation practices, so check your renewal settings when you subscribe."],
+        links: [{ label: "ABCmouse", url: "https://www.abcmouse.com/" }],
+      },
+      {
+        rank: 10, id: "duolingo-abc", name: "Duolingo ABC",
+        bestFor: "Free learn-to-read lessons for preschoolers",
+        ages: "3–8", cost: "Free", compare: ["No ads", "Letters, phonics, sight words, reading"],
+        platforms: "iPhone, iPad, Android, Fire tablets",
+        summary: [
+          "Duolingo ABC (listed in the stores as Learn to Read - Duolingo ABC) comes from the makers of the Duolingo language app. Its short lessons teach the alphabet, phonics, letter tracing, sight words and early reading, with read-along stories, for kids from preschool to second grade.",
+          "It's completely free, with no ads and no in-app purchases, and it works offline.",
+        ],
+        highlights: ["100% free, with no ads or purchases", "Short, bite-sized reading lessons", "Works offline", "Apple Editors' Choice"],
+        goodToKnow: ["It's best for kids aged 3 and up who are ready for letters, and it's English only.", "The iPhone app hasn't been updated since 2023; the Android app is still updated."],
+        links: [{ label: "Duolingo ABC", url: "https://abc.duolingo.com/" }],
+      },
+    ],
+    sections: [
+      {
+        id: "screen-time",
+        heading: "How Much Screen Time Is OK for Toddlers?",
+        paragraphs: [
+          "Learning apps work best in small doses. Here's what the World Health Organization (WHO) and the American Academy of Pediatrics (AAP) advise for young children:",
+        ],
+        points: [
+          { title: "Under 18 months", text: "Avoid screens, apart from video calls with family (AAP). The WHO advises no screen time for babies under 1 and no sitting-still screen time for 1-year-olds." },
+          { title: "18 months to 2 years", text: "If you start, choose high-quality content, keep it short and watch together (AAP)." },
+          { title: "Ages 2 to 5", text: "No more than 1 hour a day of high-quality content, and less is better (WHO for ages 2–4, AAP for ages 2–5)." },
+          { title: "Quality and togetherness", text: "The AAP's 2026 guidance puts more weight on what kids watch and on watching together than on counting minutes. Sit with your child, talk about what you see, and keep screens away from meals and bedtime." },
+        ],
+        source: "Sources: WHO guidelines on physical activity, sedentary behaviour and sleep for children under 5 (2019); AAP policy statements \"Media and Young Minds\" (2016) and \"Digital Ecosystems, Children, and Adolescents\" (2026).",
+      },
+      {
+        id: "videos-or-games",
+        heading: "Learning Videos or Learning Games: Which Is Better for Toddlers?",
+        paragraphs: [
+          "Both have a place. Short learning videos, like Kuchu Puchu's nursery rhymes, ABC songs and animal videos, are great for listening, new words, singing along and copying actions. Learning games, like Khan Academy Kids or Pok Pok, let kids tap, trace, sort and solve, which builds hand skills and problem solving.",
+          "For most families, a mix works best: a few short videos to sing and dance along to, a learning game now and then, and lots of real-world play in between. Whatever you choose, the biggest boost comes from a grown-up joining in.",
+        ],
+      },
+    ],
+    tipsHeading: "Tips for Learning with Apps at Home",
+    tips: [
+      { title: "Join in", text: "Sing along, point at the screen and name what you see. Toddlers learn far more when a grown-up joins in." },
+      { title: "Keep it short", text: "A few videos or one or two games is plenty for little ones. Stop while it's still fun, and give a gentle warning before the end." },
+      { title: "Bring it off the screen", text: "After a counting video, count spoons at lunch. After an ABC song, hunt for the letter B around the house." },
+      { title: "Choose ad-free apps", text: "Toddlers can't tell an ad from a game. Kuchu Puchu, Khan Academy Kids, PBS KIDS Games and Duolingo ABC are free and ad-free." },
+      { title: "Lock purchases and set reminders", text: "Turn on your phone's parental controls so kids can't buy anything, and set a reminder before any free trial turns into a paid subscription." },
+    ],
+    faqs: [
+      { q: "What is the best learning app for toddlers?", a: "For toddlers turning 3 and preschoolers, Kuchu Puchu is our top pick: short, funny learning videos that teach ABCs, numbers, colors, shapes, animals, rhymes and good habits, free with no ads, on Android and iPhone. For free learning games, try Khan Academy Kids or PBS KIDS Games, and for calm, open-ended play, Pok Pok or Sago Mini World." },
+      { q: "What are the best free learning apps for preschoolers?", a: "Kuchu Puchu, Khan Academy Kids, PBS KIDS Games and Duolingo ABC are free with no ads. Lingokids and ABCmouse have free basic plans with a daily activity limit." },
+      { q: "At what age can a toddler use a learning app?", a: "The AAP advises no screens for babies under 18 months except video calls with family, and the WHO advises no screen time under age 1. From 18 to 24 months, the AAP suggests high-quality content watched together, and for ages 2 to 5 no more than about 1 hour a day. Most apps on this list are for ages 2 and up; Kuchu Puchu is made for ages 3 to 8." },
+      { q: "Are learning apps good for toddlers?", a: "They can be, when the app is made for young children, has no ads, and a grown-up joins in. Short sessions that teach songs, words, letters and numbers, followed by real-world play, help the most. Apps should add to reading, talking and playing together, not replace them." },
+      { q: "Is Kuchu Puchu good for toddlers?", a: "Kuchu Puchu is made for children aged 3 to 8, so it suits 3-year-olds and preschoolers. Its short videos are sized for little attention spans, with no ads, no comments and no sign-up for kids. For children under 3, keep screen time very small and watch together." },
+      { q: "Which kids learning apps have no ads?", a: "Kuchu Puchu, Khan Academy Kids, PBS KIDS Games, Duolingo ABC, Lingokids, Pok Pok, Kiddopia and ABCmouse have no ads. Sago Mini World is ad-free for subscribers, and Hungry Caterpillar Play School has no third-party ads." },
+      { q: "How long should a toddler use a learning app each day?", a: "For ages 2 to 5, the WHO and the AAP suggest no more than 1 hour of screen time a day, and less is better. Short sessions of a few videos or games, with a grown-up nearby, work best." },
+      { q: "How do I download Kuchu Puchu?", a: "Search for \"Kuchu Puchu\" on Google Play or the App Store, or use the download buttons on mykuchupuchu.com. Kids can also watch free on the website without downloading anything." },
+    ],
+    related: [
+      { label: "ABC & learning videos for kids", path: "/learning-videos-for-kids" },
+      { label: "Nursery rhymes for kids", path: "/nursery-rhymes" },
+      { label: "Animal names & sounds", path: "/animal-videos-for-kids" },
+      { label: "Good habits for kids", path: "/good-habits-for-kids" },
+      { label: "Kids stories", path: "/kids-stories" },
+    ],
+    ctaMid: { heading: "Learn with Fun on Kuchu Puchu", text: "Short, funny learning videos for preschoolers and kids aged 3–8: ABCs, numbers, colors, rhymes and more. Free, with no ads." },
+    ctaEnd: { heading: "Download Kuchu Puchu Free", text: "The learn-with-fun video app for kids aged 3–8. No ads, no sign-up for kids. On Google Play and the App Store." },
   },
 ];
 

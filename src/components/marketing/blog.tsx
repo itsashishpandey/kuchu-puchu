@@ -33,7 +33,7 @@ export function BlogIndexPage() {
 
       <section className="py-14 md:py-20" aria-label="Blog posts">
         <ul className="mx-auto grid max-w-5xl gap-5 px-4 md:grid-cols-2 md:px-6">
-          {BLOG_POSTS.map(p => (
+          {[...BLOG_POSTS].sort((a, b) => b.published.localeCompare(a.published)).map(p => (
             <li key={p.slug} className="reveal">
               <Link to={`/blog/${p.slug}`} className="bento group flex h-full flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lg">
                 <img src={p.image} alt={p.imageAlt} loading="lazy" className="aspect-[16/9] w-full bg-surface object-contain p-4" />
@@ -57,7 +57,7 @@ export function BlogIndexPage() {
 
 // ── /blog/<slug> ─────────────────────────────────────────────────────────
 
-function AppSection({ app }: { app: BlogApp }) {
+function AppSection({ app, cardLabel }: { app: BlogApp; cardLabel: string }) {
   const ours = app.links.some(l => l.own);
   return (
     <section id={app.id} className="reveal scroll-mt-24 border-t pt-10" aria-labelledby={`${app.id}-title`}>
@@ -65,7 +65,7 @@ function AppSection({ app }: { app: BlogApp }) {
         {app.rank}. {app.name}: {app.bestFor}
       </h2>
       <dl className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        {[["Ages", app.ages], ["Cost", app.cost], ["Kids post videos", app.postsVideos], ["Platforms", app.platforms]].map(([k, v]) => (
+        {[["Ages", app.ages], ["Cost", app.cost], [cardLabel, app.compare[0]], ["Platforms", app.platforms]].map(([k, v]) => (
           <div key={k} className="rounded-xl bg-surface px-3 py-2">
             <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{k}</dt>
             <dd className="mt-0.5 font-semibold text-ink">{v}</dd>
@@ -110,6 +110,7 @@ export function BlogPostPage({ slug }: { slug: string }) {
   const setRef = useReveal<HTMLDivElement>();
   const post = blogPostBySlug(slug)!;
   const [first, ...rest] = post.apps;
+  const others = BLOG_POSTS.filter(p => p.slug !== post.slug);
   return (
     <div ref={setRef}>
       <article>
@@ -158,7 +159,7 @@ export function BlogPostPage({ slug }: { slug: string }) {
             <table className="w-full min-w-[640px] text-left text-sm">
               <caption className="sr-only">Comparison of {post.topic.toLowerCase()}</caption>
               <thead className="bg-surface text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>{["App", "Ages", "Cost", "Kids post videos", "Chat"].map(h => <th key={h} scope="col" className="px-3 py-2.5 font-bold">{h}</th>)}</tr>
+                <tr>{["App", "Ages", "Cost", ...post.compareColumns].map(h => <th key={h} scope="col" className="px-3 py-2.5 font-bold">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {post.apps.map(a => (
@@ -166,8 +167,7 @@ export function BlogPostPage({ slug }: { slug: string }) {
                     <th scope="row" className="px-3 py-2.5 font-bold text-ink">{a.rank}. {a.name}</th>
                     <td className="px-3 py-2.5">{a.ages}</td>
                     <td className="px-3 py-2.5">{a.cost}</td>
-                    <td className="px-3 py-2.5">{a.postsVideos}</td>
-                    <td className="px-3 py-2.5">{a.chat}</td>
+                    {a.compare.map((v, i) => <td key={i} className="px-3 py-2.5">{v}</td>)}
                   </tr>
                 ))}
               </tbody>
@@ -185,17 +185,35 @@ export function BlogPostPage({ slug }: { slug: string }) {
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">Facts checked on {post.factsChecked} from each app&rsquo;s store listing and website. Prices and features can change.</p>
 
-          <div className="mt-10"><AppSection app={first} /></div>
+          <div className="mt-10"><AppSection app={first} cardLabel={post.compareColumns[0]} /></div>
         </div>
 
         {/* app CTA 2 */}
-        <AppCtaBand heading="Try Kuchu Puchu Free" text="The TikTok-style video app made for kids aged 3–8: short learning videos, no ads, no comments and no sign-up." />
+        <AppCtaBand heading={post.ctaMid.heading} text={post.ctaMid.text} />
 
         <div className="mx-auto max-w-3xl space-y-10 px-4 pb-6 pt-10 md:px-6">
-          {rest.map(a => <AppSection key={a.id} app={a} />)}
+          {rest.map(a => <AppSection key={a.id} app={a} cardLabel={post.compareColumns[0]} />)}
+
+          {post.sections?.map(sec => (
+            <section key={sec.id} className="reveal border-t pt-10" aria-labelledby={sec.id}>
+              <h2 id={sec.id} className="font-display text-2xl font-bold text-ink md:text-3xl">{sec.heading}</h2>
+              {sec.paragraphs.map(p => <p key={p.slice(0, 30)} className="mt-4 text-base leading-relaxed text-ink/80">{p}</p>)}
+              {sec.points && (
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {sec.points.map(pt => (
+                    <li key={pt.title} className="bento p-4">
+                      <h3 className="font-display text-base font-bold text-ink">{pt.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{pt.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {sec.source && <p className="mt-3 text-xs text-muted-foreground">{sec.source}</p>}
+            </section>
+          ))}
 
           <section className="reveal border-t pt-10" aria-labelledby="tips">
-            <h2 id="tips" className="font-display text-2xl font-bold text-ink md:text-3xl">Tips for Using Video Apps with Young Kids</h2>
+            <h2 id="tips" className="font-display text-2xl font-bold text-ink md:text-3xl">{post.tipsHeading}</h2>
             <ul className="mt-4 space-y-3">
               {post.tips.map(t => (
                 <li key={t.title} className="bento p-4">
@@ -221,12 +239,26 @@ export function BlogPostPage({ slug }: { slug: string }) {
               ))}
             </ul>
           </section>
+
+          {others.length > 0 && (
+            <section className="reveal border-t pt-10" aria-labelledby="guides">
+              <h2 id="guides" className="font-display text-xl font-bold text-ink">More Guides for Parents</h2>
+              <ul className="mt-4 space-y-2">
+                {others.map(p => (
+                  <li key={p.slug}>
+                    <Link to={`/blog/${p.slug}`} className="inline-flex items-center gap-1.5 font-semibold text-brand-blue hover:underline">
+                      <Icons.BookOpen size={15} aria-hidden /> {p.h1}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </article>
 
       {/* app CTA 3 */}
-      <AppCtaBand tone="dark" heading="Download the Kuchu Puchu App"
-        text="The safe, ad-free alternative to TikTok for kids aged 3–8. Free on Google Play and the App Store." />
+      <AppCtaBand tone="dark" heading={post.ctaEnd.heading} text={post.ctaEnd.text} />
     </div>
   );
 }
