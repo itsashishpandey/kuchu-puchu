@@ -37,6 +37,8 @@ import {
 } from "@/components/admin/settings-pages";
 import { AdminDiscoveryPage } from "@/components/admin/discovery-pages";
 import { CategoryPage } from "@/components/marketing/category-page";
+import { BlogIndexPage, BlogPostPage } from "@/components/marketing/blog";
+import { blogPostBySlug } from "@/lib/blog-posts";
 import { PageDataContext, type PageData } from "./page-data";
 import { SITE_TITLE, staticPage, categorySeoByPath, titleForPath } from "@/lib/seo-pages";
 
@@ -113,6 +115,8 @@ function Routes() {
   else if (first === "saved") page = <SavedPage />;
   else if (first === "settings" && second === "interests") page = <InterestsSettingsPage />;
   else if (first === "policies" && second) page = <PolicyPage slug={second} />;
+  else if (first === "blog" && !second) page = <BlogIndexPage />;
+  else if (first === "blog" && second && blogPostBySlug(second)) page = <BlogPostPage key={second} slug={second} />;
   else if (staticPage(route.path)?.policy) page = <PolicyPage slug={staticPage(route.path)!.policy!} />;
   else if (categorySeoByPath(route.path)) {
     const dbSlug = categorySeoByPath(route.path)!.dbSlug;

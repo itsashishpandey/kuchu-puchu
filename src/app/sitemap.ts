@@ -2,13 +2,14 @@ import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { SITE_URL, STATIC_PAGES, CATEGORY_SEO } from "@/lib/seo-pages";
 import { loadTaxonomy, selectable, taxonomyCounts } from "@/lib/taxonomy";
+import { BLOG_POSTS } from "@/lib/blog-posts";
 
 // Only real addresses (search engines ignore everything after "#"): the homepage, the pages in
 // seo-pages.ts, category pages that have approved videos (empty ones are noindex until then) and
 // approved channel pages (/c/<username>).
 export const dynamic = "force-dynamic";
 
-const PRIORITY: Record<string, number> = { "/explore": 0.8, "/trending": 0.7, "/about": 0.6, "/contact": 0.4 };
+const PRIORITY: Record<string, number> = { "/explore": 0.8, "/blog": 0.7, "/trending": 0.7, "/about": 0.6, "/contact": 0.4 };
 
 async function categoriesWithVideos(): Promise<Set<string>> {
   try {
@@ -38,6 +39,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}${p.path}`,
       changeFrequency: (p.policy ? "monthly" : "weekly") as "monthly" | "weekly",
       priority: PRIORITY[p.path] ?? 0.3,
+    })),
+    ...BLOG_POSTS.map(p => ({
+      url: `${SITE_URL}/blog/${p.slug}`, lastModified: new Date(`${p.updated}T00:00:00Z`),
+      changeFrequency: "monthly" as const, priority: 0.8,
     })),
     { url: `${SITE_URL}/account-deletion`, changeFrequency: "yearly", priority: 0.2 },
     ...channels.map(c => ({

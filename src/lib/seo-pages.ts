@@ -2,6 +2,7 @@
 // the server pages (metadata), the router (which paths are real pages) and the browser (titles).
 // Search engines ignore everything after "#", so every page meant to be found lives here.
 import type { Metadata } from "next";
+import { blogPostByPath } from "@/lib/blog-posts";
 
 export const SITE_URL = "https://mykuchupuchu.com";
 
@@ -30,6 +31,9 @@ export const STATIC_PAGES: (SeoPage & { policy?: string })[] = [
   { path: "/trending", label: "Trending",
     title: "Trending Kuchu Puchu Videos — Popular Kids Videos",
     description: "Trending Kuchu Puchu videos for kids | The most-watched cartoons, rhymes and learning videos from the last 30 days. Download Kuchu Puchu App" },
+  { path: "/blog", label: "Blog",
+    title: "Kuchu Puchu Blog — Kids Video Apps & Parenting Tips",
+    description: "Kuchu Puchu blog | Guides for parents of kids aged 3–8: safe video apps like TikTok for kids, learning through play and healthy screen time." },
   { path: "/monetization", label: "Monetization policy", policy: "monetization",
     title: "Kuchu Puchu Monetization Policy — Earn from Kids Videos",
     description: "How Kuchu Puchu creators earn from kids videos | Pay per 1,000 qualified views, upload rewards, earning unlock and payouts explained in plain words." },
@@ -118,7 +122,7 @@ export const isChannelPath = (p: string) => /^\/c\/[^/?#]+/.test(p);
 /** True for addresses that are real pages (rendered by the server), not "/#/..." screens. */
 export function isCleanPath(p: string): boolean {
   const b = bare(p);
-  return b === "/" || isChannelPath(b) || !!staticPage(b) || !!categorySeoByPath(b);
+  return b === "/" || isChannelPath(b) || !!staticPage(b) || !!categorySeoByPath(b) || !!blogPostByPath(b);
 }
 
 /** Maps an old in-site address to its real page, e.g. "/policies/monetization" → "/monetization". */
@@ -132,7 +136,7 @@ export function toCleanPath(p: string): string {
 export function titleForPath(path: string): string | null {
   const b = bare(path);
   if (b === "/") return SITE_TITLE;
-  return staticPage(b)?.title ?? categorySeoByPath(b)?.title ?? null;
+  return staticPage(b)?.title ?? categorySeoByPath(b)?.title ?? blogPostByPath(b)?.title ?? null;
 }
 
 /** Search metadata for a page from the lists above. */

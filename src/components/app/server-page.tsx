@@ -38,7 +38,7 @@ export function staticMetadata(path: string): Metadata {
 /** A page from STATIC_PAGES (about, contact, explore, trending, policies). */
 export function StaticSeoPage({ path }: { path: string }) {
   const page = staticPage(path)!;
-  const type = page.path === "/about" ? "AboutPage" : page.path === "/contact" ? "ContactPage" : page.path === "/explore" || page.path === "/trending" ? "CollectionPage" : "WebPage";
+  const type = page.path === "/about" ? "AboutPage" : page.path === "/contact" ? "ContactPage" : page.path === "/explore" || page.path === "/trending" ? "CollectionPage" : page.path === "/blog" ? "Blog" : "WebPage";
   return (
     <>
       <JsonLd data={{ "@context": "https://schema.org", "@graph": [webPageLd(page, type), breadcrumbLd([{ name: page.label, path: page.path }])] }} />
