@@ -14,7 +14,7 @@ import { ExplorePage } from "@/components/marketing/explore";
 import { PolicyPage } from "@/components/marketing/policies";
 import { DeleteAccountPage } from "@/components/shared/delete-account";
 import { CreatorChannelPage } from "@/components/marketing/creator-channel";
-import { LoginPage, ForgotPasswordPage, JoinPage } from "@/components/marketing/auth-pages";
+import { LoginPage, ForgotPasswordPage, ResetPasswordPage, JoinPage } from "@/components/marketing/auth-pages";
 import { CreatorApplicationPage } from "@/components/marketing/creator-application";
 import { OnboardingPage } from "@/components/discovery/onboarding";
 import { InterestsSettingsPage } from "@/components/discovery/interests-settings";
@@ -58,6 +58,10 @@ function Routes() {
   if (first === "login") return <LoginPage />;
   if (first === "register") return <CreatorApplicationPage />;
   if (first === "forgot-password") return <ForgotPasswordPage />;
+  if (first === "reset-password") {
+    const token = route.query.get("token") ?? "";
+    return <ResetPasswordPage key={token} token={token} />;
+  }
   if (first === "join") return <JoinPage />;
   if (first === "onboarding") return <OnboardingPage />;
 

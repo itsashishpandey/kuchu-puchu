@@ -141,44 +141,54 @@ export function LoginPage() {
 
 // ── FORGOT PASSWORD ────────────────────────────────────────────────────────
 
+const RESET_SIDE = (
+  <AuthSide
+    title={<>We&apos;ll get you <span className="grad-text">back in</span></>}
+    sub="Password resets are handled securely — we'll never ask for your password by email or chat."
+  />
+);
+
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<{ message: string; devNote?: string } | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await post<{ message: string }>("/auth/forgot-password", { email });
-      setSent(true);
-      toast({ title: "Reset link sent", description: res.message });
+      const res = await post<{ message: string; devNote?: string }>("/auth/forgot-password", { email });
+      setSent(res);
     } catch (err) {
-      toast({ title: "Couldn't send reset", description: (err as Error).message, variant: "destructive" });
+      toast({ title: "Couldn't send the reset email", description: (err as Error).message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <AuthShell side={<AuthSide title="We'll get you <span class='grad-text'>back in</span>" sub="Password resets are handled securely — we'll never ask for your password by email or chat." />}>
+    <AuthShell side={RESET_SIDE}>
       <h1 className="font-display text-3xl font-bold">Reset your password</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Enter the email linked to your account and we'll send a reset link.
+        Enter the email linked to your account and we&apos;ll send a reset link.
       </p>
       {sent ? (
         <div className="mt-6 flex items-start gap-3 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
           <Icons.MailCheck size={18} className="mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold">Check your inbox</p>
-            <p className="mt-0.5">If an account exists for {email}, a reset link is on its way. In this demo environment, the email content is recorded in the admin mail log instead of being sent.</p>
+            <p className="mt-0.5">{sent.message} Can&apos;t find it? Look in your spam or promotions folder.</p>
+            {sent.devNote && <p className="mt-1.5 text-xs text-emerald-700/80">{sent.devNote}</p>}
+            <button type="button" className="mt-2 text-xs font-semibold text-emerald-900 underline" onClick={() => setSent(null)}>
+              Use a different email or send again
+            </button>
           </div>
         </div>
       ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="grid gap-1.5">
             <Label htmlFor="fp-email">Email</Label>
-            <Input id="fp-email" type="email" required value={email} onChange={e => setEmail(e.target.value)}
+            <Input id="fp-email" type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com" className="h-11 rounded-xl" />
           </div>
           <Button type="submit" disabled={busy} className="grad-btn h-12 w-full rounded-xl text-white">
@@ -188,6 +198,117 @@ export function ForgotPasswordPage() {
       )}
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Remembered it? <Link to="/login" className="font-bold text-brand-red hover:underline">Back to login</Link>
+      </p>
+    </AuthShell>
+  );
+}
+
+// ── RESET PASSWORD (the link from the email: /#/reset-password?token=…) ──────
+
+export function ResetPasswordPage({ token }: { token: string }) {
+  const { refresh } = useAuth();
+  const [state, setState] = useState<"checking" | "ready" | "bad" | "done">("checking");
+  const [account, setAccount] = useState("");
+  const [error, setError] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    post<{ email: string }>("/auth/reset-password", { token, check: true })
+      .then(r => { if (live) { setAccount(r.email); setState("ready"); } })
+      .catch(e => { if (live) { setError((e as Error).message); setState("bad"); } });
+    return () => { live = false; };
+  }, [token]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (password.length < 8) return setError("Password must be at least 8 characters");
+    if (password !== confirm) return setError("The two passwords don't match");
+    setBusy(true);
+    try {
+      await post("/auth/reset-password", { token, password });
+      setState("done");
+      await refresh().catch(() => {}); // this browser was signed out too
+    } catch (err) {
+      const msg = (err as Error).message;
+      setError(msg);
+      if (/expired|already used/i.test(msg)) setState("bad");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthShell side={RESET_SIDE}>
+      <h1 className="font-display text-3xl font-bold">Set a new password</h1>
+
+      {state === "checking" && <p className="mt-4 text-sm text-muted-foreground">Checking your link…</p>}
+
+      {state === "bad" && (
+        <>
+          <div className="mt-6 flex items-start gap-2.5 rounded-xl bg-rose-50 p-3.5 text-sm text-rose-700 ring-1 ring-rose-200">
+            <Icons.AlertCircle size={17} className="mt-0.5 shrink-0" /> {error || "This reset link isn't valid."}
+          </div>
+          <Button className="grad-btn mt-5 h-12 w-full rounded-xl text-white" onClick={() => navigate("/forgot-password")}>
+            Send me a new link
+          </Button>
+        </>
+      )}
+
+      {state === "done" && (
+        <>
+          <div className="mt-6 flex items-start gap-3 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
+            <Icons.CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Password changed</p>
+              <p className="mt-0.5">You&apos;ve been signed out on all devices. Log in with your new password.</p>
+            </div>
+          </div>
+          <Button className="grad-btn mt-5 h-12 w-full rounded-xl text-white" onClick={() => navigate("/login", { replace: true })}>
+            Log in
+          </Button>
+        </>
+      )}
+
+      {state === "ready" && (
+        <>
+          <p className="mt-2 text-sm text-muted-foreground">
+            For the account <span className="font-semibold text-ink">{account}</span>. Use at least 8 characters.
+          </p>
+          {error && (
+            <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-rose-50 p-3.5 text-sm text-rose-700 ring-1 ring-rose-200">
+              <Icons.AlertCircle size={17} className="mt-0.5 shrink-0" /> {error}
+            </div>
+          )}
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="rp-password">New password</Label>
+                <button type="button" className="text-xs font-semibold text-brand-red hover:underline" onClick={() => setShow(v => !v)}>
+                  {show ? "Hide" : "Show"}
+                </button>
+              </div>
+              <Input id="rp-password" type={show ? "text" : "password"} required minLength={8} autoComplete="new-password"
+                value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="rp-confirm">Type it again</Label>
+              <Input id="rp-confirm" type={show ? "text" : "password"} required minLength={8} autoComplete="new-password"
+                value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" />
+            </div>
+            <Button type="submit" disabled={busy} className="grad-btn h-12 w-full rounded-xl text-white">
+              {busy ? "Saving…" : "Save new password"}
+            </Button>
+          </form>
+        </>
+      )}
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        <Link to="/login" className="font-bold text-brand-red hover:underline">Back to login</Link>
       </p>
     </AuthShell>
   );

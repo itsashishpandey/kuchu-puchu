@@ -12,6 +12,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomBytes, randomInt, createHash, timingSafeEqual } from "crypto";
 import { sendMail, canSendMail } from "@/lib/mailer";
+import { SITE_URL } from "@/lib/seo-pages";
 import { savePrivate, sniffDocument } from "@/lib/private-files";
 import {
   USERNAME_RE, USERNAME_RULE, DOCUMENT_TYPES, DOCUMENT_MAX_MB, AGREEMENTS, AGREEMENTS_VERSION,
@@ -21,6 +22,18 @@ import {
 const OTP_TTL_MIN = 10;
 const OTP_MAX_ATTEMPTS = 5;
 const otpHash = (email: string, code: string) => createHash("sha256").update(`${email.toLowerCase()}|${code}|${process.env.OTP_PEPPER ?? "kp-otp"}`).digest("hex");
+// Password reset links: only a hash of the token is stored (in EmailOtp, purpose PASSWORD_RESET), so a
+// copy of the database can't be used to reset anyone's password. One use, valid for RESET_TTL_MIN.
+const SIGNUP = "CREATOR_SIGNUP";
+const RESET = "PASSWORD_RESET";
+const RESET_TTL_MIN = 60;
+const resetHash = (token: string) => createHash("sha256").update(`reset|${token}`).digest("hex");
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const maskEmail = (e: string) => {
+  const [name, domain] = e.split("@");
+  return `${name.slice(0, 2)}${"•".repeat(Math.max(1, Math.min(6, name.length - 2)))}@${domain}`;
+};
 const bool = (v: FormDataEntryValue | null) => v === "true" || v === "1" || v === "on";
 
 export const runtime = "nodejs";
@@ -50,13 +63,13 @@ export async function POST(req: Request, ctx: Ctx) {
     const email = String(body?.email || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) return jsonError("Enter a valid email address");
     if (await db.user.findUnique({ where: { email } })) return jsonError("An account with this email already exists — please log in instead.", 409);
-    const last = await db.emailOtp.findFirst({ where: { email }, orderBy: { createdAt: "desc" } });
+    const last = await db.emailOtp.findFirst({ where: { email, purpose: SIGNUP }, orderBy: { createdAt: "desc" } });
     const wait = last ? 60 - Math.floor((Date.now() - last.createdAt.getTime()) / 1000) : 0;
     if (wait > 0) return Response.json({ error: `Please wait ${wait}s before asking for another code.`, resendIn: wait }, { status: 429 });
-    const hourly = await db.emailOtp.count({ where: { email, createdAt: { gte: new Date(Date.now() - 3600_000) } } });
+    const hourly = await db.emailOtp.count({ where: { email, purpose: SIGNUP, createdAt: { gte: new Date(Date.now() - 3600_000) } } });
     if (hourly >= 5) return jsonError("Too many codes for this email. Please try again in an hour.", 429);
     const code = String(randomInt(100000, 1000000));
-    await db.emailOtp.create({ data: { email, purpose: "CREATOR_SIGNUP", codeHash: otpHash(email, code), expiresAt: new Date(Date.now() + OTP_TTL_MIN * 60_000) } });
+    await db.emailOtp.create({ data: { email, purpose: SIGNUP, codeHash: otpHash(email, code), expiresAt: new Date(Date.now() + OTP_TTL_MIN * 60_000) } });
     const sent = await sendMail({
       to: email,
       subject: `${code} is your Kuchu Puchu verification code`,
@@ -78,7 +91,7 @@ export async function POST(req: Request, ctx: Ctx) {
     const email = String(body?.email || "").trim().toLowerCase();
     const code = String(body?.code || "").replace(/\D/g, "");
     if (code.length !== 6) return jsonError("Enter the 6-digit code from the email");
-    const otp = await db.emailOtp.findFirst({ where: { email, verifiedAt: null }, orderBy: { createdAt: "desc" } });
+    const otp = await db.emailOtp.findFirst({ where: { email, purpose: SIGNUP, verifiedAt: null }, orderBy: { createdAt: "desc" } });
     if (!otp || otp.expiresAt < new Date()) return jsonError("This code has expired. Please ask for a new one.", 410);
     if (otp.attempts >= OTP_MAX_ATTEMPTS) return jsonError("Too many wrong codes. Please ask for a new one.", 429);
     await db.emailOtp.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
@@ -281,10 +294,7 @@ export async function POST(req: Request, ctx: Ctx) {
       title: "Application received ✅",
       body: `Thanks for applying, ${legalName}! Your channel "${channelName}" and your ID are now pending review. We usually review applications within 2 business days.`,
       link: "#/dashboard",
-      email: {
-        to: email, subject: "We received your Kuchu Puchu application",
-        body: `Hi ${legalName}, thanks for applying to Kuchu Puchu. We're reviewing "${channelName}" and will email you within 2 business days.`,
-      },
+      email: { to: email, subject: "We received your Kuchu Puchu application" },
     });
 
     const token = await createSession(user.id);
@@ -304,27 +314,80 @@ export async function POST(req: Request, ctx: Ctx) {
     return res;
   }
 
-  // ── FORGOT PASSWORD (simulated email in demo) ─────────────────────────
+  // ── FORGOT PASSWORD: email a one-time reset link ──────────────────────
+  // POST /api/auth/forgot-password {email}. The answer is the same whether or not the account exists.
   if (seg === "forgot-password") {
     if (!rateLimit(`forgot:${ip}`, 5)) return jsonError("Too many attempts. Please wait a minute.", 429);
     const body = await req.json().catch(() => null);
     const email = String(body?.email || "").trim().toLowerCase();
-    if (!email) return jsonError("Email is required");
+    if (!EMAIL_RE.test(email) || email.length > 120) return jsonError("Enter a valid email address");
+    const done = {
+      ok: true,
+      message: `If an account exists for ${email}, we've emailed a link to reset the password. It works for ${RESET_TTL_MIN} minutes.`,
+      ...(canSendMail() ? {} : { devNote: "Email sending isn't set up on this server — the link is in Admin → Mail log." }),
+    };
     const user = await db.user.findUnique({ where: { email } });
-    if (user) {
-      const token = randomBytes(24).toString("hex");
-      await notify({
-        userId: user.id, type: "ACCOUNT_STATUS",
-        title: "Password reset requested",
-        body: "We received a password reset request for your account. In this demo environment the reset link is recorded in the admin mail log instead of being emailed.",
-        link: "#/login",
-        email: {
-          to: email, subject: "Reset your Kuchu Puchu password",
-          body: `Reset your password with this link (demo): https://mykuchupuchu.com/reset?token=${token}`,
-        },
-      });
-    }
-    return Response.json({ ok: true, message: "If an account exists for that email, a reset link has been sent." });
+    if (!user) return Response.json(done);
+
+    // at most one email a minute and 5 an hour per address (quietly skipped, so nobody can use it to find accounts)
+    const recent = await db.emailOtp.findMany({
+      where: { email, purpose: RESET, createdAt: { gte: new Date(Date.now() - 3600_000) } },
+      orderBy: { createdAt: "desc" }, select: { createdAt: true },
+    });
+    if (recent.length >= 5 || (recent[0] && Date.now() - recent[0].createdAt.getTime() < 60_000)) return Response.json(done);
+
+    const token = randomBytes(32).toString("hex");
+    await db.emailOtp.create({
+      data: { email, purpose: RESET, codeHash: resetHash(token), expiresAt: new Date(Date.now() + RESET_TTL_MIN * 60_000) },
+    });
+    const link = `${SITE_URL}/#/reset-password?token=${token}`;
+    const name = user.name?.split(" ")[0] || "there";
+    const sent = await sendMail({
+      to: email,
+      subject: "Reset your Kuchu Puchu password",
+      text: `Hi ${name},\n\nWe got a request to reset the password for your Kuchu Puchu account (${email}).\n\nSet a new password here:\n${link}\n\nThis link works once, for ${RESET_TTL_MIN} minutes.\n\nIf you didn't ask for this, you can ignore this email. Your password stays the same.\n\n— Kuchu Puchu · support@mykuchupuchu.com`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#151923"><h2 style="margin:0 0 8px;color:#FF4E9B">Kuchu Puchu</h2><p>Hi ${escapeHtml(name)},</p><p>We got a request to reset the password for your Kuchu Puchu account (${escapeHtml(email)}).</p><p style="margin:24px 0"><a href="${link}" style="background:#FF1744;color:#fff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:999px;display:inline-block">Set a new password</a></p><p style="font-size:13px;color:#666">Or copy this link into your browser:<br><span style="word-break:break-all">${link}</span></p><p>This link works once, for ${RESET_TTL_MIN} minutes.</p><p style="color:#666;font-size:13px">If you didn't ask for this, you can ignore this email. Your password stays the same.</p></div>`,
+      logBody: `Password reset link (sent to ${email}; reset links are never stored in the log)`,
+    });
+    if (!sent.sent && canSendMail()) return jsonError("We couldn't send the email right now. Please try again in a minute.", 502);
+    return Response.json(done);
+  }
+
+  // ── RESET PASSWORD with the emailed link ──────────────────────────────
+  // POST /api/auth/reset-password {token, check: true} → is the link still valid?
+  // POST /api/auth/reset-password {token, password}    → set the new password, sign out everywhere
+  if (seg === "reset-password") {
+    if (!rateLimit(`reset:${ip}`, 20)) return jsonError("Too many attempts. Please wait a minute.", 429);
+    const body = await req.json().catch(() => null);
+    const token = String(body?.token || "");
+    const expired = () => jsonError("This reset link has expired or was already used. Please ask for a new one.", 410);
+    if (!/^[a-f0-9]{64}$/.test(token)) return expired();
+    const row = await db.emailOtp.findFirst({ where: { purpose: RESET, codeHash: resetHash(token) } });
+    if (!row || row.consumedAt || row.expiresAt < new Date()) return expired();
+    const user = await db.user.findUnique({ where: { email: row.email } });
+    if (!user) return expired();
+    if (body?.check) return Response.json({ ok: true, email: maskEmail(row.email) });
+
+    const password = String(body?.password || "");
+    if (password.length < 8) return jsonError("Password must be at least 8 characters");
+    if (password.length > 200) return jsonError("Password is too long");
+    // claim the link first, so two clicks at once can't both use it
+    const claimed = await db.emailOtp.updateMany({ where: { id: row.id, consumedAt: null }, data: { consumedAt: new Date() } });
+    if (claimed.count !== 1) return expired();
+    await db.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(password) } });
+    await db.session.deleteMany({ where: { userId: user.id } }); // signed out on every device
+    await db.emailOtp.updateMany({ where: { email: row.email, purpose: RESET, consumedAt: null }, data: { consumedAt: new Date() } });
+    await notify({
+      userId: user.id, type: "ACCOUNT_STATUS",
+      title: "Password changed",
+      body: "Your password was reset with the link we emailed you. If this wasn't you, contact support@mykuchupuchu.com right away.",
+    });
+    await sendMail({
+      to: row.email,
+      subject: "Your Kuchu Puchu password was changed",
+      text: `Hi ${user.name?.split(" ")[0] || "there"},\n\nThe password for your Kuchu Puchu account (${row.email}) was just changed with a reset link, and you've been signed out on all devices.\n\nIf this was you, there's nothing else to do.\nIf it wasn't you, reply to this email or write to support@mykuchupuchu.com right away.\n\n— Kuchu Puchu · support@mykuchupuchu.com`,
+    }).catch(() => {});
+    return Response.json({ ok: true, message: "Your password has been changed. Please log in with your new password." });
   }
 
   return jsonError("Not found", 404);

@@ -565,7 +565,7 @@ export async function POST(req: Request, ctx: Ctx) {
         if (action === "reject-id" && reason.length < 5) return jsonError("Tell the creator what's wrong with the document");
         await db.creatorVerification.update({ where: { id: v.id }, data: { status: action === "verify-id" ? "VERIFIED" : "REJECTED", reviewNote: reason || null, reviewedById: me.id, reviewedByEmail: me.email, reviewedAt: new Date() } });
         if (action === "reject-id") {
-          await notify({ userId: user.id, type: "ACCOUNT_STATUS", title: "Please re-check your ID document", body: `We couldn't verify your government ID: ${reason} Reply to support@mykuchupuchu.com with a clear photo or PDF.`, link: "#/dashboard", email: { to: user.email, subject: "Kuchu Puchu: ID verification", body: reason } });
+          await notify({ userId: user.id, type: "ACCOUNT_STATUS", title: "Please re-check your ID document", body: `We couldn't verify your government ID: ${reason} Reply to support@mykuchupuchu.com with a clear photo or PDF.`, link: "#/dashboard", email: { to: user.email, subject: "Kuchu Puchu: please re-check your ID document" } });
         }
         await audit({ actorId: me.id, actorEmail: me.email, action: action === "verify-id" ? "KYC_VERIFIED" : "KYC_REJECTED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason || undefined });
         return Response.json({ ok: true, message: action === "verify-id" ? "ID verified" : "ID marked as not verified — creator notified" });
@@ -598,9 +598,9 @@ export async function POST(req: Request, ctx: Ctx) {
         await notify({
           userId: user.id, type: "ACCOUNT_STATUS",
           title: "Your channel has been approved 🎉",
-          body: `Welcome to Kuchu Puchu! "${user.channel?.name ?? user.name}" is now approved. You can upload original videos and start earning immediately.`,
+          body: `Welcome to Kuchu Puchu! "${user.channel?.name ?? user.name}" is now approved. You can upload original videos for kids right away. Earning unlocks once your channel reaches the views target shown on your dashboard.`,
           link: "#/dashboard/upload",
-          email: { to: user.email, subject: "Your Kuchu Puchu channel is approved", body: "Start uploading original videos to earn from qualified views and approved uploads." },
+          email: { to: user.email, subject: "Your Kuchu Puchu channel is approved 🎉" },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_APPROVED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason || undefined });
         return Response.json({ ok: true, message: `${user.name} approved` });
@@ -613,7 +613,7 @@ export async function POST(req: Request, ctx: Ctx) {
           title: "Your application was not approved",
           body: `Reason: ${reason} You can update your channel details and re-apply.`,
           link: "#/dashboard",
-          email: { to: user.email, subject: "Your Kuchu Puchu application was not approved", body: `Reason: ${reason}` },
+          email: { to: user.email, subject: "Your Kuchu Puchu application was not approved" },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_REJECTED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason });
         return Response.json({ ok: true, message: `${user.name} rejected` });
@@ -625,7 +625,7 @@ export async function POST(req: Request, ctx: Ctx) {
           userId: user.id, type: "WARNING",
           title: "Account suspended",
           body: `Your account has been suspended. Reason: ${reason} Contact support@mykuchupuchu.com to appeal.`,
-          email: { to: user.email, subject: "Kuchu Puchu account suspended", body: `Reason: ${reason}` },
+          email: { to: user.email, subject: "Your Kuchu Puchu account is suspended" },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "CREATOR_SUSPENDED", targetType: "CREATOR", targetId: user.channel?.username ?? user.id, details: reason });
         return Response.json({ ok: true, message: `${user.name} suspended` });
@@ -683,7 +683,7 @@ export async function POST(req: Request, ctx: Ctx) {
             ? `"${video.title}" (${video.contentId}) is live. $${settings.rewardPerUpload.toFixed(2)} upload reward credited, and qualified views earn $${settings.ratePer1000Views.toFixed(2)} per 1,000.`
             : `"${video.title}" (${video.contentId}) is live. Earning unlocks once your channel gets ${m.threshold.toLocaleString()} views within 30 days (you're at ${m.last30DaysViews.toLocaleString()}) — after that, every approved upload and qualified view earns.`,
           link: "#/dashboard/videos",
-          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Approved: ${video.title}`, body: "Your video passed review and is now earning." },
+          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Video approved: ${video.title}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "VIDEO_APPROVED", targetType: "VIDEO", targetId: video.contentId, details: reason || undefined });
         return Response.json({ ok: true, message: `${video.contentId} approved` });
@@ -696,7 +696,7 @@ export async function POST(req: Request, ctx: Ctx) {
           title: "Video not approved",
           body: `"${video.title}" (${video.contentId}) was not approved. Reason: ${reason}`,
           link: "#/dashboard/videos",
-          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Not approved: ${video.title}`, body: `Reason: ${reason}` },
+          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Video not approved: ${video.title}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "VIDEO_REJECTED", targetType: "VIDEO", targetId: video.contentId, details: reason });
         return Response.json({ ok: true, message: `${video.contentId} rejected` });
@@ -809,7 +809,7 @@ export async function POST(req: Request, ctx: Ctx) {
           title: "Withdrawal paid ✅",
           body: `Your $${w.amount.toFixed(2)} withdrawal (${paymentRef}) has been paid. It should arrive within 1–3 business days depending on your payout method.`,
           link: "#/dashboard/transactions",
-          email: { to: w.user.email, subject: `Paid: $${w.amount.toFixed(2)}`, body: `Payment reference ${paymentRef}.` },
+          email: { to: w.user.email, subject: `Your $${w.amount.toFixed(2)} withdrawal has been paid` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "WITHDRAWAL_PAID", targetType: "WITHDRAWAL", targetId: w.id, details: `$${w.amount} ref ${paymentRef}` });
         return Response.json({ ok: true, message: `Marked as paid (${paymentRef})` });
@@ -829,7 +829,7 @@ export async function POST(req: Request, ctx: Ctx) {
           title: "Withdrawal rejected",
           body: `Your $${w.amount.toFixed(2)} withdrawal was rejected. Reason: ${note} The funds have been returned to your available balance.`,
           link: "#/dashboard/withdraw",
-          email: { to: w.user.email, subject: `Withdrawal rejected: $${w.amount.toFixed(2)}`, body: `Reason: ${note}` },
+          email: { to: w.user.email, subject: `Your $${w.amount.toFixed(2)} withdrawal was not approved` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "WITHDRAWAL_REJECTED", targetType: "WITHDRAWAL", targetId: w.id, details: note });
         return Response.json({ ok: true, message: "Withdrawal rejected — funds released" });
@@ -927,7 +927,8 @@ export async function POST(req: Request, ctx: Ctx) {
           userId: video.creatorId, type: "DUPLICATE",
           title: "Duplicate confirmed — video rejected",
           body: `Review confirmed that ${video.contentId} duplicates ${video.duplicateOfId}. No rewards were paid. Reason: ${reason || "visual/audio fingerprint match"}`,
-          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Duplicate confirmed: ${video.contentId}`, body: "The video was rejected and no rewards were paid." },
+          link: "#/dashboard/videos",
+          email: { to: (await db.user.findUnique({ where: { id: video.creatorId } }))!.email, subject: `Duplicate confirmed: ${video.contentId}` },
         });
         await audit({ actorId: me.id, actorEmail: me.email, action: "DUPLICATE_CONFIRMED", targetType: "VIDEO", targetId: video.contentId, details: `matches ${video.duplicateOfId} @ ${Math.round((video.similarityScore ?? 0) * 100)}%` });
         return Response.json({ ok: true, message: "Duplicate confirmed — video rejected" });
@@ -1110,7 +1111,7 @@ export async function POST(req: Request, ctx: Ctx) {
       for (const c of creators) {
         await notify({
           userId: c.id, type: "ANNOUNCEMENT", title, body: message,
-          email: { to: c.email, subject: title, body: message },
+          email: { to: c.email, subject: title },
         });
       }
       await audit({ actorId: me.id, actorEmail: me.email, action: "BROADCAST_SENT", targetType: "NOTIFICATION", details: `${creators.length} recipients: ${title}` });

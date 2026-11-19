@@ -494,7 +494,7 @@ export function AdminNotificationsPage() {
     <div>
       <AdminPageHeader
         title="Notifications"
-        description="Broadcast platform announcements to creators — delivered in-app and by email (logged in the demo mail log)."
+        description="Broadcast platform announcements to creators — delivered in-app and by email to every approved and pending creator (copies in the outbound mail log)."
       />
       <div className="grid gap-4 lg:grid-cols-[480px_1fr]">
         <div className="bento space-y-4 p-6">

@@ -670,10 +670,7 @@ export async function POST(req: Request, ctx: Ctx) {
         title: "Possible duplicate detected",
         body: `Your upload "${title}" (${contentId}) is ${pct}% similar to an existing video (${duplicateOfId}). It's queued for review — rewards are on hold. You can appeal from My Videos if you believe this is a mistake.`,
         link: "#/dashboard/videos",
-        email: {
-          to: me.email, subject: `Duplicate review needed: ${contentId}`,
-          body: `Your upload "${title}" was flagged as ${pct}% similar to existing content and is pending review.`,
-        },
+        email: { to: me.email, subject: `Duplicate review needed: ${contentId}` },
       });
     } else if (status === "PENDING") {
       await notify({
@@ -681,18 +678,15 @@ export async function POST(req: Request, ctx: Ctx) {
         title: "Upload received — in review",
         body: `"${title}" (${contentId}) passed technical validation and is pending approval. We check originality, duration and quality — usually within 24 hours.`,
         link: "#/dashboard/videos",
-        email: {
-          to: me.email, subject: `Upload received: ${title}`,
-          body: `Your video ${contentId} is in the review queue. We'll notify you once it's approved.`,
-        },
+        email: { to: me.email, subject: `Upload received: ${title}` },
       });
     } else {
       await notify({
         userId: me.id, type: "VIDEO_STATUS",
         title: "Video published 🎉",
-        body: `"${title}" (${contentId}) is live and earning. View earnings are credited for every qualified view for ${settings.monetizationDurationMonths} months.`,
+        body: `"${title}" (${contentId}) is live. Once earning is unlocked on your channel, its qualified views earn for ${settings.monetizationDurationMonths} months.`,
         link: "#/dashboard/videos",
-        email: { to: me.email, subject: `Published: ${title}`, body: `Your video ${contentId} is now live.` },
+        email: { to: me.email, subject: `Video published: ${title}` },
       });
     }
 
@@ -779,7 +773,7 @@ export async function POST(req: Request, ctx: Ctx) {
         link: "#/dashboard/withdraw",
         email: {
           to: me.email, subject: `Withdrawal request received: $${amount.toFixed(2)}`,
-          body: `We received your withdrawal request. Once approved, bank transfers usually arrive in 3–5 business days and PayPal in 1–3.`,
+          body: `Once approved, bank transfers usually arrive in 3–5 business days and PayPal in 1–3.`,
         },
       });
       return Response.json({ withdrawal: w }, { status: 201 });
