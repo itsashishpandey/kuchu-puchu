@@ -52,7 +52,7 @@ export function AppButtons({ tone = "light", className = "", align = "start" }: 
           </>
         );
         return href ? (
-          <a key={key} href={href} target="_blank" rel="noopener noreferrer" className={`${base} hover:-translate-y-0.5`}
+          <a key={key} href={href} target="_blank" rel="nofollow noopener noreferrer" className={`${base} hover:-translate-y-0.5`}
             aria-label={`Download the Kuchu Puchu app for ${platform}`}>
             {inner}
           </a>
