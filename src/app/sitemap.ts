@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
-import { SITE_URL, STATIC_PAGES, CATEGORY_SEO } from "@/lib/seo-pages";
+import { SITE_URL, STATIC_PAGES, CATEGORY_SEO, LANGUAGE_SEO } from "@/lib/seo-pages";
 import { loadTaxonomy, selectable, taxonomyCounts } from "@/lib/taxonomy";
 import { BLOG_POSTS } from "@/lib/blog-posts";
 
@@ -11,10 +11,14 @@ export const dynamic = "force-dynamic";
 
 const PRIORITY: Record<string, number> = { "/explore": 0.8, "/blog": 0.7, "/trending": 0.7, "/about": 0.6, "/contact": 0.4 };
 
+/** dbSlugs of category pages (and "lang-<code>" language pages) that have approved videos. */
 async function categoriesWithVideos(): Promise<Set<string>> {
   try {
     const [t, counts] = await Promise.all([loadTaxonomy("en"), taxonomyCounts()]);
-    return new Set(selectable(t).categories.filter(c => (counts.categories.get(c.id) ?? 0) > 0).map(c => c.slug));
+    return new Set([
+      ...selectable(t).categories.filter(c => (counts.categories.get(c.id) ?? 0) > 0).map(c => c.slug),
+      ...t.languages.filter(l => (counts.languages.get(l.id) ?? 0) > 0).map(l => `lang-${l.code}`),
+    ]);
   } catch {
     return new Set();
   }
@@ -24,7 +28,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [withVideos, channels] = await Promise.all([
     categoriesWithVideos(),
     db.channel.findMany({
-      where: { user: { status: "APPROVED" } },
+      // approved channels with at least one approved video (an empty channel page is noindex)
+      where: { user: { status: "APPROVED", videos: { some: { status: "APPROVED" } } } },
       select: { username: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: 5000,
@@ -32,8 +37,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   return [
     { url: `${SITE_URL}/`, changeFrequency: "daily", priority: 1 },
-    ...CATEGORY_SEO.filter(c => withVideos.has(c.dbSlug)).map(c => ({
+    ...CATEGORY_SEO.filter(c => withVideos.has(c.dbSlug) || c.alwaysIndex).map(c => ({
       url: `${SITE_URL}${c.path}`, changeFrequency: "daily" as const, priority: 0.9,
+    })),
+    ...LANGUAGE_SEO.filter(c => withVideos.has(c.dbSlug)).map(c => ({
+      url: `${SITE_URL}${c.path}`, changeFrequency: "daily" as const, priority: 0.8,
     })),
     ...STATIC_PAGES.map(p => ({
       url: `${SITE_URL}${p.path}`,

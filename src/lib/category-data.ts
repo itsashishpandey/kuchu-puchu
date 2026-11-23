@@ -13,6 +13,23 @@ export const loadCategoryPageData = cache(async (dbSlug: string): Promise<PageDa
   const empty: PageData = { kind: "category", dbSlug, category: null, videos: [] };
   try {
     const [t, counts] = await Promise.all([loadTaxonomy("en"), taxonomyCounts()]);
+    // language pages ("lang-hi"): every video in that language, shown like a category without topics
+    if (dbSlug.startsWith("lang-")) {
+      const lang = t.languages.find(l => l.active && l.code === dbSlug.slice(5));
+      if (!lang) return empty;
+      const res = await listFeed({
+        feed: "explore", filters: { languages: [lang.code], categoryId: null, subcategoryId: null },
+        limit: CATEGORY_PAGE_VIDEOS, offset: 0, userId: null, guestKey: "", taxonomy: t,
+      });
+      const videos = "error" in res ? [] : (JSON.parse(JSON.stringify(res.videos)) as FeedVideo[]);
+      return {
+        kind: "category", dbSlug, videos,
+        category: {
+          id: lang.id, name: lang.nameEn, slug: lang.code, description: null, emoji: null, color: null,
+          videoCount: counts.languages.get(lang.id) ?? 0, subcategories: [],
+        },
+      };
+    }
     const c = selectable(t).categories.find(x => x.slug === dbSlug);
     if (!c) return empty;
     const f = resolveFilterParams(t, dbSlug, null);

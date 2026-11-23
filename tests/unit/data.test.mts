@@ -25,15 +25,18 @@ test("kids-only audience is ages 3–8", () => {
   assert.equal(KIDS_AUDIENCE.maxAge, 8);
 });
 
-test("15 kids categories with 82 subcategories, unique slugs and names", () => {
+test("25 kids categories with 131 subcategories, unique slugs and names", () => {
   const expected: Record<string, number> = {
-    "cartoons-animation": 7, "rhymes-songs": 7, stories: 6, "early-learning": 7, "science-nature": 7,
+    "cartoons-animation": 7, "rhymes-songs": 7, stories: 7, "early-learning": 7, "science-nature": 7,
     animals: 7, "arts-crafts": 6, "dance-movement": 4, "kids-comedy": 4, "toys-play": 4,
-    "our-world": 6, "good-habits": 5, "kids-cooking": 4, "learn-languages": 4, "sports-play": 4,
+    "our-world": 6, "good-habits": 5, "kids-cooking": 4, "learn-languages": 6, "sports-play": 4,
+    // added 2026-11
+    "school-classroom": 5, poems: 5, maths: 5, alphabets: 5, "words-names": 4, "body-routine": 5,
+    "fruits-vegetables": 4, "family-friends": 4, "music-instruments": 4, vehicles: 5,
   };
-  assert.equal(CATEGORIES.length, 15);
+  assert.equal(CATEGORIES.length, 25);
   assert.deepEqual((CATEGORIES as any[]).map(c => c.slug), Object.keys(expected));
-  assert.equal(new Set((CATEGORIES as any[]).map(c => c.name)).size, 15, "duplicate category names");
+  assert.equal(new Set((CATEGORIES as any[]).map(c => c.name)).size, 25, "duplicate category names");
   let total = 0;
   for (const c of CATEGORIES as any[]) {
     assert.equal(c.subcategories.length, expected[c.slug], `${c.slug} subcategory count`);
@@ -41,7 +44,7 @@ test("15 kids categories with 82 subcategories, unique slugs and names", () => {
     assert.ok(c.keywords.length > 0, `${c.slug} needs search keywords`);
     total += c.subcategories.length;
   }
-  assert.equal(total, 82);
+  assert.equal(total, 131);
 });
 
 test("no adult topics anywhere in the taxonomy", () => {

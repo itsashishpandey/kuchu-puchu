@@ -40,7 +40,7 @@ import { CategoryPage } from "@/components/marketing/category-page";
 import { BlogIndexPage, BlogPostPage } from "@/components/marketing/blog";
 import { blogPostBySlug } from "@/lib/blog-posts";
 import { PageDataContext, type PageData } from "./page-data";
-import { SITE_TITLE, staticPage, categorySeoByPath, titleForPath } from "@/lib/seo-pages";
+import { SITE_TITLE, staticPage, landingSeoByPath, titleForPath } from "@/lib/seo-pages";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
@@ -122,8 +122,8 @@ function Routes() {
   else if (first === "blog" && !second) page = <BlogIndexPage />;
   else if (first === "blog" && second && blogPostBySlug(second)) page = <BlogPostPage key={second} slug={second} />;
   else if (staticPage(route.path)?.policy) page = <PolicyPage slug={staticPage(route.path)!.policy!} />;
-  else if (categorySeoByPath(route.path)) {
-    const dbSlug = categorySeoByPath(route.path)!.dbSlug;
+  else if (landingSeoByPath(route.path)) {
+    const dbSlug = landingSeoByPath(route.path)!.dbSlug;
     page = <CategoryPage key={dbSlug} dbSlug={dbSlug} />;
   }
   else if (first === "delete-account") page = <DeleteAccountPage />;
@@ -162,8 +162,9 @@ export function App({ initialPath = "/", pageData = null }: { initialPath?: stri
       admin: "Admin Console — Kuchu Puchu",
     };
     const wanted = (): string | null => {
+      // an in-page anchor ("#epic") keeps the real page's title; only "#/..." screens have their own
+      if (!window.location.hash.startsWith("#/")) return titleForPath(window.location.pathname);
       const hash = window.location.hash.replace(/^#\/?/, "");
-      if (!hash) return titleForPath(window.location.pathname);
       const seg = hash.split(/[/?]/)[0] ?? "";
       return titles[seg] ?? (seg === "policies" ? "Policies — Kuchu Puchu" : seg === "c" ? "Creator — Kuchu Puchu" : titles[""]);
     };

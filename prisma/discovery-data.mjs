@@ -143,7 +143,7 @@ export const INTERFACE_LOCALES = [
   { code: "hi", name: "Hindi", nameNative: "हिन्दी" },
 ];
 
-// ───────────────────── Kids-only taxonomy (ages 3–8): 15 main categories ─────────────────────
+// ───────────────────── Kids-only taxonomy (ages 3–8): 25 main categories (15 + 10 added 2026-11) ─────────────────────
 // Kuchu Puchu is made for children aged 3–8 (Google Play "Ages 5 & under" + "Ages 6–8").
 // Everything here must suit that age: no adult topics, no pranks/stunts, no toy-unboxing ads.
 // keywords = extra words for search & upload suggestions (English + common Hinglish).
@@ -186,6 +186,7 @@ export const CATEGORIES = [
       ["Folk Tales & Panchatantra", "🦊", ["panchatantra", "folk tale", "jataka", "akbar birbal"]],
       ["Animal Stories", "🐘", ["animal story", "jungle story"]],
       ["Read-Aloud Books", "📚", ["read aloud", "picture book", "storybook"]],
+      ["Heritage & History Stories", "🏛️", ["history story", "heritage", "sikh history", "itihas", "great people"]], // added 2026-11
     ],
     "Bedtime stories, moral stories, fairy tales and folk tales."),
   C("early-learning", "Early Learning", "🔤", "#22C55E", "शुरुआती पढ़ाई",
@@ -299,6 +300,8 @@ export const CATEGORIES = [
       ["Learn Hindi", "अ", ["learn hindi", "hindi for kids", "varnmala"]],
       ["Learn Other Languages", "🌐", ["learn language", "spanish for kids", "french for kids"]],
       ["Bilingual Stories", "📗", ["bilingual", "two languages"]],
+      ["Learn Punjabi", "ੳ", ["learn punjabi", "punjabi for kids", "gurmukhi"]], // added 2026-11
+      ["Learn Urdu", "ا", ["learn urdu", "urdu for kids"]], // added 2026-11
     ],
     "First words and simple phrases in English, Hindi and more."),
   C("sports-play", "Sports & Outdoor Play", "⚽", "#84CC16", "खेल-कूद",
@@ -310,6 +313,104 @@ export const CATEGORIES = [
       ["Cycling & Skating", "🚲", ["cycling", "skating", "scooter"]],
     ],
     "Active outdoor play and first sports skills — always safely."),
+
+  // ── 10 more categories (added 2026-11, from Search Console demand; pages in src/lib/seo-pages.ts) ──
+  C("school-classroom", "School & Classroom", "🏫", "#2563EB", "स्कूल और क्लासरूम",
+    ["school", "classroom", "school cartoon", "class", "teacher", "jungle school", "padhai"],
+    [
+      ["Classroom Comedy", "😄", ["classroom comedy", "funny class", "school comedy"]],
+      ["Animal School", "🦁", ["animal school", "jungle school", "animal teacher"]],
+      ["Fun School Lessons", "📚", ["school lesson", "class for kids", "lesson"]],
+      ["First Day at School", "🎒", ["first day of school", "back to school", "new school"]],
+      ["School Manners", "🙋", ["school rules", "classroom manners", "raise hand"]],
+    ],
+    "Funny classroom cartoons and fun school lessons for little learners."),
+  C("poems", "Poems for Kids", "📝", "#DB2777", "बच्चों की कविताएँ",
+    ["poem", "poems", "kavita", "bal kavita", "poem recitation", "hindi poem", "english poem"],
+    [
+      ["Hindi Poems (Kavita)", "🪔", ["hindi poem", "hindi kavita", "bal kavita"]],
+      ["English Poems", "🔤", ["english poem", "english poem for kids"]],
+      ["Punjabi Poems", "🌾", ["punjabi poem", "punjabi kavita"]],
+      ["Poem Recitation", "🎤", ["poem recitation", "recitation competition", "kavita path"]],
+      ["Short Poems", "✨", ["short poem", "small poem", "easy poem"]],
+    ],
+    "Short, easy poems in Hindi, English and Punjabi to read, recite and remember."),
+  C("maths", "Maths for Kids", "🧮", "#059669", "बच्चों का गणित",
+    ["maths", "math", "ganit", "counting", "numbers", "tables", "pahade", "ginti"],
+    [
+      ["Counting & Numbers", "🔢", ["counting", "numbers 1 to 10", "ginti"]],
+      ["Tables (Pahade)", "✖️", ["tables", "pahade", "multiplication table", "2 ka table"]],
+      ["Adding & Taking Away", "➕", ["addition", "subtraction", "jod", "ghatana"]],
+      ["Big & Small", "📏", ["big and small", "measuring", "comparing"]],
+      ["Coins & Telling Time", "⏰", ["coins", "telling time", "clock"]],
+    ],
+    "Counting, numbers, tables and first maths made fun."),
+  C("alphabets", "Alphabets", "🅰️", "#7C3AED", "वर्णमाला",
+    ["alphabet", "abc", "abcd", "varnamala", "akshar", "gurmukhi", "letters", "phonics"],
+    [
+      ["ABC & Phonics", "🔤", ["abc", "phonics", "a for apple", "english alphabet"]],
+      ["Hindi Varnamala", "अ", ["hindi varnamala", "a se anar", "swar vyanjan", "hindi alphabet"]],
+      ["Punjabi Gurmukhi", "ੳ", ["punjabi alphabet", "gurmukhi", "painti", "ura aira"]],
+      ["Urdu Alphabet", "ا", ["urdu alphabet", "alif bay"]],
+      ["Writing Letters", "✏️", ["letter writing", "tracing letters", "handwriting"]],
+    ],
+    "ABC, Hindi varnamala, Punjabi Gurmukhi and more alphabets for little learners."),
+  C("words-names", "Words & Names", "💬", "#0891B2", "शब्द और नाम",
+    ["vocabulary", "words", "names of things", "shabd", "naam", "english words", "hindi words"],
+    [
+      ["Things Around Us", "🏠", ["things name", "household items", "things at home"]],
+      ["Action Words", "🏃", ["action words", "verbs for kids"]],
+      ["Simple Sentences", "🗨️", ["simple sentences", "english sentences", "speaking practice"]],
+      ["Names in Hindi & English", "🔁", ["names in hindi and english", "hindi english words"]],
+    ],
+    "New words and the names of everyday things, in Hindi, English and more."),
+  C("body-routine", "My Body & Daily Routine", "🪥", "#E11D48", "मेरा शरीर और दिनचर्या",
+    ["body parts", "daily routine", "hygiene", "brushing", "sharir", "dincharya"],
+    [
+      ["Body Parts", "👀", ["body parts", "body parts name", "sharir ke ang"]],
+      ["Daily Routine", "🗓️", ["daily routine", "morning routine", "dincharya"]],
+      ["Brushing & Bath Time", "🛁", ["brush teeth", "bath time", "wash hands", "hygiene"]],
+      ["Five Senses", "👃", ["five senses", "see hear smell taste touch"]],
+      ["Sleep & Rest", "😴", ["bedtime routine", "sleep", "rest"]],
+    ],
+    "Body parts, daily routines and healthy habits for growing kids."),
+  C("fruits-vegetables", "Fruits & Vegetables", "🍎", "#16A34A", "फल और सब्ज़ियाँ",
+    ["fruits", "vegetables", "fal", "sabzi", "food names", "fruits name", "vegetables name"],
+    [
+      ["Fruits", "🍌", ["fruits name", "fruits for kids", "fal"]],
+      ["Vegetables", "🥕", ["vegetables name", "vegetables for kids", "sabziyan"]],
+      ["Food Names", "🍛", ["food names", "khana", "food in hindi"]],
+      ["Food Rhymes", "🎶", ["food rhyme", "vegetable rhyme", "fruit song"]],
+    ],
+    "Names of fruits, vegetables and foods, with rhymes and colours."),
+  C("family-friends", "Family & Friends", "👨‍👩‍👧", "#F59E0B", "परिवार और दोस्त",
+    ["family", "parivar", "maa", "papa", "dadi", "dadu", "friends", "dost"],
+    [
+      ["Maa & Papa", "🤗", ["maa", "mother", "papa", "father", "parents"]],
+      ["Grandparents", "👵", ["dadi", "dadu", "nani", "nanu", "grandparents"]],
+      ["Brothers & Sisters", "👫", ["brother", "sister", "bhai", "behen", "siblings"]],
+      ["Friendship", "🤝", ["friendship", "friends", "dosti"]],
+    ],
+    "Love for Maa, Papa, grandparents, brothers, sisters and friends."),
+  C("music-instruments", "Music & Instruments", "🥁", "#9333EA", "संगीत और वाद्य यंत्र",
+    ["music", "instruments", "musical instruments", "sangeet", "dhol", "tabla", "drum"],
+    [
+      ["Musical Instruments", "🎸", ["musical instruments", "instruments name"]],
+      ["Indian Instruments", "🪘", ["dhol", "tabla", "tumbi", "sitar", "indian instruments"]],
+      ["Rhythm & Beats", "👏", ["rhythm", "beats", "clapping"]],
+      ["Learn Music", "🎼", ["learn music", "music lesson", "sur"]],
+    ],
+    "Musical instruments, rhythm and first music lessons for kids."),
+  C("vehicles", "Vehicles & Transport", "🚗", "#EA580C", "गाड़ियाँ और वाहन",
+    ["vehicles", "gaadi", "car", "bus", "train", "jcb", "truck", "transport"],
+    [
+      ["Cars & Buses", "🚌", ["car", "bus", "car cartoon", "gaadi"]],
+      ["Trains", "🚂", ["train", "rail", "train video"]],
+      ["Planes & Boats", "✈️", ["aeroplane", "airplane", "boat", "ship"]],
+      ["JCB & Diggers", "🚜", ["jcb", "digger", "tractor", "crane"]],
+      ["Fire Truck & Ambulance", "🚒", ["fire truck", "fire engine", "ambulance", "police car"]],
+    ],
+    "Cars, buses, trains, planes and the vehicles that help us every day."),
 ].map((c, i) => ({
   ...c,
   sortOrder: i + 1,

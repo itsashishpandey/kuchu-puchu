@@ -22,7 +22,8 @@ export const InitialPathContext = createContext<string>("/");
 
 function currentRoute(): string {
   const hash = window.location.hash.replace(/^#/, "");
-  if (hash) return hash;
+  // "#/feed?v=…" is a screen; "#epic" is just an anchor on the page (blog lists, "jump to" links)
+  if (hash.startsWith("/")) return hash;
   const { pathname, search } = window.location;
   return isCleanPath(pathname) ? pathname + search : "/";
 }
@@ -74,7 +75,7 @@ export function useRoute(): RouteInfo {
   // old links (/#/about, /#/policies/monetization, /#/c/<username>) move to the real address
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
-    if (!hash) return;
+    if (!hash.startsWith("/")) return; // no hash, or an in-page anchor
     const [hp, hq] = hash.split("?");
     const clean = toCleanPath(hp);
     if (isCleanPath(clean)) {
@@ -118,7 +119,12 @@ export function Link({
 // scroll to top on route change (except feed which owns its scroll)
 export function useScrollReset(path: string) {
   useEffect(() => {
-    if (!path.startsWith("/feed")) window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    if (path.startsWith("/feed")) return;
+    // an address with an in-page anchor ("/blog/…#epic") opens at that section, everything else at the top
+    const anchor = window.location.hash.startsWith("#/") ? "" : decodeURIComponent(window.location.hash.slice(1));
+    const el = anchor ? document.getElementById(anchor) : null;
+    if (el) el.scrollIntoView({ behavior: "instant" as ScrollBehavior });
+    else window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [path]);
 }
 

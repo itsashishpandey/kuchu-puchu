@@ -271,7 +271,7 @@ await test("Test 11 — empty exact subcategory falls back to same-language alte
 await test("Kids safety — no comments, parent-only accounts, kids-safe uploads, kids taxonomy", async () => {
   const settings = (await call("GET", "/public/settings")).data;
   check(settings.audience?.minAge === 3 && settings.audience?.maxAge === 8 && settings.audience.ads === false && settings.audience.commentsEnabled === false, `audience ${JSON.stringify(settings.audience)}`);
-  check(tax.length === 15 && !tax.some(c => ["comedy-jokes", "relationships-friendship", "kids-cartoons", "religion-spirituality"].includes(c.slug)), `categories: ${tax.map(c => c.slug).join(",")}`);
+  check(tax.length === 25 && !tax.some(c => ["comedy-jokes", "relationships-friendship", "kids-cartoons", "religion-spirituality"].includes(c.slug)), `categories: ${tax.map(c => c.slug).join(",")}`);
   const c = await call("POST", `/social/comment/${hiVideo.contentId}`, { token: viewer, body: { body: "hello" } });
   check(c.status === 403 && /turned off/i.test(c.data.error), `comment: ${c.status} ${c.data.error}`);
   const detail = (await call("GET", `/public/videos/${hiVideo.contentId}`)).data.video;

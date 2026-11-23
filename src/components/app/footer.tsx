@@ -9,13 +9,17 @@ import { AppButtons } from "@/components/shared/app-buttons";
 import { Link, navigate } from "@/components/app/router";
 import { post } from "@/lib/client";
 import { toast } from "@/hooks/use-toast";
-import { CATEGORY_SEO } from "@/lib/seo-pages";
+import { CATEGORY_SEO, LANGUAGE_SEO } from "@/lib/seo-pages";
 
 const COLUMNS: { title: string; links: { to: string; label: string }[] }[] = [
   {
-    // every category page, linked from every page (real addresses, so search engines find them)
+    // every category and language page, linked from every page (real addresses, so search engines find them)
     title: "Videos for kids",
-    links: CATEGORY_SEO.map(c => ({ to: c.path, label: c.label })),
+    links: CATEGORY_SEO.slice(0, 13).map(c => ({ to: c.path, label: c.label })),
+  },
+  {
+    title: "More for kids",
+    links: [...CATEGORY_SEO.slice(13), ...LANGUAGE_SEO].map(c => ({ to: c.path, label: c.label })),
   },
   {
     title: "Platform",
@@ -96,7 +100,7 @@ export function Footer() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_repeat(5,1fr)]">
           <div>
             <Logo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">

@@ -1,7 +1,7 @@
 "use client";
 
-// A category landing page (mykuchupuchu.com/nursery-rhymes, /cartoons-for-kids…): written text from
-// category-pages.ts, live videos and topics from the database. On the first load the server passes
+// A category landing page (mykuchupuchu.com/nursery-rhymes, /cartoons-for-kids…) or a language page
+// (/hindi-videos-for-kids…): written text from category-pages.ts, live videos and topics from the database. On the first load the server passes
 // the data (so it's in the HTML for search engines); after an in-site click the page fetches it.
 import { useEffect, useMemo, useState } from "react";
 import * as Icons from "lucide-react";
@@ -12,13 +12,16 @@ import { VideoGrid } from "@/components/discovery/video-grid";
 import { FaqList, TRUST } from "./home-parents";
 import { get, type FeedPage, type FeedVideo } from "@/lib/client";
 import { useCategories } from "@/lib/use-taxonomy";
-import { CATEGORY_SEO, categorySeoBySlug } from "@/lib/seo-pages";
+import { CATEGORY_SEO, LANGUAGE_SEO, landingSeoBySlug, type LandingSeo } from "@/lib/seo-pages";
 import { categoryContent } from "@/lib/category-pages";
+import { DrawingGuide } from "./drawing-guide";
 
 export function CategoryPage({ dbSlug }: { dbSlug: string }) {
   const setRef = useReveal<HTMLDivElement>();
-  const seo = categorySeoBySlug(dbSlug)!;
+  const seo = landingSeoBySlug(dbSlug)!;
   const content = categoryContent(dbSlug)!;
+  const lang = seo.lang; // language page: every video in this language, no category
+  const query = lang ? `languages=${lang}` : `category=${dbSlug}`;
   const server = usePageData();
   const fromServer = server?.kind === "category" && server.dbSlug === dbSlug ? server : null;
 
@@ -26,19 +29,20 @@ export function CategoryPage({ dbSlug }: { dbSlug: string }) {
   const [loaded, setLoaded] = useState(!!fromServer);
   useEffect(() => {
     if (fromServer) return;
-    get<FeedPage>(`/public/videos?feed=explore&category=${encodeURIComponent(dbSlug)}&limit=24`)
+    get<FeedPage>(`/public/videos?feed=explore&${query}&limit=24`)
       .then(d => setVideos(d.videos)).catch(() => {}).finally(() => setLoaded(true));
-  }, [dbSlug, fromServer]);
+  }, [query, fromServer]);
 
   const { data: categories = [] } = useCategories("en");
   const category: CategoryInfo | null = useMemo(() => {
     if (fromServer?.category) return fromServer.category;
+    if (lang) return null;
     const c = categories.find(x => x.slug === dbSlug);
     return c ? { id: c.id, name: c.name, slug: c.slug, description: c.description, emoji: c.emoji, color: c.color, videoCount: c.videoCount, subcategories: c.subcategories } : null;
-  }, [fromServer, categories, dbSlug]);
+  }, [fromServer, categories, dbSlug, lang]);
 
-  const related = content.related.map(s => categorySeoBySlug(s)).filter(Boolean) as typeof CATEGORY_SEO;
-  const others = CATEGORY_SEO.filter(c => c.dbSlug !== dbSlug);
+  const related = content.related.map(s => landingSeoBySlug(s)).filter(Boolean) as LandingSeo[];
+  const others = [...CATEGORY_SEO, ...LANGUAGE_SEO].filter(c => c.dbSlug !== dbSlug);
   const color = category?.color ?? "#1677FF";
 
   return (
@@ -64,7 +68,7 @@ export function CategoryPage({ dbSlug }: { dbSlug: string }) {
             <h1 id="category-title" className="font-display text-[2.3rem] font-extrabold leading-[1.08] text-ink md:text-6xl">{content.h1}</h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink/70 md:text-lg">{content.intro}</p>
             <AppButtons className="mt-7" />
-            <button onClick={() => videos[0] ? navigate(`/feed?v=${videos[0].id}&category=${dbSlug}`) : navigate(`/explore?category=${dbSlug}`)}
+            <button onClick={() => videos[0] ? navigate(`/feed?v=${videos[0].id}&${query}`) : navigate(lang ? `/search?${query}` : `/explore?${query}`)}
               className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-brand-blue hover:underline">
               <Icons.Play size={15} fill="currentColor" /> Or watch free on the website
             </button>
@@ -93,13 +97,13 @@ export function CategoryPage({ dbSlug }: { dbSlug: string }) {
               {category?.description && <p className="mt-2 max-w-2xl text-muted-foreground">{category.description}</p>}
             </div>
             {videos.length > 0 && (
-              <Link to={`/explore?category=${dbSlug}`} className="inline-flex items-center gap-1.5 rounded-full border bg-white px-5 py-2.5 text-sm font-semibold transition hover:border-brand-blue/40 hover:text-brand-blue">
-                Filter by language <Icons.ArrowRight size={15} />
+              <Link to={lang ? `/search?${query}` : `/explore?${query}`} className="inline-flex items-center gap-1.5 rounded-full border bg-white px-5 py-2.5 text-sm font-semibold transition hover:border-brand-blue/40 hover:text-brand-blue">
+                {lang ? `See all ${seo.label}` : "Filter by language"} <Icons.ArrowRight size={15} />
               </Link>
             )}
           </div>
           {videos.length > 0 ? (
-            <VideoGrid videos={videos} feedQuery={`category=${dbSlug}`} />
+            <VideoGrid videos={videos} feedQuery={query} />
           ) : !loaded ? (
             <VideoGrid videos={[]} loading skeletons={8} />
           ) : (
@@ -121,8 +125,49 @@ export function CategoryPage({ dbSlug }: { dbSlug: string }) {
         </div>
       </section>
 
+      {/* ── Drawing guide (drawing page) ── */}
+      {content.drawingGuide && <DrawingGuide />}
+
+      {/* ── Meet the characters (cartoons page) ── */}
+      {content.characters && (
+        <section className="bg-surface py-14 md:py-20" aria-labelledby="category-characters">
+          <div className="mx-auto max-w-6xl px-4 md:px-6">
+            <h2 id="category-characters" className="reveal mx-auto max-w-3xl text-center font-display text-3xl font-bold leading-tight text-ink md:text-[2.4rem]">{content.characters.heading}</h2>
+            <p className="reveal mx-auto mt-3 max-w-2xl text-center text-muted-foreground">{content.characters.text}</p>
+            <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {content.characters.items.map(ch => (
+                <li key={ch.name} className="reveal bento p-5">
+                  <span className="text-3xl" aria-hidden>{ch.emoji}</span>
+                  <h3 className="mt-2 font-display text-lg font-bold text-ink">{ch.name}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{ch.text}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* ── Topics (language pages: related categories) ── */}
+      {lang && related.length > 0 && (
+        <section className="bg-surface py-14 md:py-16" aria-labelledby="category-topics">
+          <div className="mx-auto max-w-5xl px-4 text-center md:px-6">
+            <h2 id="category-topics" className="reveal font-display text-2xl font-bold text-ink md:text-3xl">{content.topicsHeading}</h2>
+            <p className="reveal mx-auto mt-3 max-w-2xl text-muted-foreground">{content.topicsText}</p>
+            <ul className="reveal mt-7 flex flex-wrap justify-center gap-2">
+              {related.map(r => (
+                <li key={r.dbSlug}>
+                  <Link to={r.path} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:text-brand-blue">
+                    <span aria-hidden>{r.emoji}</span> {r.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
       {/* ── Topics ── */}
-      {category && category.subcategories.length > 0 && (
+      {!lang && category && category.subcategories.length > 0 && (
         <section className="bg-surface py-14 md:py-16" aria-labelledby="category-topics">
           <div className="mx-auto max-w-5xl px-4 text-center md:px-6">
             <h2 id="category-topics" className="reveal font-display text-2xl font-bold text-ink md:text-3xl">{content.topicsHeading}</h2>

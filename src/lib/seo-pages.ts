@@ -54,14 +54,18 @@ export const STATIC_PAGES: (SeoPage & { policy?: string })[] = [
     description: "Kuchu Puchu terms and conditions | The rules for using the Kuchu Puchu app and website, for parents, viewers and kids video creators." },
 ];
 
-/** The 15 kids categories: database slug → page address, name and search texts. Content: category-pages.ts. */
-export const CATEGORY_SEO: (SeoPage & { dbSlug: string; emoji: string })[] = [
+/** A category (or language) landing page. alwaysIndex: the page has evergreen content of its own, so it
+ *  stays in search even before its first video (other pages are noindex until then). */
+export type LandingSeo = SeoPage & { dbSlug: string; emoji: string; alwaysIndex?: boolean; lang?: string };
+
+/** The 25 kids categories: database slug → page address, name and search texts. Content: category-pages.ts. */
+export const CATEGORY_SEO: LandingSeo[] = [
   { dbSlug: "cartoons-animation", path: "/cartoons-for-kids", label: "Cartoons", emoji: "🎬",
-    title: "Kuchu Puchu Cartoons — Funny Cartoon Videos for Kids",
-    description: "Free Kuchu Puchu Cartoons for Kids and Parents | Funny, gentle cartoon videos and animated adventures for kids aged 3–8, with no ads. Download Kuchu Puchu App" },
+    title: "Kuchu Puchu Cartoon — Puchu Cartoon Videos for Kids in Hindi",
+    description: "Watch the Kuchu Puchu cartoon free | Funny Puchu cartoon videos and animation for kids aged 3–8 in Hindi, English & Punjabi, with no ads. Download Kuchu Puchu App" },
   { dbSlug: "rhymes-songs", path: "/nursery-rhymes", label: "Nursery Rhymes", emoji: "🎵",
-    title: "Kuchu Puchu Nursery Rhymes — Kids Songs & Poems Videos",
-    description: "Free Kuchu Puchu Nursery Rhymes for Kids and Parents | Sing-along rhymes, poems, lullabies and learning songs in Hindi, English & more. Download Kuchu Puchu App" },
+    title: "Kuchu Puchu Nursery Rhymes — Trending Kids Rhymes & Songs",
+    description: "Free Kuchu Puchu Nursery Rhymes for Kids and Parents | Trending kids rhymes, sing-along songs, lullabies and learning songs in Hindi, English & more. Download Kuchu Puchu App" },
   { dbSlug: "stories", path: "/kids-stories", label: "Stories", emoji: "📖",
     title: "Kuchu Puchu Stories — Moral & Bedtime Stories for Kids",
     description: "Free Kuchu Puchu Stories for Kids and Parents | Short bedtime stories, moral stories, fairy tales and folk tales for kids aged 3–8. Download Kuchu Puchu App" },
@@ -74,9 +78,9 @@ export const CATEGORY_SEO: (SeoPage & { dbSlug: string; emoji: string })[] = [
   { dbSlug: "animals", path: "/animal-videos-for-kids", label: "Animals", emoji: "🦁",
     title: "Kuchu Puchu Animals — Animal Names & Sounds for Kids",
     description: "Free Kuchu Puchu Animal Videos for Kids and Parents | Learn farm, jungle and ocean animal names, animal sounds and caring for pets. Download Kuchu Puchu App" },
-  { dbSlug: "arts-crafts", path: "/drawing-for-kids", label: "Drawing & Crafts", emoji: "🎨",
-    title: "Kuchu Puchu Drawing — Arts, Coloring & Crafts for Kids",
-    description: "Free Kuchu Puchu Drawing and Craft Videos for Kids and Parents | Easy drawing, coloring, painting and simple crafts kids can make. Download Kuchu Puchu App" },
+  { dbSlug: "arts-crafts", path: "/drawing-for-kids", label: "Drawing & Crafts", emoji: "🎨", alwaysIndex: true,
+    title: "Kuchu Puchu Drawing — Easy Drawing for Kids, Step by Step",
+    description: "Kuchu Puchu drawing for kids | How to draw Kuchu & Puchu step by step, easy drawing, a free coloring page, painting and simple crafts. Download Kuchu Puchu App" },
   { dbSlug: "dance-movement", path: "/dance-videos-for-kids", label: "Dance", emoji: "💃",
     title: "Kuchu Puchu Dance — Dance Songs & Kids Yoga Videos",
     description: "Free Kuchu Puchu Dance Videos for Kids and Parents | Dance-along songs, movement games and kids yoga to keep little bodies active. Download Kuchu Puchu App" },
@@ -96,11 +100,55 @@ export const CATEGORY_SEO: (SeoPage & { dbSlug: string; emoji: string })[] = [
     title: "Kuchu Puchu Cooking — Easy Recipe Videos for Kids",
     description: "Free Kuchu Puchu Cooking Videos for Kids and Parents | Simple, safe recipes kids can make with a grown-up. Download Kuchu Puchu App" },
   { dbSlug: "learn-languages", path: "/learn-languages-for-kids", label: "Languages", emoji: "🗣️",
-    title: "Kuchu Puchu Languages — Learn Hindi & English Words for Kids",
-    description: "Free Kuchu Puchu Language Videos for Kids and Parents | Learn first words and simple phrases in Hindi, English and more. Download Kuchu Puchu App" },
+    title: "Kuchu Puchu Languages — Learn Hindi, English & Punjabi for Kids",
+    description: "Free Kuchu Puchu Language Videos for Kids and Parents | Kuchu Puchu in Hindi, English, Punjabi, Urdu & more: first words and simple phrases. Download Kuchu Puchu App" },
   { dbSlug: "sports-play", path: "/sports-videos-for-kids", label: "Sports", emoji: "⚽",
     title: "Kuchu Puchu Sports — Outdoor Play & Sports Videos for Kids",
     description: "Free Kuchu Puchu Sports Videos for Kids and Parents | Active outdoor play and first sports skills, always played safely. Download Kuchu Puchu App" },
+  // ── 10 more (added 2026-11; database rows from prisma/discovery-data.mjs) ──
+  { dbSlug: "school-classroom", path: "/school-cartoons-for-kids", label: "School Cartoons", emoji: "🏫",
+    title: "Kuchu Puchu School Cartoons — Jungle School & Classroom Videos",
+    description: "Free Kuchu Puchu School Cartoons for Kids and Parents | Funny Jungle School classroom cartoons and fun school lessons in Hindi, English & Punjabi. Download Kuchu Puchu App" },
+  { dbSlug: "poems", path: "/poems-for-kids", label: "Poems", emoji: "📝",
+    title: "Kuchu Puchu Poems — Hindi & English Poems for Kids (Kavita)",
+    description: "Free Kuchu Puchu Poems for Kids and Parents | Short Hindi poems (kavita), English poems and Punjabi poems to read and recite. Download Kuchu Puchu App" },
+  { dbSlug: "maths", path: "/maths-for-kids", label: "Maths", emoji: "🧮",
+    title: "Kuchu Puchu Maths — Counting, Numbers & Tables for Kids",
+    description: "Free Kuchu Puchu Maths Videos for Kids and Parents | Counting 1 to 10, numbers, tables (pahade), adding and taking away, made fun. Download Kuchu Puchu App" },
+  { dbSlug: "alphabets", path: "/alphabet-for-kids", label: "Alphabet", emoji: "🅰️",
+    title: "Kuchu Puchu Alphabet — ABC, Hindi Varnamala & Punjabi for Kids",
+    description: "Free Kuchu Puchu Alphabet Videos for Kids and Parents | Learn ABC and phonics, Hindi varnamala, Punjabi Gurmukhi and Urdu letters. Download Kuchu Puchu App" },
+  { dbSlug: "words-names", path: "/vocabulary-for-kids", label: "Words & Names", emoji: "💬",
+    title: "Kuchu Puchu Words — Names of Things & Vocabulary for Kids",
+    description: "Free Kuchu Puchu Vocabulary Videos for Kids and Parents | Names of everyday things, action words and simple sentences in Hindi & English. Download Kuchu Puchu App" },
+  { dbSlug: "body-routine", path: "/body-parts-for-kids", label: "My Body & Routine", emoji: "🪥",
+    title: "Kuchu Puchu My Body — Body Parts & Daily Routine for Kids",
+    description: "Free Kuchu Puchu Body Parts Videos for Kids and Parents | Learn body parts names, daily routine, brushing, bath time and the five senses. Download Kuchu Puchu App" },
+  { dbSlug: "fruits-vegetables", path: "/fruits-and-vegetables-for-kids", label: "Fruits & Vegetables", emoji: "🍎",
+    title: "Kuchu Puchu Fruits & Vegetables — Names & Rhymes for Kids",
+    description: "Free Kuchu Puchu Fruits and Vegetables Videos for Kids and Parents | Fruits names, vegetables names and food rhymes in Hindi & English. Download Kuchu Puchu App" },
+  { dbSlug: "family-friends", path: "/family-videos-for-kids", label: "Family & Friends", emoji: "👨‍👩‍👧",
+    title: "Kuchu Puchu Family — Maa, Papa, Dadi & Dadu Videos for Kids",
+    description: "Free Kuchu Puchu Family Videos for Kids and Parents | Poems and videos about Maa, Papa, grandparents, brothers, sisters and friends. Download Kuchu Puchu App" },
+  { dbSlug: "music-instruments", path: "/music-for-kids", label: "Music", emoji: "🥁",
+    title: "Kuchu Puchu Music — Musical Instruments & Sounds for Kids",
+    description: "Free Kuchu Puchu Music Videos for Kids and Parents | Musical instruments names, Indian instruments like the dhol and tumbi, and rhythm. Download Kuchu Puchu App" },
+  { dbSlug: "vehicles", path: "/vehicles-for-kids", label: "Vehicles", emoji: "🚗",
+    title: "Kuchu Puchu Vehicles — Cars, Trains & JCB Videos for Kids",
+    description: "Free Kuchu Puchu Vehicles Videos for Kids and Parents | Cars, buses, trains, planes, fire trucks and JCB diggers for little vehicle fans. Download Kuchu Puchu App" },
+];
+
+/** Language landing pages: every video in one language (content: category-pages.ts, dbSlug "lang-<code>"). */
+export const LANGUAGE_SEO: LandingSeo[] = [
+  { dbSlug: "lang-hi", lang: "hi", path: "/hindi-videos-for-kids", label: "Hindi Videos", emoji: "अ",
+    title: "Kuchu Puchu in Hindi — Hindi Cartoons, Poems & Stories for Kids",
+    description: "Kuchu Puchu Hindi videos for kids | Free Hindi cartoons, Hindi poems (kavita), stories and learning videos for kids aged 3–8, with no ads. Download Kuchu Puchu App" },
+  { dbSlug: "lang-pa", lang: "pa", path: "/punjabi-videos-for-kids", label: "Punjabi Videos", emoji: "ੳ",
+    title: "Kuchu Puchu in Punjabi — Punjabi Cartoons, Poems & Alphabet",
+    description: "Kuchu Puchu Punjabi videos for kids | Free Punjabi cartoons, poems, Gurmukhi alphabet, tables and learning videos for kids aged 3–8. Download Kuchu Puchu App" },
+  { dbSlug: "lang-en", lang: "en", path: "/english-videos-for-kids", label: "English Videos", emoji: "🔤",
+    title: "Kuchu Puchu in English — English Learning Videos & Poems for Kids",
+    description: "Kuchu Puchu English videos for kids | Free English learning videos, poems, outdoor games and science for kids aged 3–8, with no ads. Download Kuchu Puchu App" },
 ];
 
 /** Old in-site policy addresses (/policies/<slug>) → their real pages. */
@@ -113,6 +161,9 @@ const bare = (p: string) => (p.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "
 export const staticPage = (path: string) => STATIC_PAGES.find(p => p.path === bare(path));
 export const categorySeoByPath = (path: string) => CATEGORY_SEO.find(c => c.path === bare(path));
 export const categorySeoBySlug = (dbSlug: string) => CATEGORY_SEO.find(c => c.dbSlug === dbSlug);
+/** A category or language landing page. */
+export const landingSeoByPath = (path: string) => categorySeoByPath(path) ?? LANGUAGE_SEO.find(c => c.path === bare(path));
+export const landingSeoBySlug = (dbSlug: string) => categorySeoBySlug(dbSlug) ?? LANGUAGE_SEO.find(c => c.dbSlug === dbSlug);
 /** The page address for a database category slug, e.g. "rhymes-songs" → "/nursery-rhymes". */
 export const categoryPath = (dbSlug: string) => categorySeoBySlug(dbSlug)?.path ?? `/explore?category=${dbSlug}`;
 
@@ -122,7 +173,7 @@ export const isChannelPath = (p: string) => /^\/c\/[^/?#]+/.test(p);
 /** True for addresses that are real pages (rendered by the server), not "/#/..." screens. */
 export function isCleanPath(p: string): boolean {
   const b = bare(p);
-  return b === "/" || isChannelPath(b) || !!staticPage(b) || !!categorySeoByPath(b) || !!blogPostByPath(b);
+  return b === "/" || isChannelPath(b) || !!staticPage(b) || !!landingSeoByPath(b) || !!blogPostByPath(b);
 }
 
 /** Maps an old in-site address to its real page, e.g. "/policies/monetization" → "/monetization". */
@@ -136,7 +187,7 @@ export function toCleanPath(p: string): string {
 export function titleForPath(path: string): string | null {
   const b = bare(path);
   if (b === "/") return SITE_TITLE;
-  return staticPage(b)?.title ?? categorySeoByPath(b)?.title ?? blogPostByPath(b)?.title ?? null;
+  return staticPage(b)?.title ?? landingSeoByPath(b)?.title ?? blogPostByPath(b)?.title ?? null;
 }
 
 /** Search metadata for a page from the lists above. */
